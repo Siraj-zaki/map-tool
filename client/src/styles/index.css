@@ -1,0 +1,60 @@
+@import 'tailwindcss';
+
+/* Only essential overrides - everything else uses Tailwind classes */
+
+/* Mapbox GL styles override */
+.mapboxgl-map {
+  font-family: inherit;
+}
+
+.mapboxgl-ctrl-group {
+  background: #080e11 !important;
+  border: 1px solid #1e2a33 !important;
+  border-radius: 8px !important;
+}
+
+.mapboxgl-ctrl-group button {
+  background: transparent !important;
+  border: none !important;
+}
+
+.mapboxgl-ctrl-group button:hover {
+  background: #088d95 !important;
+}
+
+.mapboxgl-ctrl-group button span {
+  filter: invert(1);
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #080e11;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e2a33;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #088d95;
+}
+
+/* Spin animation for loading */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.fa-spin {
+  animation: spin 1s linear infinite;
+}

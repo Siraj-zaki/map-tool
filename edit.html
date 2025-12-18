@@ -1,0 +1,3817 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Route Calculator</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <script src="https://cdn.maptiler.com/maptiler-sdk-js/v3.0.1/maptiler-sdk.umd.min.js"></script>
+    <link href="https://cdn.maptiler.com/maptiler-sdk-js/v3.0.1/maptiler-sdk.css" rel="stylesheet" />
+    <script src="https://cdn.maptiler.com/maptiler-elevation-profile-control/v3.0.1/maptiler-elevation-profile-control.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+:root {
+    --background-dark: #0B1215;    
+    --background-darker: #080E11;   
+    --highlight: #088D95;           
+    --highlight-soft: #0DA6AE;     
+    --highlight-transparent: #0da6aea4;     
+    --text-primary: #E0E0E0;  
+    --text-danger: #ff0000;     
+    --text-green: #005c14; 
+    --text-secondary: #A0A0A0;      
+    --border-color: #1E2A33;       
+    --shadow-light: rgba(8, 141, 149, 0.2);
+    --shadow-medium: rgba(0, 0, 0, 0.3);
+    --border-radius: 8px;
+    --transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* Base styles */
+body { 
+    margin: 0; 
+    padding: 0; 
+    font-family: 'Segoe UI', Arial, sans-serif;
+    overflow: hidden;
+    background: var(--background-dark);
+    color: var(--text-primary);
+}
+
+/* Layout */
+.wrapper {
+    position: fixed;
+    inset: 0;
+    display: flex;
+}
+
+.content {
+    position: relative;
+    flex: 1;
+    transition: var(--transition);
+}
+
+.content.sidebar-active {
+    margin-right: 320px;
+}
+
+#map { 
+    position: absolute;
+    inset: 0;
+    background: var(--background-darker);
+    transition: bottom 0.3s ease;
+}
+
+#map.with-profile {
+    bottom: 200px;
+}
+
+#profileContainer {
+    background: var(--background-darker);
+    width: 100%;
+    height: 200px;
+    position: absolute;
+    bottom: 0;
+    z-index: 999;
+    display: none;
+    transition: display 0.3s ease;
+}
+
+#profileContainer.visible {
+    display: block;
+}
+
+/* Sidebar */
+#sidebar {
+    position: fixed;
+    top: 0;
+    right: -320px;
+    width: 300px;
+    height: 100%;
+    background: var(--background-darker);
+    padding: 12px;
+    box-shadow: -2px 0 15px var(--shadow-medium);
+    transition: var(--transition);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-left: 1px solid var(--border-color);
+}
+
+#sidebar.active {
+    right: 0;
+}
+
+/* Buttons */
+.button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.85rem;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    transition: var(--transition);
+    color: var(--text-primary);
+    min-height: 32px;
+}
+
+.button i {
+    font-size: 0.85rem;
+}
+
+.button.blue {
+    background: var(--highlight);
+}
+
+.button.blue:hover {
+    background: var(--highlight-soft);
+    transform: translateY(-1px);
+}
+
+.button.red {
+    background: var(--text-danger);
+}
+
+.button.red:hover {
+    background: #ff1a1a;
+    transform: translateY(-1px);
+}
+
+/* Points Section */
+.points-section {
+    background: var(--background-dark);
+    border-radius: var(--border-radius);
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    flex: 1;
+    min-height: 100px;
+    max-height: calc(100vh - 500px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+#points-list {
+    overflow-y: auto;
+    flex: 1;
+    scrollbar-width: thin;
+    scrollbar-color: var(--highlight) var(--background-dark);
+    padding-right: 4px;
+}
+
+#points-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+#points-list::-webkit-scrollbar-track {
+    background: var(--background-dark);
+    border-radius: 2px;
+}
+
+#points-list::-webkit-scrollbar-thumb {
+    background-color: var(--highlight);
+    border-radius: 2px;
+}
+
+.point-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    background: var(--background-darker);
+    border-radius: var(--border-radius);
+    margin-bottom: 4px;
+    border: 1px solid var(--border-color);
+    transition: var(--transition);
+    font-size: 0.85rem;
+}
+
+.point-item:last-child {
+    margin-bottom: 0;
+}
+
+.point-item .point-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+}
+
+.point-item .point-name i {
+    font-size: 0.85rem;
+}
+
+.point-item .remove-btn {
+    background: none;
+    border: none;
+    color: var(--text-danger);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: var(--border-radius);
+    transition: var(--transition);
+    font-size: 0.85rem;
+}
+
+.point-item .remove-btn:hover {
+    background: rgba(255, 0, 0, 0.1);
+}
+
+/* Stats Section */
+.stats-section {
+    background: var(--background-dark);
+    border-radius: var(--border-radius);
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 5px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 8px;
+    background: var(--background-darker);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    margin-bottom: 4px;
+    font-size: 0.85rem;
+}
+
+.stat-item:last-child {
+    margin-bottom: 0;
+}
+
+.stat-item span:first-child {
+    color: var(--text-secondary);
+}
+
+.stat-item span:last-child {
+    color: var(--highlight);
+    font-weight: 500;
+}
+
+/* Headers */
+.points-section h3,
+.stats-section h3 {
+    color: var(--highlight);
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Info Box */
+#info {
+    padding: 8px;
+    border-radius: var(--border-radius);
+    background: var(--background-dark);
+    font-size: 0.85rem;
+    color: var(--highlight);
+    line-height: 1.4;
+    display: none;
+    border: 1px solid var(--border-color);
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    #sidebar {
+        width: 260px;
+        right: -260px;
+        padding: 10px;
+    }
+
+    .content.sidebar-active {
+        margin-right: 260px;
+    }
+
+    .button {
+        padding: 6px 10px;
+        font-size: 0.8rem;
+        min-height: 28px;
+    }
+
+    .points-section,
+    .stats-section {
+        padding: 10px;
+    }
+
+    .point-item,
+    .stat-item {
+        padding: 5px 8px;
+        font-size: 0.8rem;
+    }
+
+    .points-section h3,
+    .stats-section h3 {
+        font-size: 0.85rem;
+    }
+}
+
+/* Markers */
+.marker {
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 2px solid var(--text-primary);
+    box-shadow: 0 2px 8px var(--shadow-light);
+    cursor: pointer;
+    padding: 8px 8px 8px 10px
+}
+
+.marker.editing {
+    border: 2px solid var(--text-danger) !important;
+    transform: scale(1.1);
+}
+
+.marker.draggable {
+    cursor: grab;
+}
+
+.marker.dragging {
+    cursor: grabbing;
+    opacity: 0.8;
+    transform: scale(1.1);
+}
+
+
+
+.marker .waypoint-number {
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Top Button */
+#start-route-btn {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    background: var(--background-darker);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 10px 20px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 15px var(--shadow-medium);
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#start-route-btn:hover {
+    background: var(--background-dark);
+    transform: translateX(-50%) translateY(-1px);
+    border-color: var(--highlight);
+}
+
+#start-route-btn i {
+    color: var(--highlight);
+}
+
+#info-overlay {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    background: var(--background-darker);
+    padding: 10px 20px;
+    border-radius: var(--border-radius);
+    box-shadow: 0 4px 15px var(--shadow-medium);
+    text-align: center;
+    display: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    min-width: 200px;
+}
+
+#info-overlay i {
+    color: var(--highlight);
+    margin-right: 8px;
+}
+
+#upload-gpx-wrapper {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            display: none;  /* Initially hidden */
+        }
+
+        #upload-gpx-btn {
+            background: var(--background-darker);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 10px 20px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 15px var(--shadow-medium);
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #upload-gpx-btn:hover {
+            background: var(--background-dark);
+            border-color: var(--highlight);
+            transform: translateY(-1px);
+        }
+
+        #upload-gpx-btn i {
+            color: var(--highlight);
+        }
+
+        #gpx-file-input {
+            display: none;
+        }
+
+        @media (max-width: 480px) {
+            #upload-gpx-btn {
+                padding: 8px 16px;
+                font-size: 0.85rem;
+                top: 120px;
+            }
+        }
+
+@media (max-width: 480px) {
+    #start-route-btn {
+        padding: 8px 16px;
+        font-size: 0.85rem;
+    }
+
+    #info-overlay {
+        padding: 8px 16px;
+        font-size: 0.85rem;
+        top: 70px;
+    }
+}
+
+#poi-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(11, 18, 21, 0.9);
+            display: none;
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            overflow-y: auto;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .poi-modal-content {
+            background: var(--background-dark);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 15px var(--shadow-medium);
+        }
+
+        .poi-modal-content h2 {
+            color: var(--highlight);
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .poi-form-group {
+            margin-bottom: 15px;
+        }
+
+        .poi-form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--text-secondary);
+        }
+
+        .poi-form-group input[type="text"],
+        .poi-form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+            background: var(--background-darker);
+            color: var(--text-primary);
+        }
+
+        .poi-form-group input[type="file"] {
+            width: 100%;
+        }
+
+        .poi-checkboxes {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .poi-checkboxes label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-primary);
+        }
+
+        .poi-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        #pois-section {
+            background: var(--background-dark);
+            border-radius: var(--border-radius);
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            margin-top: 10px;
+        }
+
+        #pois-section {
+    background: var(--background-dark);
+    border-radius: var(--border-radius);
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    margin-top: 10px;
+}
+
+#pois-section h3 {
+    color: var(--highlight);
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+#pois-list {
+    overflow-y: auto;
+    flex: 1;
+    scrollbar-width: thin;
+    scrollbar-color: var(--highlight) var(--background-dark);
+    padding-right: 4px;
+    max-height: 200px;
+}
+
+#pois-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+#pois-list::-webkit-scrollbar-track {
+    background: var(--background-dark);
+    border-radius: 2px;
+}
+
+#pois-list::-webkit-scrollbar-thumb {
+    background-color: var(--highlight);
+    border-radius: 2px;
+}
+
+.poi-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    background: var(--background-darker);
+    border-radius: var(--border-radius);
+    margin-bottom: 4px;
+    border: 1px solid var(--border-color);
+    transition: var(--transition);
+    font-size: 0.85rem;
+}
+
+.poi-item:last-child {
+    margin-bottom: 0;
+}
+
+.poi-item .poi-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+}
+
+.poi-item .poi-name i {
+    font-size: 0.85rem;
+    color: var(--highlight);
+}
+
+.poi-item-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.poi-item-actions .button {
+    padding: 4px;
+    min-height: unset;
+    margin: 0;
+    width: 24px;
+    height: 24px;
+    font-size: 0.85rem;
+}
+
+.poi-item-actions .button.red {
+    background: none;
+    color: var(--text-danger);
+}
+
+.poi-item-actions .button.red:hover {
+    background: rgba(255, 0, 0, 0.1);
+    transform: none;
+}
+
+.poi-item-actions .button.blue {
+    background: none;
+    color: var(--highlight);
+}
+
+.poi-item-actions .button.blue:hover {
+    background: rgba(8, 141, 149, 0.1);
+    transform: none;
+}
+
+.poi-item-actions .button.green {
+    background: none;
+    color: var(--text-green);
+}
+
+.poi-item-actions .button.green:hover {
+    background: rgba(0, 92, 20, 0.1);
+    transform: none;
+}
+
+        .poi-marker {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: var(--highlight);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            border: 2px solid var(--background-darker);
+            box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+        }
+
+        .poi-popup {
+            max-width: 250px;
+            padding: 10px;
+            background: var(--background-dark);
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 15px var(--shadow-medium);
+        }
+
+        .poi-popup img {
+            max-width: 100%;
+            border-radius: var(--border-radius);
+            margin-bottom: 10px;
+        }
+
+        .poi-popup .poi-details {
+            margin-top: 10px;
+        }
+
+        .poi-popup .poi-amenities {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .poi-popup .poi-amenity {
+            background: var(--highlight-transparent);
+            color: var(--text-primary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+        }
+
+        .poi-marker.highlighted {
+    border: 2px solid red;
+    border-radius: 50%;
+}
+
+.image-preview-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.image-preview {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.image-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.image-preview .remove-image {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: rgba(255,0,0,0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    z-index: 10;
+}
+
+.image-preview .remove-image:hover {
+    background: rgba(255,0,0,0.9);
+}
+
+/* Save Route Modal Styles */
+#save-route-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(11, 18, 21, 0.9);
+    display: none;
+    z-index: 2000;
+    justify-content: center;
+    align-items: center;
+}
+
+#save-route-modal .modal-content {
+    background: var(--background-dark);
+    border-radius: var(--border-radius);
+    padding: 20px;
+    width: 100%;
+    max-width: 400px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 15px var(--shadow-medium);
+}
+
+#save-route-modal h2 {
+    color: var(--highlight);
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+#save-route-modal .form-group {
+    margin-bottom: 15px;
+}
+
+#save-route-modal .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--text-secondary);
+}
+
+#save-route-modal .form-group input {
+    width: 100%;
+    padding: 8px;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    background: var(--background-darker);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+#save-route-modal .modal-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+#save-route-modal .modal-buttons .button {
+    flex: 1;
+    margin: 0;
+}
+
+#success-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(11, 18, 21, 0.9);
+    display: none;
+    z-index: 2001; /* Higher than other modals */
+    justify-content: center;
+    align-items: center;
+}
+
+#success-modal .modal-content {
+    background: var(--background-dark);
+    border-radius: var(--border-radius);
+    padding: 20px;
+    width: 100%;
+    max-width: 400px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 15px var(--shadow-medium);
+    text-align: center;
+}
+
+#success-modal h2 {
+    color: #4CAF50; /* Green color for success */
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+#success-modal .modal-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+#success-modal .modal-buttons .button {
+    flex: 1;
+    margin: 0;
+}
+
+#success-modal .button.green {
+    background: #4CAF50;
+}
+
+#success-modal .button.green:hover {
+    background: #45a049;
+    transform: translateY(-1px);
+}
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="content" id="map-container">
+            <div id="map"></div>
+            <div id="profileContainer"></div>
+            <button id="start-route-btn">
+                <i class="fas fa-route"></i>
+                Route erstellen
+            </button>
+            <div id="info-overlay"></div>
+            <div id="upload-gpx-wrapper">
+                <button id="upload-gpx-btn">
+                    <i class="fas fa-file-upload"></i>
+                    GPX hochladen
+                </button>
+                <input type="file" id="gpx-file-input" accept=".gpx" style="display: none;">
+            </div>
+        </div>
+        <div id="sidebar">
+            <button class="button blue" id="add-waypoint-btn" onclick="addWaypoint()" disabled>
+                <i class="fas fa-plus"></i>
+                Waypoint hinzufügen
+            </button>
+            <button class="button blue" id="add-poi-btn">
+                <i class="fas fa-map-marker-alt"></i>
+                POI hinzufügen
+            </button>
+    
+            <button class="button blue" id="save-route-btn">
+                <i class="fas fa-save"></i>
+                Route speichern
+            </button>
+            <button class="button red" onclick="clearRoute()">
+                <i class="fas fa-trash"></i>
+                Route löschen
+            </button>
+    
+            <div id="info"></div>
+            
+            <div id="pois-section">
+                <h3>Interessenpunkte</h3>
+                <div id="pois-list"></div>
+            </div>
+    
+            <div class="points-section">
+                <h3>Routen-Punkte</h3>
+                <div id="points-list"></div>
+            </div>
+            <div class="stats-section">
+                <h3>Routen-Statistiken</h3>
+                <div class="stat-item">
+                    <span>Entfernung</span>
+                    <span id="distance">0,0 km</span>
+                </div>
+                <div class="stat-item">
+                    <span>Dauer</span>
+                    <span id="duration">0h 0m</span>
+                </div>
+                <div class="stat-item">
+                    <span>Höchster Punkt</span>
+                    <span id="highest">- m</span>
+                </div>
+                <div class="stat-item">
+                    <span>Niedrigster Punkt</span>
+                    <span id="lowest">- m</span>
+                </div>
+                <div class="stat-item">
+                    <span>Gesamtanstieg</span>
+                    <span id="ascent">- m</span>
+                </div>
+                <div class="stat-item">
+                    <span>Gesamtabstieg</span>
+                    <span id="descent">- m</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- POI Modal -->
+    <div id="poi-modal">
+        <div class="poi-modal-content">
+            <h2>POI hinzufügen</h2>
+            <div class="poi-form-group">
+                <label>Name</label>
+                <input type="text" id="poi-name" placeholder="Namen des POI eingeben">
+            </div>
+            <div class="poi-form-group">
+                <label>Bilder</label>
+                <input type="file" id="poi-images" multiple accept="image/png, image/jpeg, image/jpg">
+                <div id="image-preview" class="image-preview-container"></div>
+            </div>
+            <div class="poi-form-group">
+                <label>Ausstattung & Merkmale</label>
+                <div class="poi-checkboxes">
+                    <label>
+                        <input type="checkbox" name="amenities" value="wc">
+                        🚻 Toilette
+                    </label>
+                    <label>
+                        <input type="checkbox" name="amenities" value="food">
+                        🍽️ Verpflegung
+                    </label>
+                    <label>
+                        <input type="checkbox" name="amenities" value="charging">
+                        ⚡️ Ladestation
+                    </label>
+                    <label>
+                        <input type="checkbox" name="amenities" value="difficulty">
+                        🏔️ Schwierigkeit
+                    </label>
+                </div>
+            </div>
+            <div class="poi-form-group">
+                <label>Kurzbeschreibung</label>
+                <textarea id="poi-description" placeholder="Kurze Beschreibung eingeben"></textarea>
+            </div>
+            <div class="poi-form-group">
+                <label>Beste Besuchszeit</label>
+                <select id="best-time">
+                    <option value="">Bitte auswählen...</option>
+                    <option value="morning">Morgens</option>
+                    <option value="noon">Mittags</option>
+                    <option value="afternoon">Nachmittags</option>
+                    <option value="evening">Abends</option>
+                    <option value="allday">Ganztägig</option>
+                </select>
+            </div>
+            <div class="poi-form-group">
+                <label>POI-Typ</label>
+                <select id="poi-type">
+                    <option value="">Bitte auswählen...</option>
+                    <option value="hotel">Hotel</option>
+                    <option value="restaurant">Restaurant</option>
+                    <option value="gipfel">Gipfel</option>
+                    <option value="highlight">Highlight</option>
+                </select>
+            </div>
+            <div class="poi-buttons">
+                <button class="button blue" id="save-poi-btn">
+                    <i class="fas fa-save"></i>
+                    Speichern
+                </button>
+                <button class="button red" id="cancel-poi-btn">
+                    <i class="fas fa-times"></i>
+                    Abbrechen
+                </button>
+            </div>
+        </div>
+    </div>
+
+<!-- Save Route Modal -->
+<div id="save-route-modal" class="modal">
+    <div class="modal-content">
+        <h2>Route speichern</h2>
+        <div class="form-group">
+            <label>Name der Route</label>
+            <input type="text" id="route-name-input" placeholder="Namen der Route eingeben">
+        </div>
+        <div class="modal-buttons">
+            <button class="button blue" id="confirm-save-route-btn">
+                <i class="fas fa-save"></i>
+                Speichern
+            </button>
+            <button class="button red" id="cancel-save-route-btn">
+                <i class="fas fa-times"></i>
+                Abbrechen
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="success-modal" class="modal">
+    <div class="modal-content">
+        <h2>Route gespeichert</h2>
+        <div class="modal-buttons">
+            <button class="button blue" id="continue-editing-btn">
+                <i class="fas fa-edit"></i>
+                Bearbeitung fortsetzen
+            </button>
+            <button class="button green" id="back-to-menu-btn">
+                <i class="fas fa-home"></i>
+                Zum Menü
+            </button>
+        </div>
+    </div>
+</div>
+<script>
+const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoicHVuY2hpbmdtYW4iLCJhIjoiY2p1cjcyMmh2M3NpZDQ5bnEwMDV6ZTE1OSJ9.ef8y6l9fsKFMX91m_Rt2ng';
+maptilersdk.config.apiKey = 'V2Q0BdoLHOZBlB3x3AvW';
+
+let mainTrackLayer = null;
+let zoomTrackLayer = null;
+let epc = null;
+let currentMode = null;
+let startPoint = null;
+let endPoint = null;
+let waypoints = [];
+let markers = [];
+let isRouteStarted = false;
+
+const map = new maptilersdk.Map({
+    container: 'map',
+    style: 'https://api.maptiler.com/maps/d8ad8b28-d066-4ca5-b809-ec0d8cd488a1/style.json?key=V2Q0BdoLHOZBlB3x3AvW',
+    center: [10.34, 51.62],
+    zoom: 9,
+    terrain: true,
+    terrainControl: true
+});
+
+const startRouteBtn = document.getElementById('start-route-btn');
+const addWaypointBtn = document.getElementById('add-waypoint-btn');
+const infoOverlay = document.getElementById('info-overlay');
+const sidebar = document.getElementById('sidebar');
+const mapContainer = document.getElementById('map-container');
+
+// Add zoom event listener to handle marker visibility
+map.on('zoom', () => {
+    const currentZoom = map.getZoom();
+    const shouldShowMarkers = currentZoom >= 12;
+    
+    // Update route markers visibility - only waypoints
+    markers.forEach(({marker, type}) => {
+        if (type === 'via') {
+            const markerElement = marker.getElement();
+            markerElement.style.display = shouldShowMarkers ? 'flex' : 'none';
+        }
+    });
+    
+});
+
+function updateMapSize() {
+    setTimeout(() => {
+        map.resize();
+    }, 300);
+}
+
+function updatePointsList() {
+    const pointsList = document.getElementById('points-list');
+    pointsList.innerHTML = '';
+    
+    // Add start point
+    if (startPoint) {
+        const startItem = document.createElement('div');
+        startItem.className = 'point-item';
+        startItem.innerHTML = `
+            <div class="point-name">
+                <i class="fa-solid fa-play" style="color: #4CAF50"></i>
+                Start 
+            </div>
+            <button class="remove-btn" disabled>
+                <i class="fa-solid fa-times"></i>
+            </button>
+        `;
+        pointsList.appendChild(startItem);
+    }
+
+    // Add waypoints
+    waypoints.forEach((waypoint, index) => {
+        const waypointItem = document.createElement('div');
+        waypointItem.className = 'point-item';
+        waypointItem.innerHTML = `
+            <div class="point-name">
+                <i class="fa-solid fa-circle" style="color: #2196F3"></i>
+                Waypoint ${index + 1}
+            </div>
+            <button class="remove-btn" onclick="removeWaypoint(${index})">
+                <i class="fa-solid fa-times"></i>
+            </button>
+        `;
+        pointsList.appendChild(waypointItem);
+    });
+
+    // Add end point
+    if (endPoint) {
+        const endItem = document.createElement('div');
+        endItem.className = 'point-item';
+        endItem.innerHTML = `
+            <div class="point-name">
+                <i class="fa-solid fa-flag-checkered" style="color: #ff4444"></i>
+                Ziel
+            </div>
+            <button class="remove-btn" disabled>
+                <i class="fa-solid fa-times"></i>
+            </button>
+        `;
+        pointsList.appendChild(endItem);
+    }
+}
+
+function removeWaypoint(index) {
+    // Find and remove the marker for this specific waypoint
+    const markerIndex = markers.findIndex((m, i) => m.type === 'via' && getWaypointIndex(i) === index);
+    if (markerIndex !== -1) {
+        markers[markerIndex].marker.remove();
+        markers.splice(markerIndex, 1);
+    }
+
+    // Remove the waypoint from the array
+    waypoints.splice(index, 1);
+    
+    // Update the points list and recalculate route with skipBoundsAdjustment=true
+    updatePointsList();
+    if (startPoint && endPoint) {
+        calculateRoute(true);
+    }
+}
+
+// Helper function to get waypoint index considering start point in markers array
+function getWaypointIndex(markerIndex) {
+    // Count 'via' type markers before this index
+    return markers.slice(0, markerIndex).filter(m => m.type === 'via').length;
+}
+
+startRouteBtn.addEventListener('click', () => {
+    isRouteStarted = true;
+    startRouteBtn.style.display = 'none';
+    
+    // Show info overlay and upload button together
+    infoOverlay.style.display = 'block';
+    infoOverlay.textContent = 'Auf die Karte klicken, um Start zu setzen';
+    document.getElementById('upload-gpx-wrapper').style.display = 'block';
+    
+    currentMode = 'start';
+    
+    // Reset sidebar position
+    sidebar.classList.remove('active');
+    mapContainer.classList.remove('sidebar-active');
+    setTimeout(() => map.resize(), 300);
+});
+
+
+
+function addWaypoint() {
+    if (!isRouteStarted || !startPoint || !endPoint) return;
+    
+    currentMode = 'waypoint';
+    infoOverlay.style.display = 'block';
+    infoOverlay.textContent = 'Auf die Karte klicken, um Waypoint zu setzen';
+}
+
+
+// Fast route builder that always uses the hybrid approach
+async function getRoute(start, waypoints, end) {
+    const MAX_WAYPOINTS = 23;
+    
+    // Always use hybrid approach without attempting walking first
+    console.log("Using direct hybrid approach for faster route drawing");
+    
+    // For small routes, use per-segment hybrid approach
+    if (waypoints.length <= MAX_WAYPOINTS) {
+        return await buildEfficientHybridRoute(start, waypoints, end);
+    }
+    
+    // For longer routes, split into batches
+    const routeSegments = [];
+    let currentStart = start;
+    
+    // Process waypoints in batches
+    for (let i = 0; i < waypoints.length; i += MAX_WAYPOINTS) {
+        const batchWaypoints = waypoints.slice(i, i + MAX_WAYPOINTS);
+        const isLastSegment = i + MAX_WAYPOINTS >= waypoints.length;
+        const currentEnd = isLastSegment ? end : waypoints[i + MAX_WAYPOINTS];
+        
+        const segmentRoute = await buildEfficientHybridRoute(currentStart, batchWaypoints, currentEnd);
+        if (!segmentRoute) {
+            document.getElementById('info').innerHTML = 'Error: Failed to calculate route segment';
+            return null;
+        }
+        
+        routeSegments.push(segmentRoute.features[0]);
+        currentStart = currentEnd;
+    }
+    
+    // Merge route segments
+    return mergeRouteSegments(routeSegments);
+}
+
+// Efficient hybrid route builder that immediately switches to cycling when walking fails
+async function buildEfficientHybridRoute(start, waypoints, end) {
+    const points = [start, ...waypoints, end];
+    const segments = [];
+    
+    // Process each waypoint pair
+    for (let i = 0; i < points.length - 1; i++) {
+        const segmentStart = points[i];
+        const segmentEnd = points[i + 1];
+        
+        let segmentData = null;
+        
+        // Try walking first (preferred)
+        try {
+            const walkingUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${segmentStart[0]},${segmentStart[1]};${segmentEnd[0]},${segmentEnd[1]}?geometries=geojson&access_token=${MAPBOX_ACCESS_TOKEN}&overview=full`;
+            
+            const walkingResponse = await fetch(walkingUrl);
+            const walkingData = await walkingResponse.json();
+            
+            // Check if walking route is viable 
+            if (walkingData.code === 'Ok' && walkingData.routes && walkingData.routes.length > 0) {
+                // Check for significant detours by comparing distance
+                const haversineDistance = calculateHaversineDistance(
+                    segmentStart[1], segmentStart[0], 
+                    segmentEnd[1], segmentEnd[0]
+                ) * 1000; // Convert to meters
+                
+                const routeDistance = walkingData.routes[0].distance;
+                const detourRatio = routeDistance / haversineDistance;
+                
+                // If walking route is a reasonable path (not a huge detour)
+                if (detourRatio < 2.0) { // Accept up to 2x the direct distance
+                    const duration = calculateDurationBasedOnSpeed(routeDistance / 1000, 5);
+                    
+                    segmentData = {
+                        geometry: walkingData.routes[0].geometry,
+                        distance: routeDistance,
+                        duration: duration,
+                        profile: 'walking'
+                    };
+                }
+            }
+        } catch (error) {
+            console.error(`Error with walking route for segment ${i+1}:`, error);
+        }
+        
+        // If walking failed or resulted in excessive detour, try cycling
+        if (!segmentData) {
+            try {
+                const cyclingUrl = `https://api.mapbox.com/directions/v5/mapbox/cycling/${segmentStart[0]},${segmentStart[1]};${segmentEnd[0]},${segmentEnd[1]}?geometries=geojson&access_token=${MAPBOX_ACCESS_TOKEN}&overview=full`;
+                
+                const cyclingResponse = await fetch(cyclingUrl);
+                const cyclingData = await cyclingResponse.json();
+                
+                if (cyclingData.code === 'Ok' && cyclingData.routes && cyclingData.routes.length > 0) {
+                    const duration = calculateDurationBasedOnSpeed(cyclingData.routes[0].distance / 1000, 10);
+                    
+                    segmentData = {
+                        geometry: cyclingData.routes[0].geometry,
+                        distance: cyclingData.routes[0].distance,
+                        duration: duration,
+                        profile: 'cycling'
+                    };
+                }
+            } catch (error) {
+                console.error(`Error with cycling route for segment ${i+1}:`, error);
+            }
+        }
+        
+        // If both walking and cycling failed, use direct line
+        if (!segmentData) {
+            const distanceKm = calculateHaversineDistance(
+                segmentStart[1], segmentStart[0], 
+                segmentEnd[1], segmentEnd[0]
+            );
+            
+            segmentData = {
+                geometry: {
+                    type: 'LineString',
+                    coordinates: [segmentStart, segmentEnd]
+                },
+                distance: distanceKm * 1000, // Convert to meters
+                duration: calculateDurationBasedOnSpeed(distanceKm, 3),
+                profile: 'direct'
+            };
+        }
+        
+        segments.push(segmentData);
+    }
+    
+    // Combine segments
+    const combinedGeometry = {
+        type: 'LineString',
+        coordinates: []
+    };
+    
+    let totalDistance = 0;
+    let totalDuration = 0;
+    
+    segments.forEach((segment, index) => {
+        const coords = segment.geometry.coordinates;
+        const coordsToAdd = index > 0 ? coords.slice(1) : coords;
+        
+        combinedGeometry.coordinates = combinedGeometry.coordinates.concat(coordsToAdd);
+        totalDistance += segment.distance;
+        totalDuration += segment.duration;
+    });
+    
+    // Determine route type
+    const walkingCount = segments.filter(s => s.profile === 'walking').length;
+    const cyclingCount = segments.filter(s => s.profile === 'cycling').length;
+    
+    let routeType = 'hybrid';
+    if (walkingCount === segments.length) {
+        routeType = 'walking';
+    } else if (cyclingCount === segments.length) {
+        routeType = 'cycling';
+    }
+    
+    return {
+        type: 'FeatureCollection',
+        features: [{
+            type: 'Feature',
+            properties: {
+                name: 'Calculated Route',
+                distance: totalDistance,
+                duration: totalDuration,
+                routeType: routeType,
+                segments: segments.map(s => s.profile)
+            },
+            geometry: combinedGeometry
+        }]
+    };
+}
+
+// Helper function to merge route segments
+function mergeRouteSegments(routeSegments) {
+    if (routeSegments.length === 0) {
+        return null;
+    }
+    
+    const combinedGeometry = {
+        type: 'LineString',
+        coordinates: []
+    };
+    
+    let totalDistance = 0;
+    let totalDuration = 0;
+    let allSegmentTypes = [];
+    
+    routeSegments.forEach((segment, index) => {
+        const coords = segment.geometry.coordinates;
+        const coordsToAdd = index > 0 ? coords.slice(1) : coords;
+        
+        combinedGeometry.coordinates = combinedGeometry.coordinates.concat(coordsToAdd);
+        totalDistance += segment.properties.distance;
+        totalDuration += segment.properties.duration;
+        
+        if (segment.properties.segments) {
+            allSegmentTypes = allSegmentTypes.concat(segment.properties.segments);
+        } else if (segment.properties.routeType) {
+            allSegmentTypes.push(segment.properties.routeType);
+        }
+    });
+    
+    // Determine overall route type
+    let routeType = 'hybrid';
+    if (allSegmentTypes.every(type => type === 'walking')) {
+        routeType = 'walking';
+    } else if (allSegmentTypes.every(type => type === 'cycling')) {
+        routeType = 'cycling';
+    }
+    
+    return {
+        type: 'FeatureCollection',
+        features: [{
+            type: 'Feature',
+            properties: {
+                name: 'Calculated Route',
+                distance: totalDistance,
+                duration: totalDuration,
+                routeType: routeType,
+                segments: allSegmentTypes
+            },
+            geometry: combinedGeometry
+        }]
+    };
+}
+
+function calculateDurationBasedOnSpeed(distanceKm) {
+    // Fixed speed of 9.5 km/h
+    const speedKmh = 9.5;
+    
+    // Convert distance to meters
+    const distanceMeters = distanceKm * 1000;
+    
+    // Calculate duration in seconds based on provided speed (km/h)
+    const speedInMetersPerSecond = speedKmh * 1000 / 3600;
+    const durationSeconds = distanceMeters / speedInMetersPerSecond;
+    
+    return durationSeconds;
+}
+
+
+// Calculate distance using Haversine formula (more accurate than simple Euclidean distance)
+function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Radius of the earth in km
+    const dLat = deg2rad(lat2 - lat1);
+    const dLon = deg2rad(lon2 - lon1);
+    const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2); 
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    const d = R * c; // Distance in km
+    return d;
+}
+
+function deg2rad(deg) {
+    return deg * (Math.PI/180);
+}
+
+
+
+async function calculateRoute(skipBoundsAdjustment = false) {
+    if (!startPoint || !endPoint) {
+        document.getElementById('info').innerHTML = 'Please set start and end points';
+        return;
+    }
+
+    document.getElementById('info').innerHTML = 'Calculating route...';
+    
+    const routeData = await getRoute(startPoint, waypoints, endPoint);
+    if (!routeData) return;
+
+    try {
+        // Comprehensive removal of route layers and sources
+        const allLayerIds = map.getStyle().layers.map(layer => layer.id);
+        const routeRelatedLayerIds = allLayerIds.filter(id => 
+            id.includes('polyline') || 
+            id.includes('route') || 
+            id.includes('track') || 
+            id.includes('outline') ||
+            id.includes('elevation') ||
+            id.includes('-highlight')
+        );
+
+        routeRelatedLayerIds.forEach(layerId => {
+            if (map.getLayer(layerId)) {
+                map.removeLayer(layerId);
+            }
+        });
+
+        // Remove associated sources
+        routeRelatedLayerIds.forEach(layerId => {
+            const layer = map.getStyle().layers.find(l => l.id === layerId);
+            if (layer && layer.source && map.getSource(layer.source)) {
+                map.removeSource(layer.source);
+            }
+        });
+
+        // Explicitly remove known layer and source IDs
+        if (mainTrackLayer) {
+            if (map.getLayer(mainTrackLayer.polylineLayerId)) {
+                map.removeLayer(mainTrackLayer.polylineLayerId);
+            }
+            if (map.getSource(mainTrackLayer.polylineSourceId)) {
+                map.removeSource(mainTrackLayer.polylineSourceId);
+            }
+        }
+
+        if (zoomTrackLayer) {
+            if (map.getLayer(zoomTrackLayer.polylineLayerId)) {
+                map.removeLayer(zoomTrackLayer.polylineLayerId);
+            }
+            if (map.getSource(zoomTrackLayer.polylineSourceId)) {
+                map.removeSource(zoomTrackLayer.polylineSourceId);
+            }
+        }
+
+        // Remove elevation profile control
+        if (epc) {
+            map.removeControl(epc);
+            epc = null;
+        }
+
+        // Remove any remaining elevation profile elements
+        document.querySelectorAll('.elevation-profile-control, canvas[style*="touch-action: none"]')
+            .forEach(el => el.remove());
+
+        // Add new route layers
+        mainTrackLayer = await maptilersdk.helpers.addPolyline(map, {
+            data: routeData,
+            lineColor: '#888888',  
+            lineWidth: 4,
+            outline: true,
+            outlineWidth: 2,
+            outlineColor: '#00000020'
+        });
+
+        zoomTrackLayer = await maptilersdk.helpers.addPolyline(map, {
+            data: routeData,
+            lineColor: '#088373', 
+            lineWidth: 4,
+            outline: true,
+            outlineWidth: 2,
+            outlineColor: '#00000020'
+        });
+
+        // Reset mainTrackLayer and zoomTrackLayer references to ensure they're the latest
+        mainTrackLayer = {
+            polylineLayerId: mainTrackLayer.polylineLayerId,
+            polylineSourceId: mainTrackLayer.polylineSourceId
+        };
+
+        zoomTrackLayer = {
+            polylineLayerId: zoomTrackLayer.polylineLayerId,
+            polylineSourceId: zoomTrackLayer.polylineSourceId
+        };
+
+        epc = new maptilerelevationprofilecontrol.ElevationProfileControl({
+            container: "profileContainer",
+            visible: true,
+            showButton: false,
+            tooltipTextColor: "#fff",
+            tooltipBackgroundColor: "#0b1215",
+            profileLineColor: "#088373",
+            profileBackgroundColor: "#08837319",
+            elevationGridColor: "#FFF1",
+            crosshairColor: "#088d95",
+            labelColor: "#FFF6",
+            paddingBottom: 0,
+            displayTooltip: true,
+            tooltipDisplayDPlus: false,
+            unit: "metric",
+            onRemove: () => {
+                // Additional cleanup when removed
+                const elevationContainer = document.querySelector('.elevation-profile-control');
+                if (elevationContainer) {
+                    elevationContainer.remove();
+                }
+            },
+            onChangeView: (route) => {
+                if (zoomTrackLayer?.polylineSourceId) {
+                    const source = map.getSource(zoomTrackLayer.polylineSourceId);
+                    if (source) {
+                        source.setData(route);
+                    }
+                }
+            }
+        });
+
+        map.addControl(epc);
+        await epc.setData(routeData);
+
+        // Show sidebar and adjust map
+        sidebar.classList.add('active');
+        mapContainer.classList.add('sidebar-active');
+        addWaypointBtn.disabled = false;
+        updateMapSize();
+
+        // Calculate elevation data
+        setTimeout(async () => {
+            try {
+                await calculateRouteStatistics(routeData);
+            } catch (error) {
+                console.error('Error in route statistics:', error);
+            }
+        }, 2000);
+
+        // Update route statistics
+        const routeProperties = routeData.features[0].properties;
+        if (routeProperties) {
+            const distance = (routeProperties.distance / 1000).toFixed(1);
+            const durationHours = Math.floor(routeProperties.duration / 3600);
+            const durationMinutes = Math.floor((routeProperties.duration % 3600) / 60);
+
+            document.getElementById('distance').textContent = `${distance} km`;
+            document.getElementById('duration').textContent = `${durationHours}h ${durationMinutes}m`;
+        }
+
+        // Only fit bounds if this is the initial route creation or explicitly requested
+        if (!skipBoundsAdjustment) {
+            const coordinates = routeData.features[0].geometry.coordinates;
+            const bounds = coordinates.reduce((bounds, coord) => bounds.extend(coord), new maptilersdk.LngLatBounds(coordinates[0], coordinates[0]));
+
+            map.fitBounds(bounds, { padding: { top: 50, bottom: 50, left: 50, right: 450 } });
+        }
+        
+        document.getElementById('info').innerHTML = 'Route calculated successfully!';
+        
+        // Hide both info overlay and upload button when route is created
+        infoOverlay.style.display = 'none';
+        document.getElementById('upload-gpx-wrapper').style.display = 'none';
+
+    } catch (error) {
+        console.error('Error setting up route:', error);
+        document.getElementById('info').innerHTML = 'Error calculating route';
+    }
+}
+
+function clearRoute() {
+    try {
+        // Hide and reset profile container
+        const profileContainer = document.getElementById('profileContainer');
+        const mapElement = document.getElementById('map');
+        
+        if (profileContainer) {
+            profileContainer.style.display = 'none';
+            profileContainer.innerHTML = '';
+        }
+        
+        if (mapElement) {
+            mapElement.style.bottom = '0';
+        }
+
+        // Remove elevation profile completely
+        if (epc) {
+            try {
+                // Attempt to remove control
+                map.removeControl(epc);
+            } catch (controlRemoveError) {
+                console.warn('Error removing elevation profile control:', controlRemoveError);
+            }
+
+            // Remove all elevation-related elements
+            const elevationElements = document.querySelectorAll('.elevation-profile-control, canvas[style*="touch-action: none"]');
+            elevationElements.forEach(el => {
+                try {
+                    el.remove();
+                } catch (removeError) {
+                    console.warn('Error removing elevation element:', removeError);
+                }
+            });
+
+            // Explicitly nullify the elevation profile control
+            epc = null;
+            currentRouteId = null;
+    routeNameInput.value = '';
+        }
+
+        // Remove all route-related layers and sources
+        const layerIdsToRemove = [
+            'route', 'polyline', 'track', 'outline', 
+            'maptiler-elevation-line', '-highlight'
+        ];
+
+        layerIdsToRemove.forEach(prefix => {
+            const layers = map.getStyle().layers
+                .filter(layer => layer.id.includes(prefix));
+            
+            layers.forEach(layer => {
+                try {
+                    if (map.getLayer(layer.id)) {
+                        map.removeLayer(layer.id);
+                    }
+                    if (map.getSource(layer.source)) {
+                        map.removeSource(layer.source);
+                    }
+                } catch (layerRemoveError) {
+                    console.warn(`Error removing layer/source with prefix ${prefix}:`, layerRemoveError);
+                }
+            });
+        });
+
+        // Explicitly remove specific track layers
+        const trackLayersToRemove = [
+            mainTrackLayer, 
+            zoomTrackLayer
+        ];
+
+        trackLayersToRemove.forEach(trackLayer => {
+            if (trackLayer) {
+                try {
+                    if (map.getLayer(trackLayer.polylineLayerId)) {
+                        map.removeLayer(trackLayer.polylineLayerId);
+                    }
+                    if (map.getSource(trackLayer.polylineSourceId)) {
+                        map.removeSource(trackLayer.polylineSourceId);
+                    }
+                } catch (trackLayerError) {
+                    console.warn('Error removing track layer:', trackLayerError);
+                }
+            }
+        });
+
+        // Reset track layer references
+        mainTrackLayer = null;
+        zoomTrackLayer = null;
+
+        // Remove all markers
+        markers.forEach(({marker}) => {
+            try {
+                marker.remove();
+            } catch (markerRemoveError) {
+                console.warn('Error removing marker:', markerRemoveError);
+            }
+        });
+
+        // Clear POIs
+pois.forEach(poi => {
+    poi.marker.remove();
+});
+pois.length = 0;
+poisList.innerHTML = '';
+
+// Reset POI-related states
+currentPOILngLat = null;
+currentPOIMarker = null;
+
+        // Reset route-related variables
+        markers = [];
+        startPoint = null;
+        endPoint = null;
+        waypoints = [];
+        currentMode = null;
+        isRouteStarted = false;
+
+        // Reset UI elements
+        const uiElementsToReset = [
+            { id: 'distance', text: '0.0 km' },
+            { id: 'duration', text: '0h 0m' },
+            { id: 'highest', text: '- m' },
+            { id: 'lowest', text: '- m' },
+            { id: 'ascent', text: '- m' },
+            { id: 'descent', text: '- m' },
+            { id: 'info', text: '' }
+        ];
+
+        uiElementsToReset.forEach(({id, text}) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = text;
+            }
+        });
+
+        // Reset button states and visibility
+        startRouteBtn.style.display = 'block';
+        addWaypointBtn.disabled = true;
+        sidebar.classList.remove('active');
+        mapContainer.classList.remove('sidebar-active');
+        infoOverlay.style.display = 'none';
+        document.getElementById('upload-gpx-wrapper').style.display = 'none';
+
+        // Resize map
+        updateMapSize();
+
+        // Final cleanup of any lingering elevation components
+        const finalCleanupSelectors = [
+            '.elevation-profile-control', 
+            'canvas[style*="touch-action: none"]'
+        ];
+
+        finalCleanupSelectors.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => {
+                try {
+                    el.remove();
+                } catch (finalCleanupError) {
+                    console.warn('Final cleanup error:', finalCleanupError);
+                }
+            });
+        });
+
+    } catch (mainError) {
+        console.error('Critical error in clearRoute:', mainError);
+        // Force reload as a last resort
+        location.reload();
+    }
+}
+const markerTypes = {
+    start: { 
+        icon: 'play', 
+        color: '#0b1215',
+        size: 16,      // Increased to accommodate padding
+        iconSize: 14
+    },
+    end: { 
+        icon: 'flag-checkered', 
+        color: '#0b1215',
+        size: 16,      // Increased to accommodate padding
+        iconSize: 14
+    },
+    via: { 
+        icon: '', 
+        color: '#06599c',
+        size: 8,      // Increased to accommodate padding
+        iconSize: 0
+    }
+};
+
+
+
+
+// Function to find nearest route segment to a point
+function findNearestSegment(point) {
+    if (!waypoints.length) return -1;
+    
+    // Create array of all points in order (start, waypoints, end)
+    const allPoints = [startPoint, ...waypoints, endPoint];
+    let minDistance = Infinity;
+    let nearestSegmentIndex = -1;
+
+    // Check each segment
+    for (let i = 0; i < allPoints.length - 1; i++) {
+        const p1 = allPoints[i];
+        const p2 = allPoints[i + 1];
+        
+        // Calculate distance from point to line segment
+        const distance = distanceToSegment(point, p1, p2);
+        
+        if (distance < minDistance) {
+            minDistance = distance;
+            nearestSegmentIndex = i;
+        }
+    }
+
+    return nearestSegmentIndex;
+}
+
+// Calculate distance from point to line segment
+function distanceToSegment(point, start, end) {
+    const [x, y] = point;
+    const [x1, y1] = start;
+    const [x2, y2] = end;
+
+    const A = x - x1;
+    const B = y - y1;
+    const C = x2 - x1;
+    const D = y2 - y1;
+
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    let param = -1;
+
+    if (lenSq !== 0) param = dot / lenSq;
+
+    let xx, yy;
+
+    if (param < 0) {
+        xx = x1;
+        yy = y1;
+    } else if (param > 1) {
+        xx = x2;
+        yy = y2;
+    } else {
+        xx = x1 + param * C;
+        yy = y1 + param * D;
+    }
+
+    const dx = x - xx;
+    const dy = y - yy;
+
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+// Map click handler with waypoint insertion
+map.on('click', (e) => {
+    if (!isRouteStarted) return;
+    updatePointsList();
+
+    // If a marker is being edited, disable editing on click outside
+    if (editingMarker) {
+        editingMarker.getElement().classList.remove('editing');
+        editingMarker.setDraggable(false);
+        editingMarker = null;
+        return;
+    }
+
+    const lngLat = [e.lngLat.lng, e.lngLat.lat];
+
+    if (currentMode === 'start') {
+        if (startPoint) {
+            markers.find(m => m.type === 'start')?.marker.remove();
+            markers = markers.filter(m => m.type !== 'start');
+        }
+        startPoint = lngLat;
+        createMarker(lngLat, 'start');
+        updatePointsList();
+        infoOverlay.textContent = 'Auf die Karte klicken, um Ziel zu setzen';
+        currentMode = 'end';
+    } else if (currentMode === 'end') {
+        if (endPoint) {
+            markers.find(m => m.type === 'end')?.marker.remove();
+            markers = markers.filter(m => m.type !== 'end');
+        }
+        endPoint = lngLat;
+        createMarker(lngLat, 'end');
+        updatePointsList();
+        currentMode = null;
+        infoOverlay.style.display = 'none';
+        
+        // Activate profile container when end point is set
+        const profileContainer = document.getElementById('profileContainer');
+        const mapElement = document.getElementById('map');
+        
+        if (profileContainer && mapElement) {
+            profileContainer.style.display = 'block';
+            mapElement.style.bottom = '200px';
+        }
+        
+        // Initial route creation - use bounds adjustment (false means don't skip)
+        calculateRoute(false);
+    } else if (currentMode === 'waypoint') {
+        // Find nearest segment if there are existing waypoints
+        if (waypoints.length > 0) {
+            const segmentIndex = findNearestSegment(lngLat);
+            
+            if (segmentIndex !== -1) {
+                // Insert waypoint at the correct position
+                waypoints.splice(segmentIndex, 0, lngLat);
+                
+                // Remove old markers
+                markers.forEach(({marker}) => marker.remove());
+                markers = [];
+                
+                // Recreate all markers in correct order
+                createMarker(startPoint, 'start');
+                waypoints.forEach(wp => createMarker(wp, 'via'));
+                createMarker(endPoint, 'end');
+            }
+        } else {
+            // If no waypoints exist yet, just add it to the end
+            waypoints.push(lngLat);
+            createMarker(lngLat, 'via');
+        }
+        updatePointsList();
+        currentMode = null;
+        infoOverlay.style.display = 'none';
+        
+        // When adding a waypoint, skip bounds adjustment (true means skip)
+        calculateRoute(true);
+    }
+});
+
+// Global variable for editing marker state
+let editingMarker = null;
+
+// Debounce utility function
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+
+// Modify the existing updateRouteQuickly function
+async function updateRouteQuickly() {
+    if (!startPoint || !endPoint) return;
+
+    try {
+        const routeData = await getRoute(startPoint, waypoints, endPoint);
+        if (!routeData) return;
+
+        // Update route visualization
+        if (mainTrackLayer?.polylineSourceId) {
+            map.getSource(mainTrackLayer.polylineSourceId)?.setData(routeData);
+        }
+        if (zoomTrackLayer?.polylineSourceId) {
+            map.getSource(zoomTrackLayer.polylineSourceId)?.setData(routeData);
+        }
+
+        // Update route statistics
+        const properties = routeData.features[0].properties;
+        if (properties) {
+            const distance = (properties.distance / 1000).toFixed(1);
+            const hours = Math.floor(properties.duration / 3600);
+            const mins = Math.floor((properties.duration % 3600) / 60);
+            
+            document.getElementById('distance').textContent = `${distance} km`;
+            document.getElementById('duration').textContent = `${hours}h ${mins}m`;
+        }
+
+        // Recalculate elevation statistics
+        try {
+            const coordinates = routeData.features[0].geometry.coordinates;
+            const positions = coordinates.map(coord => [coord[0], coord[1]]);
+            const elevatedPositions = await maptilersdk.elevation.batch(positions);
+
+            if (elevatedPositions && elevatedPositions.length > 0) {
+                const elevations = elevatedPositions.map(pos => pos[2]);
+                
+                const highest = Math.max(...elevations);
+                const lowest = Math.min(...elevations);
+                
+                const { totalAscent, totalDescent, ascentFeet, descentFeet } = calculatePreciseElevation(elevations);
+                
+                // Update elevation statistics in UI
+                document.getElementById('highest').textContent = `${Math.round(highest)} m`;
+                document.getElementById('lowest').textContent = `${Math.round(lowest)} m`;
+                document.getElementById('ascent').textContent = `${Math.round(totalAscent)} m`;
+                document.getElementById('descent').textContent = `${Math.round(totalDescent)} m`;
+                
+                // Optional: Update feet display if elements exist
+                const ascentFeetElem = document.getElementById('ascent-feet');
+                const descentFeetElem = document.getElementById('descent-feet');
+                if (ascentFeetElem) ascentFeetElem.textContent = `${ascentFeet} ft`;
+                if (descentFeetElem) descentFeetElem.textContent = `${descentFeet} ft`;
+            }
+        } catch (elevationError) {
+            console.error('Error updating elevation statistics:', elevationError);
+        }
+
+        // Update elevation profile
+        if (epc) {
+            requestAnimationFrame(() => {
+                epc.setData(routeData);
+            });
+        }
+    } catch (error) {
+        console.error('Error in quick route update:', error);
+    }
+}
+
+// Modify the marker creation to use the updated function
+function createMarker(lngLat, type) {
+    // Create marker element
+    const el = document.createElement('div');
+    el.className = 'marker';
+    el.style.backgroundColor = markerTypes[type].color;
+    el.style.width = `${markerTypes[type].size}px`;
+    el.style.height = `${markerTypes[type].size}px`;
+    
+    if (type === 'via') {
+        // For waypoints, add the number
+        const waypointNumber = document.createElement('div');
+        waypointNumber.className = 'waypoint-number';
+        const index = waypoints.findIndex(wp => 
+            wp[0] === lngLat[0] && wp[1] === lngLat[1]
+        );
+        waypointNumber.textContent = (index + 1).toString();
+        el.appendChild(waypointNumber);
+    } else {
+        // For start/end points, add icon
+        const icon = document.createElement('i');
+        icon.className = `fa-solid fa-${markerTypes[type].icon}`;
+        icon.style.fontSize = `${markerTypes[type].iconSize}px`;
+        icon.style.color = 'white';
+        el.appendChild(icon);
+    }
+
+    const marker = new maptilersdk.Marker({
+        element: el,
+        draggable: false
+    })
+    .setLngLat(lngLat)
+    .addTo(map);
+
+    // Create debounced route update with longer delay for more stable updates
+    const debouncedUpdate = debounce(updateRouteQuickly, 100); // Increased to 100ms for more stability
+
+    // Click handler for editing mode
+    el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        // Handle previous editing marker
+        if (editingMarker && editingMarker !== marker) {
+            editingMarker.getElement().classList.remove('editing');
+            editingMarker.setDraggable(false);
+        }
+        
+        // Toggle editing state
+        if (editingMarker === marker) {
+            el.classList.remove('editing');
+            marker.setDraggable(false);
+            editingMarker = null;
+        } else {
+            el.classList.add('editing');
+            marker.setDraggable(true);
+            editingMarker = marker;
+        }
+    });
+
+    // Drag handlers
+    marker.on('dragstart', () => {
+        el.classList.add('dragging');
+    });
+
+    marker.on('drag', () => {
+        const markerLngLat = marker.getLngLat();
+        const newCoords = [markerLngLat.lng, markerLngLat.lat];
+        
+        // Update appropriate point
+        switch (type) {
+            case 'start':
+                startPoint = newCoords;
+                break;
+            case 'end':
+                endPoint = newCoords;
+                break;
+            case 'via':
+                const index = markers.findIndex(m => m.marker === marker);
+                if (index !== -1) {
+                    const waypointIndex = getWaypointIndex(index);
+                    waypoints[waypointIndex] = newCoords;
+                }
+                break;
+        }
+
+        // Update route
+        updateRouteQuickly();
+    });
+
+    marker.on('dragend', () => {
+        el.classList.remove('dragging');
+        updateRouteQuickly();
+    });
+    
+    markers.push({ marker, type });
+    return marker;
+}
+
+// Helper function to update waypoint numbers
+function updateWaypointNumbers() {
+    markers.forEach((m, i) => {
+        if (m.type === 'via') {
+            const waypointIndex = getWaypointIndex(i);
+            const el = m.marker.getElement();
+            const numberEl = el.querySelector('.waypoint-number');
+            if (numberEl) {
+                numberEl.textContent = (waypointIndex + 1).toString();
+            }
+        }
+    });
+}
+
+// Add this to your removeWaypoint function
+function removeWaypoint(index) {
+    // Find and remove the marker for this specific waypoint
+    const markerIndex = markers.findIndex((m, i) => m.type === 'via' && getWaypointIndex(i) === index);
+    if (markerIndex !== -1) {
+        markers[markerIndex].marker.remove();
+        markers.splice(markerIndex, 1);
+    }
+
+    // Remove the waypoint from the array
+    waypoints.splice(index, 1);
+    
+    // Update the points list and recalculate route with skipBoundsAdjustment=true
+    updatePointsList();
+    if (startPoint && endPoint) {
+        calculateRoute(true);
+    }
+}
+
+// Add GPX parsing functionality
+function parseGPX(gpxText) {
+    const parser = new DOMParser();
+    const gpx = parser.parseFromString(gpxText, "text/xml");
+    
+    // Try different GPX formats
+    let trackPoints = gpx.querySelectorAll('trkpt');
+    if (trackPoints.length === 0) {
+        trackPoints = gpx.querySelectorAll('rtept');
+    }
+    
+    if (trackPoints.length === 0) {
+        throw new Error("No track or route points found in GPX file");
+    }
+
+    const points = Array.from(trackPoints).map(point => ({
+        lat: parseFloat(point.getAttribute('lat')),
+        lon: parseFloat(point.getAttribute('lon')),
+        ele: parseFloat(point.querySelector('ele')?.textContent || '0')
+    }));
+
+    return points;
+}
+
+
+
+// Add GPX file handling
+document.getElementById('upload-gpx-btn').addEventListener('click', () => {
+    document.getElementById('gpx-file-input').click();
+});
+
+document.getElementById('gpx-file-input').addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+        const text = await file.text();
+        const points = parseGPX(text);
+        
+        if (points.length < 2) {
+            throw new Error("GPX file must contain at least 2 points");
+        }
+
+        // Clear existing route
+        clearRoute();
+        
+        // Set route as started
+        isRouteStarted = true;
+        startRouteBtn.style.display = 'none';
+        
+        // Set start and end points
+        startPoint = [points[0].lon, points[0].lat];
+        endPoint = [points[points.length - 1].lon, points[points.length - 1].lat];
+
+        // Create start and end markers
+        createMarker(startPoint, 'start');
+        createMarker(endPoint, 'end');
+
+        // Activate profile container when end point is set
+        const profileContainer = document.getElementById('profileContainer');
+        const mapElement = document.getElementById('map');
+        
+        if (profileContainer && mapElement) {
+            profileContainer.style.display = 'block';
+            mapElement.style.bottom = '200px';
+        }
+
+        // Calculate optimal number of waypoints based on route length
+        const MAX_WAYPOINTS = 70;
+        const MIN_WAYPOINTS = 5;
+        const POINTS_PER_KM = 2; // Adjust this value to control density
+
+        // Calculate approximate route length in km
+        let totalDistance = 0;
+        for (let i = 0; i < points.length - 1; i++) {
+            const p1 = points[i];
+            const p2 = points[i + 1];
+            totalDistance += calculateDistance(p1, p2);
+        }
+        
+        // Calculate optimal number of waypoints based on distance
+        let optimalWaypoints = Math.ceil(totalDistance * POINTS_PER_KM);
+        optimalWaypoints = Math.max(MIN_WAYPOINTS, Math.min(optimalWaypoints, MAX_WAYPOINTS));
+        
+        waypoints = [];
+
+        if (points.length > 2) {
+            // Calculate step size based on optimal waypoints
+            const step = Math.max(1, Math.floor((points.length - 2) / optimalWaypoints));
+            
+            // Add waypoints at calculated intervals
+            for (let i = step; i < points.length - step && waypoints.length < optimalWaypoints; i += step) {
+                waypoints.push([points[i].lon, points[i].lat]);
+            }
+
+            // Sort waypoints by position along route
+            waypoints.sort((a, b) => {
+                const indexA = points.findIndex(p => p.lon === a[0] && p.lat === a[1]);
+                const indexB = points.findIndex(p => p.lon === b[0] && p.lat === b[1]);
+                return indexA - indexB;
+            });
+        }
+
+        // Create waypoint markers
+        waypoints.forEach(waypoint => {
+            createMarker(waypoint, 'via');
+        });
+
+        // Update UI
+        updatePointsList();
+        addWaypointBtn.disabled = false;
+        sidebar.classList.add('active');
+        mapContainer.classList.add('sidebar-active');
+        
+        // Hide upload elements
+        document.getElementById('upload-gpx-wrapper').style.display = 'none';
+        infoOverlay.style.display = 'none';
+
+        try {
+    // Get route data from Mapbox API
+    const routeData = await getRoute(startPoint, waypoints, endPoint);
+    if (!routeData) throw new Error("Failed to get route data");
+
+    // Remove existing layers if present
+    if (mainTrackLayer) {
+        map.removeLayer(mainTrackLayer.polylineLayerId);
+        map.removeSource(mainTrackLayer.polylineSourceId);
+    }
+    if (zoomTrackLayer) {
+        map.removeLayer(zoomTrackLayer.polylineLayerId);
+        map.removeSource(zoomTrackLayer.polylineSourceId);
+    }
+    if (epc) {
+        map.removeControl(epc);
+    }
+
+    // Add route visualization with proper layer tracking
+    mainTrackLayer = await maptilersdk.helpers.addPolyline(map, {
+            data: routeData,
+            lineColor: '#888888',  
+            lineWidth: 4,
+            outline: true,
+            outlineWidth: 2,
+            outlineColor: '#00000020'
+        });
+
+        zoomTrackLayer = await maptilersdk.helpers.addPolyline(map, {
+            data: routeData,
+            lineColor: '#088373', 
+            lineWidth: 4,
+            outline: true,
+            outlineWidth: 2,
+            outlineColor: '#00000020'
+        });
+
+
+
+    // Add elevation profile
+    epc = new maptilerelevationprofilecontrol.ElevationProfileControl({
+        container: "profileContainer",
+        visible: true,
+        showButton: true,
+        tooltipTextColor: "#fff",
+        tooltipBackgroundColor: "#0b1215",
+        profileLineColor: "#088373",
+        profileBackgroundColor: "#08837319",
+        crosshairColor: "#088d95",
+        labelColor: "#FFF6",
+        paddingBottom: 0,
+        displayTooltip: true,
+        tooltipDisplayDPlus: false,
+        unit: "metric",
+        onChangeView: (route) => {
+            if (zoomTrackLayer?.polylineSourceId) {
+                const source = map.getSource(zoomTrackLayer.polylineSourceId);
+                if (source) {
+                    source.setData(route);
+                }
+            }
+        },
+                onRemove: () => {
+                    const profileContainer = document.getElementById('profileContainer');
+                    const mapElement = document.getElementById('map');
+                    
+                    if (profileContainer) {
+                        profileContainer.style.display = 'none';
+                        profileContainer.innerHTML = '';
+                    }
+                    
+                    if (mapElement) {
+                        mapElement.style.bottom = '0';
+                    }
+                }
+            });
+
+            map.addControl(epc);
+            await epc.setData(routeData);
+
+            // Update distance and duration from Mapbox response
+            const routeProperties = routeData.features[0].properties;
+            if (routeProperties) {
+                const distance = (routeProperties.distance / 1000).toFixed(1);
+                const durationHours = Math.floor(routeProperties.duration / 3600);
+                const durationMinutes = Math.floor((routeProperties.duration % 3600) / 60);
+                
+                document.getElementById('distance').textContent = `${distance} km`;
+                document.getElementById('duration').textContent = `${durationHours}h ${durationMinutes}m`;
+            }
+
+            // Calculate route statistics
+            const coordinates = routeData.features[0].geometry.coordinates;
+            try {
+                await calculateRouteStatistics(routeData);
+            } catch (error) {
+                console.error('Error in route statistics:', error);
+            }
+
+            // Fit map to route bounds
+            const bounds = coordinates.reduce(
+                (bounds, coord) => bounds.extend(coord),
+                new maptilersdk.LngLatBounds(coordinates[0], coordinates[0])
+            );
+            map.fitBounds(bounds, { 
+                padding: { 
+                    top: 50, 
+                    bottom: 250,  // Increased bottom padding to account for profile
+                    left: 50, 
+                    right: 450 
+                } 
+            });
+
+        } catch (error) {
+            console.error('Error setting up route visualization:', error);
+            document.getElementById('info').innerHTML = 'Error visualizing route';
+        }
+
+        updateMapSize();
+        
+    } catch (error) {
+        console.error('Error processing GPX file:', error);
+        document.getElementById('info').innerHTML = `Error processing GPX file: ${error.message}`;
+    }
+});
+
+// Helper function to calculate distance between two points in kilometers
+function calculateDistance(p1, p2) {
+    const R = 6371; // Earth's radius in km
+    const dLat = toRad(p2.lat - p1.lat);
+    const dLon = toRad(p2.lon - p1.lon);
+    const lat1 = toRad(p1.lat);
+    const lat2 = toRad(p2.lat);
+
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+function toRad(degrees) {
+    return degrees * Math.PI / 180;
+}
+
+function calculatePreciseElevation(elevations) {
+    // Advanced elevation calculation parameters
+    const NOISE_THRESHOLD = 0.5; // Minimum elevation change to consider (meters)
+    const WINDOW_SIZE = 11; // Larger window for more comprehensive tracking
+    const GRADE_SENSITIVITY = 0.2; // Sensitivity to elevation changes
+
+    // Advanced smoothing with edge-aware filtering
+    function smoothElevations(data, windowSize) {
+        const smoothed = new Array(data.length).fill(0);
+        
+        for (let i = 0; i < data.length; i++) {
+            // Define window bounds
+            const startIdx = Math.max(0, i - Math.floor(windowSize / 2));
+            const endIdx = Math.min(data.length - 1, i + Math.floor(windowSize / 2));
+            
+            // Extract window and apply weighted averaging
+            const window = data.slice(startIdx, endIdx + 1);
+            const weights = window.map((_, idx) => {
+                // Triangular weighting - center points have more influence
+                return 1 - Math.abs(idx - Math.floor(window.length / 2)) / (window.length / 2);
+            });
+            
+            // Weighted average calculation
+            const weightedSum = window.reduce((sum, val, idx) => sum + val * weights[idx], 0);
+            const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+            
+            smoothed[i] = weightedSum / totalWeight;
+        }
+        
+        return smoothed;
+    }
+
+    // Multiple pass smoothing
+    let smoothedElevations = elevations;
+    for (let pass = 0; pass < 2; pass++) {
+        smoothedElevations = smoothElevations(smoothedElevations, WINDOW_SIZE);
+    }
+
+    let totalAscent = 0;
+    let totalDescent = 0;
+
+    // Track elevation changes with high precision
+    let lastSignificantElevation = smoothedElevations[0];
+    let currentSegmentStart = smoothedElevations[0];
+
+    for (let i = 1; i < smoothedElevations.length; i++) {
+        const currentElevation = smoothedElevations[i];
+        const elevationChange = currentElevation - lastSignificantElevation;
+
+        // Check if the change is significant and in a consistent direction
+        if (Math.abs(elevationChange) >= NOISE_THRESHOLD) {
+            if (elevationChange > GRADE_SENSITIVITY) {
+                // Ascending
+                totalAscent += elevationChange;
+                currentSegmentStart = lastSignificantElevation;
+            } else if (elevationChange < -GRADE_SENSITIVITY) {
+                // Descending
+                totalDescent += Math.abs(elevationChange);
+                currentSegmentStart = lastSignificantElevation;
+            }
+
+            // Update last significant elevation
+            lastSignificantElevation = currentElevation;
+        }
+    }
+
+    // Convert to feet for comparison
+    const ascentFeet = totalAscent * 3.28084;
+    const descentFeet = totalDescent * 3.28084;
+
+    // Extensive logging
+    console.log('Elevation Calculation Detailed Report:');
+    console.log('Calculation Parameters:');
+    console.log(`- Noise Threshold: ${NOISE_THRESHOLD} m`);
+    console.log(`- Window Size: ${WINDOW_SIZE}`);
+    console.log(`- Grade Sensitivity: ${GRADE_SENSITIVITY} m`);
+    console.log('\nElevation Data:');
+    console.log(`Total Ascent: ${Math.round(totalAscent)} m (${Math.round(ascentFeet)} ft)`);
+    console.log(`Total Descent: ${Math.round(totalDescent)} m (${Math.round(descentFeet)} ft)`);
+
+    return {
+        totalAscent: Math.round(totalAscent),
+        totalDescent: Math.round(totalDescent),
+        ascentFeet: Math.round(ascentFeet),
+        descentFeet: Math.round(descentFeet)
+    };
+}
+
+async function calculateRouteStatistics(routeData) {
+    try {
+        const coordinates = routeData.features[0].geometry.coordinates;
+        const positions = coordinates.map(coord => [coord[0], coord[1]]);
+        const elevatedPositions = await maptilersdk.elevation.batch(positions);
+
+        if (elevatedPositions && elevatedPositions.length > 0) {
+            const elevations = elevatedPositions.map(pos => pos[2]);
+            
+            const highest = Math.max(...elevations);
+            const lowest = Math.min(...elevations);
+            
+            const { totalAscent, totalDescent, ascentFeet, descentFeet } = calculatePreciseElevation(elevations);
+            
+            // Update UI with calculated values
+            document.getElementById('highest').textContent = `${Math.round(highest)} m`;
+            document.getElementById('lowest').textContent = `${Math.round(lowest)} m`;
+            document.getElementById('ascent').textContent = `${Math.round(totalAscent)} m`;
+            document.getElementById('descent').textContent = `${Math.round(totalDescent)} m`;
+            
+            // Optional: Add feet display
+            const ascentFeetElem = document.getElementById('ascent-feet');
+            const descentFeetElem = document.getElementById('descent-feet');
+            if (ascentFeetElem) ascentFeetElem.textContent = `${ascentFeet} ft`;
+            if (descentFeetElem) descentFeetElem.textContent = `${descentFeet} ft`;
+
+            return {
+                highest,
+                lowest,
+                totalAscent,
+                totalDescent,
+                ascentFeet,
+                descentFeet
+            };
+        } else {
+            // Reset values if no elevation data
+            document.getElementById('highest').textContent = '- m';
+            document.getElementById('lowest').textContent = '- m';
+            document.getElementById('ascent').textContent = '- m';
+            document.getElementById('descent').textContent = '- m';
+            
+            return null;
+        }
+    } catch (elevationError) {
+        console.error('Error calculating elevation statistics:', elevationError);
+        document.getElementById('info').innerHTML += '<br>Could not calculate elevation data';
+        
+        // Reset values
+        document.getElementById('highest').textContent = '- m';
+        document.getElementById('lowest').textContent = '- m';
+        document.getElementById('ascent').textContent = '- m';
+        document.getElementById('descent').textContent = '- m';
+        
+        return null;
+    }
+}
+</script>
+
+<script>
+// Global array to store POIs
+const pois = [];
+
+// POI Modal Elements
+const poiModal = document.getElementById('poi-modal');
+const addPoiBtn = document.getElementById('add-poi-btn');
+const savePoiBtn = document.getElementById('save-poi-btn');
+const cancelPoiBtn = document.getElementById('cancel-poi-btn');
+
+// POI Form Elements
+const poiNameInput = document.getElementById('poi-name');
+const poiDescriptionInput = document.getElementById('poi-description');
+const poiImagesInput = document.getElementById('poi-images');
+const imagePreviewContainer = document.getElementById('image-preview');
+const poiAmenityCheckboxes = document.querySelectorAll('input[name="amenities"]');
+const poisList = document.getElementById('pois-list');
+const poiTypeInput = document.getElementById('poi-type');
+
+let currentPOILngLat = null;
+let currentPOIMarker = null;
+let editingPOI = null;
+let currentlyEditingPOI = null;
+
+// Image Preview and Removal Functionality
+poiImagesInput.addEventListener('change', function(event) {
+    // Get all current preview image URLs to check for duplicates
+    const existingImageUrls = Array.from(
+        imagePreviewContainer.querySelectorAll('.image-preview img')
+    ).map(img => img.src);
+    
+    // Process new image files
+    Array.from(this.files).forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const imageDataUrl = e.target.result;
+            
+            // Check if this image is already in the preview (avoid duplicates)
+            if (existingImageUrls.includes(imageDataUrl)) {
+                console.log('Skipping duplicate image');
+                return;
+            }
+            
+            // Add to the tracking array for this change event
+            existingImageUrls.push(imageDataUrl);
+            
+            const previewWrapper = document.createElement('div');
+            previewWrapper.className = 'image-preview';
+
+            const img = document.createElement('img');
+            img.src = imageDataUrl;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'remove-image';
+            removeBtn.innerHTML = '×';
+            removeBtn.onclick = (evt) => {
+                evt.preventDefault(); // Prevent bubbling
+                previewWrapper.remove();
+                
+                // Remove from existing URLs array
+                const urlIndex = existingImageUrls.indexOf(imageDataUrl);
+                if (urlIndex > -1) {
+                    existingImageUrls.splice(urlIndex, 1);
+                }
+                
+                // Create a new FileList without this file
+                const dt = new DataTransfer();
+                const files = Array.from(poiImagesInput.files);
+                files.forEach(f => {
+                    if (f !== file) dt.items.add(f);
+                });
+                poiImagesInput.files = dt.files;
+            };
+
+            previewWrapper.appendChild(img);
+            previewWrapper.appendChild(removeBtn);
+            imagePreviewContainer.appendChild(previewWrapper);
+        };
+        reader.readAsDataURL(file);
+    });
+});
+
+
+// Show POI Modal
+addPoiBtn.addEventListener('click', () => {
+    currentMode = 'poi';
+    infoOverlay.style.display = 'block';
+    infoOverlay.textContent = 'Click on map to set POI location';
+});
+
+// Save POI
+savePoiBtn.addEventListener('click', () => {
+    const poiName = poiNameInput.value.trim();
+    const poiType = poiTypeInput.value;
+    const bestTime = document.getElementById('best-time').value;
+    
+    if (!poiName) {
+        alert('Please enter a name for the POI');
+        return;
+    }
+
+    if (!poiType) {
+        alert('Please select a POI type');
+        return;
+    }
+
+    // Collect selected amenities
+    const selectedAmenities = Array.from(poiAmenityCheckboxes)
+        .filter(cb => cb.checked)
+        .map(cb => cb.value);
+
+    // Get current preview images
+    const currentImages = Array.from(imagePreviewContainer.querySelectorAll('.image-preview img'))
+        .map(img => img.src);
+    
+    // Handle file input images as well
+    const newImageFiles = poiImagesInput.files;
+    
+    // Process new file uploads if any
+    const processNewImages = () => {
+        return new Promise((resolve) => {
+            // Create a clean array without duplicates
+            // When editing, the currentImages already includes all visible images in the preview
+            const allImages = [...currentImages]; 
+            
+            // Only process new files that aren't already in the preview
+            if (newImageFiles && newImageFiles.length > 0) {
+                // If we're adding new files but some images are already in the preview,
+                // we need to make sure we don't duplicate those that may have been added
+                // from the file input and are already showing in the preview
+                
+                let processed = 0;
+                let newImagesAdded = 0;
+                
+                Array.from(newImageFiles).forEach((file) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        // Check if this image data URL is already in the allImages array
+                        const imageDataUrl = e.target.result;
+                        const isDuplicate = allImages.includes(imageDataUrl);
+                        
+                        if (!isDuplicate) {
+                            allImages.push(imageDataUrl);
+                            newImagesAdded++;
+                        }
+                        
+                        processed++;
+                        
+                        // Resolve when all files have been processed
+                        if (processed === newImageFiles.length) {
+                            console.log(`Processed ${processed} files, added ${newImagesAdded} new images`);
+                            resolve(allImages);
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                });
+            } else {
+                resolve(allImages);
+            }
+        });
+    };
+    
+    processNewImages().then((combinedImages) => {
+        // Remove any duplicates from combinedImages
+        const uniqueImages = [...new Set(combinedImages)];
+        console.log(`De-duplicated images: ${combinedImages.length} -> ${uniqueImages.length}`);
+        
+        if (editingPOI) {
+            // Update existing POI
+            editingPOI.name = poiName;
+            editingPOI.type = poiType;
+            editingPOI.best_time = bestTime;
+            editingPOI.description = poiDescriptionInput.value;
+            editingPOI.amenities = selectedAmenities;
+            editingPOI.images = uniqueImages; // Use de-duplicated array
+            
+            // Clear old image property if it exists
+            if (editingPOI.image !== undefined) {
+                editingPOI.image = null;
+            }
+    
+            // Update sidebar list item
+            const poiListItems = Array.from(poisList.children);
+            const listItemIndex = pois.findIndex(p => p.id === editingPOI.id);
+            
+            if (listItemIndex !== -1 && poiListItems[listItemIndex]) {
+                const listItem = poiListItems[listItemIndex];
+                const nameSpan = listItem.querySelector('span');
+                if (nameSpan) {
+                    nameSpan.textContent = poiName;
+                }
+            }
+    
+            // Recreate marker to update popup
+            if (editingPOI.marker) {
+                editingPOI.marker.remove();
+            }
+            editingPOI.marker = createPOIMarker(editingPOI.lngLat, editingPOI);
+    
+            editingPOI = null;
+        } else {
+            // Create new POI with current images and type
+            createPOI(poiName, poiDescriptionInput.value, combinedImages, selectedAmenities, poiType, false, bestTime);
+        }
+        
+        // Reset modal
+        poiModal.style.display = 'none';
+        resetPOIForm();
+    
+        // Reset modal title and save button
+        const modalTitle = poiModal.querySelector('h2');
+        modalTitle.textContent = 'Add Point of Interest';
+        savePoiBtn.innerHTML = '<i class="fas fa-save"></i> Save POI';
+    });
+});
+
+// Cancel POI
+cancelPoiBtn.addEventListener('click', () => {
+    poiModal.style.display = 'none';
+    resetPOIForm();
+    
+    // Remove temporary marker if exists
+    if (currentPOIMarker) {
+        currentPOIMarker.remove();
+        currentPOIMarker = null;
+    }
+    currentPOILngLat = null;
+    currentMode = null;
+    editingPOI = null;
+    infoOverlay.style.display = 'none';
+
+    // Reset modal title and save button
+    const modalTitle = poiModal.querySelector('h2');
+    modalTitle.textContent = 'Add Point of Interest';
+    savePoiBtn.innerHTML = '<i class="fas fa-save"></i> Save POI';
+});
+
+// Reset POI Form
+function resetPOIForm() {
+    poiNameInput.value = '';
+    poiDescriptionInput.value = '';
+    poiImagesInput.value = '';
+    imagePreviewContainer.innerHTML = '';
+    poiAmenityCheckboxes.forEach(cb => cb.checked = false);
+    
+    // Reset any stored images data
+    if (poiImagesInput.dataset.currentImages) {
+        delete poiImagesInput.dataset.currentImages;
+    }
+    
+    // Reset the POI type and best time
+    poiTypeInput.value = '';
+    document.getElementById('best-time').value = '';
+    
+    // Reset editing state
+    editingPOI = null;
+}
+
+// Create POI Marker with enhanced popup
+
+// Create POI popup with improved image handling
+function createPOIMarker(lngLat, poi) {
+    const el = document.createElement('div');
+    el.className = 'poi-marker';
+    el.innerHTML = '<i class="fas fa-map-marker-alt" style="color: white;"></i>';
+
+    const marker = new maptilersdk.Marker({
+        element: el,
+        draggable: false
+    }).setLngLat(lngLat).addTo(map);
+
+    // Create popup with multiple images and details
+    const popup = new maptilersdk.Popup({ 
+        offset: 25,
+        maxWidth: '300px'
+    });
+
+    // Create popup content
+    const popupContent = document.createElement('div');
+    popupContent.className = 'poi-popup';
+
+    // Image carousel (if multiple images)
+    if (poi.images && (Array.isArray(poi.images) ? poi.images.length > 0 : poi.images)) {
+        const imageContainer = document.createElement('div');
+        imageContainer.className = 'poi-popup-images';
+        
+        // Create image slider
+        const imageSlider = document.createElement('div');
+        imageSlider.className = 'image-slider';
+        
+        // Ensure images is an array
+        const imagesArray = Array.isArray(poi.images) ? poi.images : [poi.images];
+        
+        // Filter out null/undefined images
+        const validImages = imagesArray.filter(img => img);
+        
+        validImages.forEach((imageUrl, index) => {
+            const img = document.createElement('img');
+            img.src = imageUrl;
+            img.style.display = index === 0 ? 'block' : 'none';
+            imageSlider.appendChild(img);
+        });
+
+        // Add navigation if multiple images
+        if (validImages.length > 1) {
+            const prevBtn = document.createElement('button');
+            prevBtn.innerHTML = '❮';
+            prevBtn.className = 'slider-btn prev-btn';
+            
+            const nextBtn = document.createElement('button');
+            nextBtn.innerHTML = '❯';
+            nextBtn.className = 'slider-btn next-btn';
+
+            let currentImageIndex = 0;
+            const images = imageSlider.querySelectorAll('img');
+
+            prevBtn.onclick = (e) => {
+                e.stopPropagation(); // Prevent click from bubbling to marker
+                images[currentImageIndex].style.display = 'none';
+                currentImageIndex = (currentImageIndex - 1 + images.length) % images.length;
+                images[currentImageIndex].style.display = 'block';
+            };
+
+            nextBtn.onclick = (e) => {
+                e.stopPropagation(); // Prevent click from bubbling to marker
+                images[currentImageIndex].style.display = 'none';
+                currentImageIndex = (currentImageIndex + 1) % images.length;
+                images[currentImageIndex].style.display = 'block';
+            };
+
+            imageContainer.appendChild(prevBtn);
+            imageContainer.appendChild(imageSlider);
+            imageContainer.appendChild(nextBtn);
+        } else {
+            imageContainer.appendChild(imageSlider);
+        }
+
+        popupContent.appendChild(imageContainer);
+    }
+
+    // Add details
+    const detailsContainer = document.createElement('div');
+    detailsContainer.className = 'poi-details';
+    
+    const nameEl = document.createElement('h3');
+    nameEl.textContent = poi.name;
+    detailsContainer.appendChild(nameEl);
+
+    // Add POI type if available
+    if (poi.type) {
+        const typeEl = document.createElement('p');
+        const typeMap = {
+            'hotel': '🏨 Hotel',
+            'restaurant': '🍽️ Restaurant',
+            'gipfel': '🏔️ Gipfel',
+            'highlight': '✨ Highlight'
+        };
+        typeEl.textContent = typeMap[poi.type] || poi.type;
+        typeEl.style.color = 'var(--text-secondary)';
+        typeEl.style.fontSize = '0.8rem';
+        detailsContainer.appendChild(typeEl);
+    }
+
+    if (poi.description) {
+        const descEl = document.createElement('p');
+        descEl.textContent = poi.description;
+        detailsContainer.appendChild(descEl);
+    }
+
+    // Add amenities
+    if (poi.amenities && poi.amenities.length > 0) {
+        const amenitiesEl = document.createElement('div');
+        amenitiesEl.className = 'poi-amenities';
+        
+        poi.amenities.forEach(amenity => {
+            const amenityEl = document.createElement('span');
+            amenityEl.className = 'poi-amenity';
+            
+            // Map amenity values to emoji and text
+            const amenityMap = {
+                'wc': '🚻 WC',
+                'food': '🍽️ Essen',
+                'charging': '⚡️ E-Ladestation',
+                'difficulty': '🏔️ Schwierigkeit'
+            };
+            
+            amenityEl.textContent = amenityMap[amenity] || amenity;
+            amenitiesEl.appendChild(amenityEl);
+        });
+
+        detailsContainer.appendChild(amenitiesEl);
+    }
+
+    popupContent.appendChild(detailsContainer);
+
+    // Add popup to marker
+    popup.setDOMContent(popupContent);
+    marker.setPopup(popup);
+
+    el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePOIHighlight(el, marker, poi);
+    });
+
+    marker.on('dragstart', () => {
+        el.classList.add('dragging');
+    });
+
+    marker.on('drag', () => {
+        const newLngLat = marker.getLngLat();
+        poi.lngLat = [newLngLat.lng, newLngLat.lat];
+    });
+
+    marker.on('dragend', () => {
+        el.classList.remove('dragging');
+        const newLngLat = marker.getLngLat();
+        poi.lngLat = [newLngLat.lng, newLngLat.lat];
+    });
+
+    return marker; 
+}
+
+function togglePOIHighlight(el, marker, poi) {
+    const isHighlighted = el.classList.contains('highlighted');
+    
+    // Remove highlight from all POIs
+    pois.forEach(p => {
+        const markerEl = p.marker.getElement();
+        markerEl.classList.remove('highlighted');
+        markerEl.style.border = 'none';
+        p.marker.setDraggable(false);
+    });
+
+    if (!isHighlighted) {
+        el.classList.add('highlighted');
+        el.style.border = '2px solid red';
+        marker.setDraggable(true);
+        currentlyEditingPOI = poi;
+    } else {
+        marker.setDraggable(false);
+        currentlyEditingPOI = null;
+    }
+}
+
+
+// Function to open edit POI modal
+function openEditPOIModal(poi) {
+    // Set editing POI
+    editingPOI = poi;
+    
+    // Reset any previous data
+    imagePreviewContainer.innerHTML = '';
+    poiImagesInput.value = '';
+    
+    // Populate modal with existing POI data
+    poiNameInput.value = poi.name;
+    poiDescriptionInput.value = poi.description || '';
+    
+    // Set POI type
+    poiTypeInput.value = poi.type || '';
+    
+    // Set best time
+    const bestTimeSelect = document.getElementById('best-time');
+    bestTimeSelect.value = poi.best_time || '';
+    
+    // Reset and then set checkboxes
+    poiAmenityCheckboxes.forEach(cb => cb.checked = false);
+    if (poi.amenities && Array.isArray(poi.amenities)) {
+        poi.amenities.forEach(amenity => {
+            const checkbox = Array.from(poiAmenityCheckboxes)
+                .find(cb => cb.value === amenity);
+            if (checkbox) checkbox.checked = true;
+        });
+    }
+
+    // Handle images - create a working copy to avoid data leaks between POIs
+    let poiImages = [];
+    
+    if (poi.images) {
+        // Handle both string and array cases
+        poiImages = Array.isArray(poi.images) ? [...poi.images] : [poi.images];
+    }
+    
+    // Remove any empty or null values
+    poiImages = poiImages.filter(img => img);
+
+    // Add existing images to preview
+    poiImages.forEach((imageUrl, index) => {
+        if (!imageUrl) return; // Skip null/undefined images
+        
+        const previewWrapper = document.createElement('div');
+        previewWrapper.className = 'image-preview';
+
+        const img = document.createElement('img');
+        img.src = imageUrl;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-image';
+        removeBtn.innerHTML = '×';
+        removeBtn.onclick = (e) => {
+            e.preventDefault(); // Prevent event bubbling
+            // Remove this specific image from the current POI
+            poiImages.splice(index, 1);
+            previewWrapper.remove();
+            
+            // Update the POI object directly
+            editingPOI.images = poiImages;
+        };
+
+        previewWrapper.appendChild(img);
+        previewWrapper.appendChild(removeBtn);
+        imagePreviewContainer.appendChild(previewWrapper);
+    });
+
+    // Change modal title
+    const modalTitle = poiModal.querySelector('h2');
+    modalTitle.textContent = 'Edit Point of Interest';
+
+    // Modify save button text
+    savePoiBtn.innerHTML = '<i class="fas fa-save"></i> Update POI';
+
+    // Show modal
+    poiModal.style.display = 'flex';
+
+    // Store current images in dataset
+    poiImagesInput.dataset.currentImages = JSON.stringify(poiImages);
+}
+
+
+
+
+
+// Function to process image data before saving
+async function processImageForSaving(imageDataUrl) {
+    // If the image is already a data URL, return it as is
+    if (imageDataUrl.startsWith('data:image/')) {
+        return imageDataUrl;
+    }
+    
+    // If it's a file path or URL, convert it to base64
+    try {
+        const response = await fetch(imageDataUrl);
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (error) {
+        console.error('Error processing image:', error);
+        return null;
+    }
+}
+
+// Modified createPOI function
+function createPOI(name, description, image, amenities, poiType, skipMarker = false, bestTime = null) {
+    // Check if we have valid coordinates
+    if (!skipMarker && !currentPOILngLat) return;
+    if (skipMarker && !currentPOILngLat) {
+        console.error('No coordinates provided for POI:', name);
+        return;
+    }
+
+    const poi = {
+        id: Date.now(),
+        name,
+        description,
+        type: poiType || '',
+        best_time: bestTime || '',
+        image,
+        images: image, // Ensure images are properly stored
+        amenities: amenities || [],
+        lngLat: currentPOILngLat
+    };
+    
+    console.log('Created POI object:', poi);
+
+    // Create marker
+    poi.marker = createPOIMarker(currentPOILngLat, poi);
+
+    // Add to POIs array
+    pois.push(poi);
+
+    // Add to POIs list in sidebar
+    const poiItem = document.createElement('div');
+    poiItem.className = 'poi-item';
+    poiItem.innerHTML = `
+        <span>${name}</span>
+        <div class="poi-item-actions">
+            <button class="button blue" onclick="zoomToPOI(${poi.id})">
+                <i class="fas fa-search"></i>
+            </button>
+            <button class="button green" onclick="editPOI(${poi.id})">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="button red" onclick="removePOI(${poi.id})">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    poisList.appendChild(poiItem);
+
+    // Reset POI mode
+    currentMode = null;
+    currentPOILngLat = null;
+    if (currentPOIMarker) {
+        currentPOIMarker.remove();
+        currentPOIMarker = null;
+    }
+    infoOverlay.style.display = 'none';
+
+    return poi;
+}
+
+function editPOI(poiId) {
+    const poi = pois.find(p => p.id === poiId);
+    if (poi) {
+        openEditPOIModal(poi);
+    }
+}
+
+// Zoom to POI
+function zoomToPOI(poiId) {
+    const poi = pois.find(p => p.id === poiId);
+    if (poi) {
+        map.flyTo({
+            center: poi.lngLat,
+            zoom: 14
+        });
+        togglePOIHighlight(poi.marker.getElement(), poi.marker, poi);
+    }
+}
+
+// Remove POI
+function removePOI(poiId) {
+    const poiIndex = pois.findIndex(p => p.id === poiId);
+    if (poiIndex !== -1) {
+        // Remove marker from map
+        pois[poiIndex].marker.remove();
+        
+        // Remove from POIs array
+        pois.splice(poiIndex, 1);
+        
+        // Remove from sidebar list
+        poisList.removeChild(poisList.children[poiIndex]);
+    }
+}
+
+// Modify map click handler to support POI mode
+map.on('click', (e) => {
+    if (!isRouteStarted) return;
+    
+    // If we're editing a POI and click outside, turn off edit mode
+    if (currentlyEditingPOI) {
+        const clickedPOI = pois.find(poi => 
+            poi.marker.getLngLat().lng === e.lngLat.lng && 
+            poi.marker.getLngLat().lat === e.lngLat.lat
+        );
+        
+        if (!clickedPOI) {
+            // Clicked outside, turn off edit mode
+            togglePOIHighlight(currentlyEditingPOI.marker.getElement(), currentlyEditingPOI.marker, currentlyEditingPOI);
+            currentlyEditingPOI = null;
+        }
+        return;
+    }
+
+    // If in POI mode
+    if (currentMode === 'poi') {
+        // Remove any existing temporary POI marker
+        if (currentPOIMarker) {
+            currentPOIMarker.remove();
+        }
+
+        // Create a temporary marker at clicked location
+        currentPOILngLat = [e.lngLat.lng, e.lngLat.lat];
+        
+        // Create a temporary marker
+        const el = document.createElement('div');
+        el.className = 'poi-marker';
+        el.innerHTML = '<i class="fas fa-map-marker-alt" style="color: white;"></i>';
+
+        currentPOIMarker = new maptilersdk.Marker({
+            element: el,
+            draggable: false
+        }).setLngLat(currentPOILngLat).addTo(map);
+
+        // Show POI modal
+        poiModal.style.display = 'flex';
+        infoOverlay.style.display = 'none';
+        return;
+    }
+});
+</script>
+<script>
+
+    // Global variable to track the current route ID when loading/editing
+let currentRouteId = null;
+// Save Route Modal Elements
+const saveRouteModal = document.getElementById('save-route-modal');
+const routeNameInput = document.getElementById('route-name-input');
+const confirmSaveRouteBtn = document.getElementById('confirm-save-route-btn');
+const cancelSaveRouteBtn = document.getElementById('cancel-save-route-btn');
+const saveRouteBtn = document.getElementById('save-route-btn');
+
+// Add click handler to save route button
+saveRouteBtn.addEventListener('click', showSaveRouteModal);
+
+// Show save route modal
+function showSaveRouteModal() {
+    if (!startPoint || !endPoint) {
+        alert('Please create a route first');
+        return;
+    }
+
+    // Show modal
+    saveRouteModal.style.display = 'flex';
+    routeNameInput.focus();
+}
+
+// Get success modal elements
+const successModal = document.getElementById('success-modal');
+const continueEditingBtn = document.getElementById('continue-editing-btn');
+const backToMenuBtn = document.getElementById('back-to-menu-btn');
+
+// Corrected confirmSaveRouteBtn event handler to properly save best_time
+confirmSaveRouteBtn.addEventListener('click', async () => {
+    const routeName = routeNameInput.value.trim();
+    if (!routeName) {
+        alert('Please enter a name for the route');
+        return;
+    }
+
+    try {
+        // Process all POI images before saving
+        const processedPois = await Promise.all(pois.map(async (poi) => {
+            const processedImages = await Promise.all(
+                // Ensure images is an array and filter out any empty values
+                (Array.isArray(poi.images) ? poi.images : [poi.images])
+                    .filter(img => img)
+                    .map(img => processImageForSaving(img))
+            );
+            
+            return {
+                id: poi.id, // Include POI ID if it exists
+                name: poi.name,
+                description: poi.description || '',
+                type: poi.type || '',
+                best_time: poi.best_time || '',
+                images: processedImages.filter(img => img !== null),
+                lngLat: poi.lngLat,
+                amenities: poi.amenities || []
+            };
+        }));
+
+        const routeData = {
+            id: currentRouteId, // Add the current route ID if exists
+            name: routeName,
+            startPoint: startPoint,
+            endPoint: endPoint,
+            waypoints: waypoints,
+            distance: parseFloat(document.getElementById('distance').textContent),
+            duration: calculateDurationInSeconds(),
+            highestPoint: parseFloat(document.getElementById('highest').textContent),
+            lowestPoint: parseFloat(document.getElementById('lowest').textContent),
+            totalAscent: parseFloat(document.getElementById('ascent').textContent),
+            totalDescent: parseFloat(document.getElementById('descent').textContent),
+            pois: processedPois
+        };
+
+        console.log('Saving route data:', routeData);
+        console.log('POIs data:', processedPois);
+
+        const response = await fetch('/php/save-route.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(routeData)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Update currentRouteId if a new route was created
+            currentRouteId = result.routeId;
+            
+            // Close save modal
+            saveRouteModal.style.display = 'none';
+            routeNameInput.value = '';
+            
+            // Show success modal
+            successModal.style.display = 'flex';
+        } else {
+            throw new Error(result.error || 'Failed to save route');
+        }
+
+    } catch (error) {
+        console.error('Error saving route:', error);
+        alert('Failed to save route: ' + error.message);
+    }
+});
+
+// Continue editing button event handler
+continueEditingBtn.addEventListener('click', () => {
+    successModal.style.display = 'none';
+});
+
+// Back to menu button event handler
+backToMenuBtn.addEventListener('click', () => {
+    window.location.href = 'index.php';
+});
+
+// Close modal on outside click
+successModal.addEventListener('click', (e) => {
+    if (e.target === successModal) {
+        successModal.style.display = 'none';
+    }
+});
+
+// Cancel save handler
+cancelSaveRouteBtn.addEventListener('click', () => {
+    saveRouteModal.style.display = 'none';
+    routeNameInput.value = '';
+});
+
+// Close modal on outside click
+saveRouteModal.addEventListener('click', (e) => {
+    if (e.target === saveRouteModal) {
+        saveRouteModal.style.display = 'none';
+        routeNameInput.value = '';
+    }
+});
+
+// Handle Enter key in input
+routeNameInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        confirmSaveRouteBtn.click();
+    }
+});
+
+// Helper function to calculate duration in seconds from the UI display
+function calculateDurationInSeconds() {
+    const durationText = document.getElementById('duration').textContent;
+    const matches = durationText.match(/(\d+)h\s*(\d+)m/);
+    if (matches) {
+        const hours = parseInt(matches[1]);
+        const minutes = parseInt(matches[2]);
+        return (hours * 3600) + (minutes * 60);
+    }
+    return 0;
+}
+
+
+// Function to load a route from the database
+async function loadRoute(routeId) {
+    try {
+        const response = await fetch(`/php/get-route.php?route_id=${routeId}`);
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to load route');
+        }
+
+        // Set the current route ID when loading
+        currentRouteId = routeId;
+
+        const routeData = result.route;
+
+        // Preset the route name in the save modal input
+        routeNameInput.value = routeData.name;
+
+        // Clear existing route
+        clearRoute();
+
+        // Start route creation mode
+        isRouteStarted = true;
+        startRouteBtn.style.display = 'none';
+        document.getElementById('upload-gpx-wrapper').style.display = 'none';
+        
+        // Set start point and create marker
+        startPoint = routeData.startPoint;
+        createMarker(startPoint, 'start');
+
+        // Create waypoint markers
+        waypoints = routeData.waypoints;
+        waypoints.forEach(waypoint => {
+            createMarker(waypoint, 'via');
+        });
+
+        // Set end point and create marker
+        endPoint = routeData.endPoint;
+        createMarker(endPoint, 'end');
+
+        // Calculate route first
+        await calculateRoute();
+
+        // Update statistics in UI
+        document.getElementById('distance').textContent = `${routeData.distance.toFixed(1)} km`;
+        
+        // Calculate and display duration
+        const hours = Math.floor(routeData.duration / 3600);
+        const minutes = Math.floor((routeData.duration % 3600) / 60);
+        document.getElementById('duration').textContent = `${hours}h ${minutes}m`;
+        
+        // Update elevation statistics
+        document.getElementById('highest').textContent = `${routeData.highestPoint} m`;
+        document.getElementById('lowest').textContent = `${routeData.lowestPoint} m`;
+        document.getElementById('ascent').textContent = `${routeData.totalAscent} m`;
+        document.getElementById('descent').textContent = `${routeData.totalDescent} m`;
+
+        // Update sidebar and points list
+        updatePointsList();
+        addWaypointBtn.disabled = false;
+        sidebar.classList.add('active');
+        mapContainer.classList.add('sidebar-active');
+
+        // Activate profile container
+        const profileContainer = document.getElementById('profileContainer');
+        const mapElement = document.getElementById('map');
+        if (profileContainer && mapElement) {
+            profileContainer.style.display = 'block';
+            mapElement.style.bottom = '200px';
+            updateMapSize();
+        }
+
+        // Create POIs if they exist
+        if (routeData.pois && routeData.pois.length > 0) {
+            routeData.pois.forEach(poi => {
+                // Set currentPOILngLat for the createPOI function
+                currentPOILngLat = [parseFloat(poi.lng), parseFloat(poi.lat)];
+                
+                createPOI(
+                    poi.name,
+                    poi.description || '',
+                    poi.images || null,
+                    poi.amenities || [],
+                    poi.type || '',  // Use empty string as fallback
+                    true,
+                    poi.best_time || ''  // Add best_time parameter
+                );
+            });
+            // Reset currentPOILngLat after creating all POIs
+            currentPOILngLat = null;
+        }
+
+        // Fit map to route bounds with padding for sidebar
+        const coordinates = [...waypoints];
+        coordinates.unshift(startPoint);
+        coordinates.push(endPoint);
+        
+        const bounds = coordinates.reduce(
+            (bounds, coord) => bounds.extend(coord),
+            new maptilersdk.LngLatBounds(coordinates[0], coordinates[0])
+        );
+
+        map.fitBounds(bounds, {
+            padding: {
+                top: 50,
+                bottom: 250,  // Increased bottom padding to account for profile
+                left: 50,
+                right: 450
+            }
+        });
+
+    } catch (error) {
+        console.error('Error loading route:', error);
+        alert('Failed to load route: ' + error.message);
+    }
+}
+
+// Modified createPOI function to handle loaded POIs
+function createPOI(name, description, image, amenities, poiType, skipMarker = false, bestTime = null) {
+    // Check if we have valid coordinates
+    if (!skipMarker && !currentPOILngLat) return;
+    if (skipMarker && !currentPOILngLat) {
+        console.error('No coordinates provided for POI:', name);
+        return;
+    }
+
+    const poi = {
+        id: Date.now(),
+        name,
+        description,
+        type: poiType || '',
+        best_time: bestTime || '',
+        image,
+        images: image, // Ensure images are properly stored
+        amenities: amenities || [],
+        lngLat: currentPOILngLat
+    };
+    
+    console.log('Created POI object:', poi);
+
+    // Create marker for POI
+    poi.marker = createPOIMarker(poi.lngLat, poi);
+
+    // Add to POIs array
+    pois.push(poi);
+
+    // Create and add POI item to sidebar list
+    const poiItem = document.createElement('div');
+    poiItem.className = 'poi-item';
+    poiItem.innerHTML = `
+        <span>${name}</span>
+        <div class="poi-item-actions">
+            <button class="button blue" onclick="zoomToPOI(${poi.id})">
+                <i class="fas fa-search"></i>
+            </button>
+            <button class="button green" onclick="editPOI(${poi.id})">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="button red" onclick="removePOI(${poi.id})">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    poisList.appendChild(poiItem);
+
+    // Reset POI creation mode if not loading from database
+    if (!skipMarker) {
+        currentMode = null;
+        currentPOILngLat = null;
+        if (currentPOIMarker) {
+            currentPOIMarker.remove();
+            currentPOIMarker = null;
+        }
+        infoOverlay.style.display = 'none';
+    }
+}
+
+// Modified createPOIMarker function to ensure proper coordinate handling
+function createPOIMarker(lngLat, poi) {
+    const el = document.createElement('div');
+    el.className = 'poi-marker';
+    el.innerHTML = '<i class="fas fa-map-marker-alt" style="color: white;"></i>';
+
+    const marker = new maptilersdk.Marker({
+        element: el,
+        draggable: false
+    }).setLngLat(lngLat).addTo(map);
+
+    // Create popup with multiple images and details
+    const popup = new maptilersdk.Popup({ 
+        offset: 25,
+        maxWidth: '300px'
+    });
+
+    // Create popup content
+    const popupContent = document.createElement('div');
+    popupContent.className = 'poi-popup';
+
+    // Image carousel (if multiple images)
+    if (poi.images && (Array.isArray(poi.images) ? poi.images.length > 0 : poi.images)) {
+        const imageContainer = document.createElement('div');
+        imageContainer.className = 'poi-popup-images';
+        
+        // Create image slider
+        const imageSlider = document.createElement('div');
+        imageSlider.className = 'image-slider';
+        
+        // Ensure images is an array
+        const imagesArray = Array.isArray(poi.images) ? poi.images : [poi.images];
+        
+        // Filter out null/undefined images
+        const validImages = imagesArray.filter(img => img);
+        
+        validImages.forEach((imageUrl, index) => {
+            const img = document.createElement('img');
+            img.src = imageUrl;
+            img.style.display = index === 0 ? 'block' : 'none';
+            imageSlider.appendChild(img);
+        });
+
+        // Add navigation if multiple images
+        if (validImages.length > 1) {
+            const prevBtn = document.createElement('button');
+            prevBtn.innerHTML = '❮';
+            prevBtn.className = 'slider-btn prev-btn';
+            
+            const nextBtn = document.createElement('button');
+            nextBtn.innerHTML = '❯';
+            nextBtn.className = 'slider-btn next-btn';
+
+            let currentImageIndex = 0;
+            const images = imageSlider.querySelectorAll('img');
+
+            prevBtn.onclick = (e) => {
+                e.stopPropagation(); // Prevent click from bubbling to marker
+                images[currentImageIndex].style.display = 'none';
+                currentImageIndex = (currentImageIndex - 1 + images.length) % images.length;
+                images[currentImageIndex].style.display = 'block';
+            };
+
+            nextBtn.onclick = (e) => {
+                e.stopPropagation(); // Prevent click from bubbling to marker
+                images[currentImageIndex].style.display = 'none';
+                currentImageIndex = (currentImageIndex + 1) % images.length;
+                images[currentImageIndex].style.display = 'block';
+            };
+
+            imageContainer.appendChild(prevBtn);
+            imageContainer.appendChild(imageSlider);
+            imageContainer.appendChild(nextBtn);
+        } else {
+            imageContainer.appendChild(imageSlider);
+        }
+
+        popupContent.appendChild(imageContainer);
+    }
+
+    // Add details
+    const detailsContainer = document.createElement('div');
+    detailsContainer.className = 'poi-details';
+    
+    const nameEl = document.createElement('h3');
+    nameEl.textContent = poi.name;
+    detailsContainer.appendChild(nameEl);
+
+    // Add POI type if available
+    if (poi.type) {
+        const typeEl = document.createElement('p');
+        const typeMap = {
+            'hotel': '🏨 Hotel',
+            'restaurant': '🍽️ Restaurant',
+            'gipfel': '🏔️ Gipfel',
+            'highlight': '✨ Highlight'
+        };
+        typeEl.textContent = typeMap[poi.type] || poi.type;
+        typeEl.style.color = 'var(--text-secondary)';
+        typeEl.style.fontSize = '0.8rem';
+        detailsContainer.appendChild(typeEl);
+    }
+
+    if (poi.description) {
+        const descEl = document.createElement('p');
+        descEl.textContent = poi.description;
+        detailsContainer.appendChild(descEl);
+    }
+
+    // Add amenities
+    if (poi.amenities && poi.amenities.length > 0) {
+        const amenitiesEl = document.createElement('div');
+        amenitiesEl.className = 'poi-amenities';
+        
+        poi.amenities.forEach(amenity => {
+            const amenityEl = document.createElement('span');
+            amenityEl.className = 'poi-amenity';
+            
+            // Map amenity values to emoji and text
+            const amenityMap = {
+                'wc': '🚻 WC',
+                'food': '🍽️ Essen',
+                'charging': '⚡️ E-Ladestation',
+                'difficulty': '🏔️ Schwierigkeit'
+            };
+            
+            amenityEl.textContent = amenityMap[amenity] || amenity;
+            amenitiesEl.appendChild(amenityEl);
+        });
+
+        detailsContainer.appendChild(amenitiesEl);
+    }
+
+    popupContent.appendChild(detailsContainer);
+
+    // Add popup to marker
+    popup.setDOMContent(popupContent);
+    marker.setPopup(popup);
+
+    el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePOIHighlight(el, marker, poi);
+    });
+
+    marker.on('dragstart', () => {
+        el.classList.add('dragging');
+    });
+
+    marker.on('drag', () => {
+        const newLngLat = marker.getLngLat();
+        poi.lngLat = [newLngLat.lng, newLngLat.lat];
+    });
+
+    marker.on('dragend', () => {
+        el.classList.remove('dragging');
+        const newLngLat = marker.getLngLat();
+        poi.lngLat = [newLngLat.lng, newLngLat.lat];
+    });
+
+    return marker; 
+}
+
+// Check for route ID in URL when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const routeId = urlParams.get('route');
+    if (routeId) {
+        loadRoute(routeId);
+    }
+});
+</script>
+</body>
+</html>

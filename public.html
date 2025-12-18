@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Route Viewer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <script src="https://cdn.maptiler.com/maptiler-sdk-js/v3.0.1/maptiler-sdk.umd.min.js"></script>
+    <link href="https://cdn.maptiler.com/maptiler-sdk-js/v3.0.1/maptiler-sdk.css" rel="stylesheet" />
+    <script src="https://cdn.maptiler.com/maptiler-elevation-profile-control/v3.0.1/maptiler-elevation-profile-control.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/css/public.css">
+
+    <script src="https://cdn.maptiler.com/maptiler-weather/v2.2.0/maptiler-weather.umd.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+
+</head>
+<body>
+
+    <div class="wrapper">
+        <div class="route-stats-bar" id="route-stats-bar">
+            <div class="logo-container">
+                <a href="https://mountainsquad.com/" target="_blank">
+                    <img src="/images/ms-logo.png" alt="MS Logo" class="ms-logo">
+                </a>
+            </div>
+            <div class="route-title" id="routeTitle"></div>
+            <div class="stat-icons">
+                <div class="stat-icon" id="distanceIcon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M18.17 13l-3.58 3.59L16 18l6-6-6-6-1.41 1.41L18.17 11H5.83l3.58-3.59L8 6l-6 6 6 6 1.41-1.41L5.83 13h12.34z" fill="currentColor"/>
+                    </svg>
+                    <span class="stat-value" id="route-distance">-</span>
+                </div>
+                <div class="stat-icon" id="timeIcon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42A8.962 8.962 0 0012 4a9 9 0 00-9 9c0 4.97 4.02 9 9 9a8.994 8.994 0 007.03-14.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z" fill="currentColor"/>
+                    </svg>
+                    <span class="stat-value" id="route-duration">-</span>
+                </div>
+                <div class="stat-icon" id="elevationUpIcon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M5.974 19.435l10.02-10.02.007 5.07h1.994V6H9.51v1.994l5.07.007-10.02 10.02 1.414 1.414z" fill="currentColor"/>
+                    </svg>
+                    <span class="stat-value" id="route-ascent">-</span>
+                </div>
+                <div class="stat-icon" id="elevationDownIcon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M4.56 5.974l10.02 10.02-5.07.007v1.994h8.485V9.51h-1.994l-.007 5.07L5.974 4.56 4.56 5.974z" fill="currentColor"/>
+                    </svg>
+                    <span class="stat-value" id="route-descent">-</span>
+                </div>
+                <div class="stat-icon" id="lowestPointIcon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M7.37 7.222H5l1.273 2 4.542 7.138L12 18.221l1.185-1.863 4.542-7.137 1.273-2H7.37zm1.273 2L12 14.497l3.357-5.275H8.643z" fill="currentColor"/>
+                    </svg>
+                    <span class="stat-value" id="route-lowest">-</span>
+                </div>
+                <div class="stat-icon" id="highestPointIcon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M12 5.929l-1.185 1.863-4.542 7.137-1.273 2h14l-1.273-2-4.542-7.137L12 5.929zm0 3.725L8.643 14.93h6.714L12 9.654z" fill="currentColor"/>
+                    </svg>
+                    <span class="stat-value" id="route-highest">-</span>
+                </div>
+            </div>
+        </div>
+        <div class="content" id="map-container">
+            <div id="map"></div>
+        </div>
+        <div id="profilesContainer">
+            <!-- Custom profile container -->
+            <div id="customProfileContainer">
+                <!-- Loading indicator -->
+                <div id="profileLoadingIndicator" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: var(--background-dark); color: var(--text-primary);">
+                    <div class="loading-spinner">
+                        <i class="fas fa-mountain fa-spin" style="font-size: 24px; color: var(--highlight); margin-bottom: 10px;"></i>
+                    </div>
+                    <div style="font-size: 14px;">Route lädt...</div>
+                </div>
+            </div>
+        </div>
+        
+
+        <div id="hiddenProfileStorage" style="display: none; height: 0; overflow: hidden;"></div>
+    <div id="poi-sidebar" class="poi-sidebar">
+        <div id="poi-content"></div>
+    </div>
+
+<script src="js/utils.js"></script>
+<script src="js/main.js"></script>
+<script src="js/route-colors.js"></script>
+<script src="js/route.js"></script>
+<script src="js/poi.js"></script>
+<script src="js/elevation.js"></script>
+
+
+</body>
+</html>

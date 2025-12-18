@@ -1,0 +1,200 @@
+/* ElevationProfile CSS - Matching Original public.css Design */
+
+.custom-profile-container {
+  width: 100%;
+  height: 140px;
+  min-height: 140px;
+  max-height: 140px;
+  flex-shrink: 0;
+  background: #0b1215;
+  position: relative;
+}
+
+/* SVG Chart Styling */
+.custom-profile-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Loading Indicator */
+.loading-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: #0b1215;
+  color: #e0e0e0;
+}
+
+.loading-indicator i {
+  font-size: 24px;
+  color: #088d95;
+  margin-bottom: 10px;
+  animation: bounce 1.5s ease-in-out infinite;
+}
+
+.loading-indicator span {
+  font-size: 14px;
+}
+
+/* Chart Elements */
+.area {
+  fill: rgba(8, 131, 115, 0.15);
+}
+
+.line {
+  fill: none;
+  stroke: #088373;
+  stroke-width: 2;
+}
+
+.axis {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 10px;
+}
+
+.grid line {
+  stroke: rgba(255, 255, 255, 0.1);
+}
+
+.grid .domain {
+  display: none;
+}
+
+/* Crosshair */
+.custom-crosshair {
+  stroke: #088d95;
+  stroke-width: 1px;
+}
+
+/* Marker */
+.custom-marker {
+  fill: #088d95;
+  stroke: #fff;
+  stroke-width: 2px;
+}
+
+/* Tooltip */
+.custom-tooltip {
+  position: absolute;
+  background: rgba(11, 18, 21, 0.9);
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 10;
+  transform: translate(-50%, -100%);
+  margin-top: -10px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+/* Zoom Text */
+.zoom-text {
+  cursor: pointer;
+  user-select: none;
+}
+
+.zoom-text.reset:hover {
+  fill: #088d95;
+}
+
+/* POI Markers on Profile */
+.poi-marker {
+  transition: transform 0.2s ease;
+}
+
+.poi-marker:hover {
+  transform: scale(1.2);
+}
+
+.profile-poi-indicator {
+  background-color: rgba(8, 14, 17, 0.7);
+  border: 2px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+.profile-poi-indicator:hover {
+  z-index: 20;
+}
+
+.profile-poi-indicator img {
+  filter: drop-shadow(0px 0px 2px rgba(0, 0, 0, 0.5));
+}
+
+.profile-poi-indicator::after {
+  content: '';
+  position: absolute;
+  width: 1px;
+  height: 15px;
+  background-color: rgba(255, 255, 255, 0.7);
+  bottom: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Bounce Animation */
+@keyframes bounce {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+/* Highlight Crosshair */
+.highlight-crosshair {
+  pointer-events: none;
+}
+
+.highlight-marker {
+  pointer-events: none;
+}
+
+/* Stage Breakpoints - Matching tour type colors */
+.stage-breakpoint {
+  pointer-events: none;
+}
+
+.stage-breakpoint.gold {
+  stroke: #ffd700;
+}
+
+.stage-breakpoint.silver {
+  stroke: #c0c0c0;
+}
+
+.stage-breakpoint.bronze {
+  stroke: #cd7f32;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .custom-profile-container {
+    height: 150px;
+    min-height: 120px;
+  }
+}
+
+@media (max-width: 480px) {
+  .custom-profile-container {
+    height: 140px;
+    min-height: 100px;
+  }
+
+  .custom-tooltip {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+}
