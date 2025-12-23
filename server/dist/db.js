@@ -10,7 +10,10 @@ exports.run = run;
 exports.initializeDatabase = initializeDatabase;
 exports.closeDatabase = closeDatabase;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const dotenv_1 = __importDefault(require("dotenv"));
 const promise_1 = __importDefault(require("mysql2/promise"));
+// Load environment variables BEFORE creating config
+dotenv_1.default.config();
 // MariaDB connection configuration
 const dbConfig = {
     host: process.env.DB_HOST || 'localhost',
@@ -22,6 +25,8 @@ const dbConfig = {
     connectionLimit: 10,
     queueLimit: 0,
 };
+// Log connection info (without password)
+console.log(`[DB] Connecting to MariaDB: ${dbConfig.user}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`);
 // Create connection pool
 const pool = promise_1.default.createPool(dbConfig);
 exports.pool = pool;

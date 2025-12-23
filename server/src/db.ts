@@ -1,5 +1,11 @@
 import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
+import path from 'path';
+
+// Load environment variables from server/.env explicitly
+// This ensures the .env is found regardless of the current working directory (e.g., when run via PM2)
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
 // MariaDB connection configuration
 const dbConfig = {
@@ -12,6 +18,11 @@ const dbConfig = {
   connectionLimit: 10,
   queueLimit: 0,
 };
+
+// Log connection info (without password)
+console.log(
+  `[DB] Connecting to MariaDB: ${dbConfig.user}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`
+);
 
 // Create connection pool
 const pool = mysql.createPool(dbConfig);

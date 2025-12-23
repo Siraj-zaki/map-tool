@@ -4,14 +4,14 @@ import express from 'express';
 import session from 'express-session';
 import path from 'path';
 
+// Load environment variables from server/.env explicitly
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
+
 import { closeDatabase, initializeDatabase } from './db.js';
 import authRoutes from './routes/auth.js';
 import gpxRoutes from './routes/gpx.js';
 import poisRoutes from './routes/pois.js';
 import routesRoutes from './routes/routes.js';
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
