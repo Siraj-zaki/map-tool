@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { Request, Response, Router } from 'express';
-import db from '../db.js';
+import { queryOne, run } from '../db.js';
 
 const router = Router();
 
@@ -14,7 +14,7 @@ declare module 'express-session' {
 }
 
 // POST /api/auth/login
-router.post('/login', (req: Request, res: Response) => {
+router.post('/login', async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body;
 
@@ -25,9 +25,9 @@ router.post('/login', (req: Request, res: Response) => {
       });
     }
 
-    const user = db
-      .prepare('SELECT * FROM users WHERE username = ?')
-      .get(username) as any;
+    const user = await queryOne('SELECT * FROM users WHERE username = ?', [
+      username,
+    ]);
 
     if (!user) {
       return res.status(401).json({
@@ -46,9 +46,9 @@ router.post('/login', (req: Request, res: Response) => {
     }
 
     // Update last login
-    db.prepare(
-      'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?'
-    ).run(user.id);
+    await run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [
+      user.id,
+    ]);
 
     // Set session
     req.session.userId = user.id;
@@ -81,18 +81,17 @@ router.post('/logout', (req: Request, res: Response) => {
 });
 
 // GET /api/auth/profile
-router.get('/profile', (req: Request, res: Response) => {
+router.get('/profile', async (req: Request, res: Response) => {
   if (!req.session.userId) {
     return res
       .status(401)
       .json({ success: false, message: 'Not authenticated' });
   }
 
-  const user = db
-    .prepare(
-      'SELECT id, username, role, last_login, created_at FROM users WHERE id = ?'
-    )
-    .get(req.session.userId) as any;
+  const user = await queryOne(
+    'SELECT id, username, role, last_login, created_at FROM users WHERE id = ?',
+    [req.session.userId]
+  );
 
   if (!user) {
     return res.status(404).json({ success: false, message: 'User not found' });

@@ -3,10 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { routesApi, type POI, type Route } from '../api';
 import ElevationProfile from '../components/ElevationProfile/ElevationProfile';
-import GpxDownloadModal from '../components/GPX/GpxDownloadModal';
 import MapComponent from '../components/Map/MapComponent';
 import POISidebar from '../components/POI/POISidebar';
+import PremiumModal from '../components/Premium/PremiumModal';
 import RouteStatsBar from '../components/RouteStatsBar/RouteStatsBar';
+import TourSelector from '../components/TourSelector/TourSelector';
 import WeatherForecast from '../components/Weather/WeatherForecast';
 
 export default function EmbedView() {
@@ -20,10 +21,11 @@ export default function EmbedView() {
   const [error, setError] = useState<string | null>(null);
   const [selectedPoi, setSelectedPoi] = useState<POI | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showGpxModal, setShowGpxModal] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [tourType, setTourType] = useState<'gold' | 'silver' | 'bronze'>(
     'gold'
   );
+  const [selectedStage, setSelectedStage] = useState<number | null>(null);
 
   // Bi-directional sync between map and profile
   const [highlightDistance, setHighlightDistance] = useState<
@@ -145,25 +147,37 @@ export default function EmbedView() {
       {/* Route Stats Bar */}
       <RouteStatsBar
         route={route}
-        tourType={tourType}
-        onTourTypeChange={setTourType}
         showWeather={true}
-        showTourSelector={true}
         showDownloadButton={true}
-        onDownloadClick={() => setShowGpxModal(true)}
+        onDownloadClick={() => setShowPremiumModal(true)}
       />
 
       {/* Map Content Area */}
       <div className="content" style={{ position: 'relative' }}>
-        {/* Weather Forecast Overlay */}
+        {/* Tour Selector - Top Left */}
         <div
           style={{
             position: 'absolute',
-            top: '16px',
+            top: '12px',
             left: '60px',
+            zIndex: 40,
+          }}
+        >
+          <TourSelector
+            tourType={tourType}
+            onTourTypeChange={setTourType}
+            selectedStage={selectedStage}
+            onStageSelect={setSelectedStage}
+          />
+        </div>
+
+        {/* Weather Forecast Overlay - Top Right */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '12px',
             right: '60px',
             zIndex: 40,
-            maxWidth: 'calc(100% - 60px)',
           }}
         >
           <WeatherForecast
@@ -177,6 +191,7 @@ export default function EmbedView() {
           <MapComponent
             route={route}
             tourType={tourType}
+            selectedStage={selectedStage}
             onPositionChange={handleMapPositionChange}
             onPoiClick={setSelectedPoi}
             highlightPosition={highlightPosition}
@@ -207,6 +222,7 @@ export default function EmbedView() {
         <ElevationProfile
           route={route}
           pois={route.pois}
+          tourType={tourType}
           onPositionChange={handleElevationPositionChange}
           highlightDistance={highlightDistance}
           onPoiClick={handlePoiClick}
@@ -220,13 +236,12 @@ export default function EmbedView() {
         onClose={() => setSelectedPoi(null)}
       />
 
-      {/* GPX Download Modal */}
-      {showGpxModal && (
-        <GpxDownloadModal
-          onClose={() => setShowGpxModal(false)}
-          routeId={route.id}
-        />
-      )}
+      {/* Premium Modal */}
+      <PremiumModal
+        isOpen={showPremiumModal}
+        onClose={() => setShowPremiumModal(false)}
+        featureName="GPX Download"
+      />
 
       <style>{wrapperStyles}</style>
     </div>

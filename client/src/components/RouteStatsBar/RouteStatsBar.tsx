@@ -5,20 +5,14 @@ import './RouteStatsBar.css';
 
 interface RouteStatsBarProps {
   route: Route;
-  tourType: 'gold' | 'silver' | 'bronze';
-  onTourTypeChange: (type: 'gold' | 'silver' | 'bronze') => void;
   showWeather?: boolean;
-  showTourSelector?: boolean;
   showDownloadButton?: boolean;
   onDownloadClick?: () => void;
 }
 
 export default function RouteStatsBar({
   route,
-  tourType,
-  onTourTypeChange,
   showWeather = true,
-  showTourSelector = true,
   showDownloadButton = false,
   onDownloadClick,
 }: RouteStatsBarProps) {
@@ -30,49 +24,40 @@ export default function RouteStatsBar({
 
   return (
     <div className="route-stats-bar" id="route-stats-bar">
-      {/* Left Section: Title + Tour Selector */}
+      {/* Left Section: Title */}
       <div className="stats-left">
         <h1 className="route-title" id="routeTitle">
           {route.name}
         </h1>
-
-        {showTourSelector && (
-          <div className="tour-type-selector">
-            {(['gold', 'silver', 'bronze'] as const).map(type => (
-              <button
-                key={type}
-                onClick={() => onTourTypeChange(type)}
-                className={`tour-type-btn ${tourType === type ? 'active' : ''}`}
-                data-type={type}
-              >
-                {t(type)}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Center Section: Compact Stats */}
+      {/* Center Section: Stats */}
       <div className="stats-center">
         <div className="stat-item" title={t('distance')}>
           <i className="fas fa-route"></i>
-          <span>{route.distance?.toFixed(1)} km</span>
+          <span>{parseFloat(String(route.distance || 0)).toFixed(1)} km</span>
         </div>
         <div className="stat-item" title={t('duration')}>
           <i className="fas fa-clock"></i>
-          <span>{formatDuration(route.duration || 0)}</span>
+          <span>{formatDuration(Number(route.duration) || 0)}</span>
         </div>
         <div className="stat-item" title={t('totalAscent')}>
           <i className="fas fa-arrow-up"></i>
-          <span>{Math.round(route.totalAscent || 0)} m</span>
+          <span>
+            {Math.round(parseFloat(String(route.totalAscent || 0)))} m
+          </span>
         </div>
         <div className="stat-item" title={t('lowestPoint')}>
           <i className="fas fa-arrow-down"></i>
-          <span>{Math.round(route.lowestPoint || 0)} m</span>
+          <span>
+            {Math.round(parseFloat(String(route.lowestPoint || 0)))} m
+          </span>
         </div>
         <div className="stat-item" title={t('highestPoint')}>
           <i className="fas fa-mountain"></i>
-          <span>{Math.round(route.highestPoint || 0)} m</span>
+          <span>
+            {Math.round(parseFloat(String(route.highestPoint || 0)))} m
+          </span>
         </div>
       </div>
 

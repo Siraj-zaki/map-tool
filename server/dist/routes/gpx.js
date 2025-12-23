@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
-const db_js_1 = __importDefault(require("../db.js"));
+const db_js_1 = require("../db.js");
 const auth_js_1 = require("./auth.js");
 const router = (0, express_1.Router)();
 // GPX file storage directory
@@ -15,22 +15,22 @@ if (!fs_1.default.existsSync(gpxDir)) {
     fs_1.default.mkdirSync(gpxDir, { recursive: true });
 }
 // GET /api/gpx/:routeId - Get available GPX files for a route
-router.get('/:routeId', (req, res) => {
+router.get('/:routeId', async (req, res) => {
     try {
         const { routeId } = req.params;
         const { tour_type, start_point } = req.query;
-        let query = 'SELECT * FROM gpx_files WHERE route_id = ?';
+        let sql = 'SELECT * FROM gpx_files WHERE route_id = ?';
         const params = [routeId];
         if (tour_type) {
-            query += ' AND tour_type = ?';
+            sql += ' AND tour_type = ?';
             params.push(tour_type);
         }
         if (start_point) {
-            query += ' AND start_point_name = ?';
+            sql += ' AND start_point_name = ?';
             params.push(start_point);
         }
-        query += ' ORDER BY stage_number';
-        const gpxFiles = db_js_1.default.prepare(query).all(...params);
+        sql += ' ORDER BY stage_number';
+        const gpxFiles = await (0, db_js_1.query)(sql, params);
         // Group by tour type
         const grouped = gpxFiles.reduce((acc, file) => {
             if (!acc[file.tour_type]) {
@@ -58,12 +58,10 @@ router.get('/:routeId', (req, res) => {
     }
 });
 // GET /api/gpx/download/:fileId - Download a specific GPX file
-router.get('/download/:fileId', (req, res) => {
+router.get('/download/:fileId', async (req, res) => {
     try {
         const { fileId } = req.params;
-        const gpxFile = db_js_1.default
-            .prepare('SELECT * FROM gpx_files WHERE id = ?')
-            .get(fileId);
+        const gpxFile = await (0, db_js_1.queryOne)('SELECT * FROM gpx_files WHERE id = ?', [fileId]);
         if (!gpxFile) {
             return res
                 .status(404)
@@ -76,9 +74,7 @@ router.get('/download/:fileId', (req, res) => {
                 .json({ success: false, error: 'GPX file not found on disk' });
         }
         // Get route name for filename
-        const route = db_js_1.default
-            .prepare('SELECT name FROM routes WHERE route_id = ?')
-            .get(gpxFile.route_id);
+        const route = await (0, db_js_1.queryOne)('SELECT name FROM routes WHERE route_id = ?', [gpxFile.route_id]);
         const routeName = route?.name || 'route';
         const downloadName = `${routeName}-${gpxFile.tour_type}-stage${gpxFile.stage_number}.gpx`;
         res.setHeader('Content-Type', 'application/gpx+xml');
@@ -93,7 +89,7 @@ router.get('/download/:fileId', (req, res) => {
     }
 });
 // POST /api/gpx - Upload GPX file (protected)
-router.post('/', auth_js_1.requireAuth, (req, res) => {
+router.post('/', auth_js_1.requireAuth, async (req, res) => {
     try {
         const { route_id, tour_type, stage_number, start_point_name, gpx_content } = req.body;
         if (!route_id || !tour_type || !gpx_content) {
@@ -128,13 +124,11 @@ router.post('/', auth_js_1.requireAuth, (req, res) => {
         // Save GPX content to file
         fs_1.default.writeFileSync(filePath, gpx_content);
         // Insert to database
-        const result = db_js_1.default
-            .prepare(`
+        const result = await (0, db_js_1.run)(`
       INSERT INTO gpx_files (route_id, tour_type, stage_number, start_point_name, file_path)
       VALUES (?, ?, ?, ?, ?)
-    `)
-            .run(route_id, tour_type, stageNum, start_point_name || null, filename);
-        res.json({ success: true, id: result.lastInsertRowid });
+    `, [route_id, tour_type, stageNum, start_point_name || null, filename]);
+        res.json({ success: true, id: result.insertId });
     }
     catch (error) {
         console.error('Upload GPX error:', error);
@@ -144,19 +138,17 @@ router.post('/', auth_js_1.requireAuth, (req, res) => {
     }
 });
 // DELETE /api/gpx/:fileId - Delete GPX file (protected)
-router.delete('/:fileId', auth_js_1.requireAuth, (req, res) => {
+router.delete('/:fileId', auth_js_1.requireAuth, async (req, res) => {
     try {
         const { fileId } = req.params;
-        const gpxFile = db_js_1.default
-            .prepare('SELECT file_path FROM gpx_files WHERE id = ?')
-            .get(fileId);
+        const gpxFile = await (0, db_js_1.queryOne)('SELECT file_path FROM gpx_files WHERE id = ?', [fileId]);
         if (!gpxFile) {
             return res
                 .status(404)
                 .json({ success: false, error: 'GPX file not found' });
         }
         // Delete from database
-        db_js_1.default.prepare('DELETE FROM gpx_files WHERE id = ?').run(fileId);
+        await (0, db_js_1.run)('DELETE FROM gpx_files WHERE id = ?', [fileId]);
         // Delete file from disk
         const filePath = path_1.default.join(gpxDir, gpxFile.file_path);
         if (fs_1.default.existsSync(filePath)) {
@@ -172,16 +164,14 @@ router.delete('/:fileId', auth_js_1.requireAuth, (req, res) => {
     }
 });
 // GET /api/gpx/start-points/:routeId - Get available start points for a route
-router.get('/start-points/:routeId', (req, res) => {
+router.get('/start-points/:routeId', async (req, res) => {
     try {
         const { routeId } = req.params;
-        const startPoints = db_js_1.default
-            .prepare(`
+        const startPoints = await (0, db_js_1.query)(`
       SELECT DISTINCT start_point_name 
       FROM gpx_files 
       WHERE route_id = ? AND start_point_name IS NOT NULL
-    `)
-            .all(routeId);
+    `, [routeId]);
         res.json({
             success: true,
             data: startPoints.map(sp => sp.start_point_name),

@@ -4,7 +4,7 @@ import express from 'express';
 import session from 'express-session';
 import path from 'path';
 
-import { initializeDatabase } from './db.js';
+import { closeDatabase, initializeDatabase } from './db.js';
 import authRoutes from './routes/auth.js';
 import gpxRoutes from './routes/gpx.js';
 import poisRoutes from './routes/pois.js';
@@ -15,9 +15,6 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-
-// Initialize database
-initializeDatabase();
 
 // Middleware
 app.use(
@@ -99,14 +96,52 @@ app.use(
   }
 );
 
-app.listen(PORT, () => {
-  console.log(
-    `🚀 Harterbrocken API server running on http://localhost:${PORT}`
-  );
-  console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-  if (process.env.NODE_ENV === 'production') {
-    console.log(`🌐 Serving frontend from: client/dist`);
+// Initialize database and start server
+async function startServer() {
+  try {
+    // Initialize database (creates tables if not exist)
+    await initializeDatabase();
+
+    // Start server
+    const server = app.listen(PORT, () => {
+      console.log(
+        `🚀 Harterbrocken API server running on http://localhost:${PORT}`
+      );
+      console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+      console.log(
+        `🗄️  Database: MariaDB at ${process.env.DB_HOST || 'localhost'}:${
+          process.env.DB_PORT || '3306'
+        }`
+      );
+      if (process.env.NODE_ENV === 'production') {
+        console.log(`🌐 Serving frontend from: client/dist`);
+      }
+    });
+
+    // Graceful shutdown
+    process.on('SIGTERM', async () => {
+      console.log('SIGTERM received, shutting down gracefully...');
+      server.close(async () => {
+        await closeDatabase();
+        console.log('Server closed');
+        process.exit(0);
+      });
+    });
+
+    process.on('SIGINT', async () => {
+      console.log('SIGINT received, shutting down gracefully...');
+      server.close(async () => {
+        await closeDatabase();
+        console.log('Server closed');
+        process.exit(0);
+      });
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
   }
-});
+}
+
+startServer();
 
 export default app;

@@ -7,10 +7,10 @@ exports.requireAuth = requireAuth;
 exports.requireAdmin = requireAdmin;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const express_1 = require("express");
-const db_js_1 = __importDefault(require("../db.js"));
+const db_js_1 = require("../db.js");
 const router = (0, express_1.Router)();
 // POST /api/auth/login
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body;
         if (!username || !password) {
@@ -19,9 +19,9 @@ router.post('/login', (req, res) => {
                 message: 'Username and password are required',
             });
         }
-        const user = db_js_1.default
-            .prepare('SELECT * FROM users WHERE username = ?')
-            .get(username);
+        const user = await (0, db_js_1.queryOne)('SELECT * FROM users WHERE username = ?', [
+            username,
+        ]);
         if (!user) {
             return res.status(401).json({
                 success: false,
@@ -36,7 +36,9 @@ router.post('/login', (req, res) => {
             });
         }
         // Update last login
-        db_js_1.default.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?').run(user.id);
+        await (0, db_js_1.run)('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [
+            user.id,
+        ]);
         // Set session
         req.session.userId = user.id;
         req.session.username = user.username;
@@ -66,15 +68,13 @@ router.post('/logout', (req, res) => {
     });
 });
 // GET /api/auth/profile
-router.get('/profile', (req, res) => {
+router.get('/profile', async (req, res) => {
     if (!req.session.userId) {
         return res
             .status(401)
             .json({ success: false, message: 'Not authenticated' });
     }
-    const user = db_js_1.default
-        .prepare('SELECT id, username, role, last_login, created_at FROM users WHERE id = ?')
-        .get(req.session.userId);
+    const user = await (0, db_js_1.queryOne)('SELECT id, username, role, last_login, created_at FROM users WHERE id = ?', [req.session.userId]);
     if (!user) {
         return res.status(404).json({ success: false, message: 'User not found' });
     }

@@ -196,7 +196,7 @@ export default function Dashboard() {
                         {t('distance')}
                       </div>
                       <div className="text-[#088d95] font-semibold">
-                        {route.distance?.toFixed(1) || '0'} km
+                        {parseFloat(String(route.distance || 0)).toFixed(1)} km
                       </div>
                     </div>
                     <div className="text-center border-x border-[#1e2a33]">
@@ -204,7 +204,9 @@ export default function Dashboard() {
                         {t('ascent')}
                       </div>
                       <div className="text-green-500 font-semibold">
-                        ↑ {Math.round(route.totalAscent || 0)} m
+                        ↑{' '}
+                        {Math.round(parseFloat(String(route.totalAscent || 0)))}{' '}
+                        m
                       </div>
                     </div>
                     <div className="text-center">
@@ -212,7 +214,11 @@ export default function Dashboard() {
                         {t('descent')}
                       </div>
                       <div className="text-red-400 font-semibold">
-                        ↓ {Math.round(route.totalDescent || 0)} m
+                        ↓{' '}
+                        {Math.round(
+                          parseFloat(String(route.totalDescent || 0))
+                        )}{' '}
+                        m
                       </div>
                     </div>
                   </div>

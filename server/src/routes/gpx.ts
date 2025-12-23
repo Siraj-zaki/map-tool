@@ -1,7 +1,7 @@
 import { Request, Response, Router } from 'express';
 import fs from 'fs';
 import path from 'path';
-import db from '../db.js';
+import { query, queryOne, run } from '../db.js';
 import { requireAuth } from './auth.js';
 
 const router = Router();
@@ -25,27 +25,27 @@ interface GpxFile {
 }
 
 // GET /api/gpx/:routeId - Get available GPX files for a route
-router.get('/:routeId', (req: Request, res: Response) => {
+router.get('/:routeId', async (req: Request, res: Response) => {
   try {
     const { routeId } = req.params;
     const { tour_type, start_point } = req.query;
 
-    let query = 'SELECT * FROM gpx_files WHERE route_id = ?';
+    let sql = 'SELECT * FROM gpx_files WHERE route_id = ?';
     const params: any[] = [routeId];
 
     if (tour_type) {
-      query += ' AND tour_type = ?';
+      sql += ' AND tour_type = ?';
       params.push(tour_type);
     }
 
     if (start_point) {
-      query += ' AND start_point_name = ?';
+      sql += ' AND start_point_name = ?';
       params.push(start_point);
     }
 
-    query += ' ORDER BY stage_number';
+    sql += ' ORDER BY stage_number';
 
-    const gpxFiles = db.prepare(query).all(...params) as GpxFile[];
+    const gpxFiles = await query<GpxFile[]>(sql, params);
 
     // Group by tour type
     const grouped = gpxFiles.reduce((acc, file) => {
@@ -75,13 +75,14 @@ router.get('/:routeId', (req: Request, res: Response) => {
 });
 
 // GET /api/gpx/download/:fileId - Download a specific GPX file
-router.get('/download/:fileId', (req: Request, res: Response) => {
+router.get('/download/:fileId', async (req: Request, res: Response) => {
   try {
     const { fileId } = req.params;
 
-    const gpxFile = db
-      .prepare('SELECT * FROM gpx_files WHERE id = ?')
-      .get(fileId) as GpxFile | undefined;
+    const gpxFile = await queryOne<GpxFile>(
+      'SELECT * FROM gpx_files WHERE id = ?',
+      [fileId]
+    );
 
     if (!gpxFile) {
       return res
@@ -98,9 +99,10 @@ router.get('/download/:fileId', (req: Request, res: Response) => {
     }
 
     // Get route name for filename
-    const route = db
-      .prepare('SELECT name FROM routes WHERE route_id = ?')
-      .get(gpxFile.route_id) as any;
+    const route = await queryOne<any>(
+      'SELECT name FROM routes WHERE route_id = ?',
+      [gpxFile.route_id]
+    );
     const routeName = route?.name || 'route';
 
     const downloadName = `${routeName}-${gpxFile.tour_type}-stage${gpxFile.stage_number}.gpx`;
@@ -120,7 +122,7 @@ router.get('/download/:fileId', (req: Request, res: Response) => {
 });
 
 // POST /api/gpx - Upload GPX file (protected)
-router.post('/', requireAuth, (req: Request, res: Response) => {
+router.post('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const { route_id, tour_type, stage_number, start_point_name, gpx_content } =
       req.body;
@@ -165,16 +167,15 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
     fs.writeFileSync(filePath, gpx_content);
 
     // Insert to database
-    const result = db
-      .prepare(
-        `
+    const result = await run(
+      `
       INSERT INTO gpx_files (route_id, tour_type, stage_number, start_point_name, file_path)
       VALUES (?, ?, ?, ?, ?)
-    `
-      )
-      .run(route_id, tour_type, stageNum, start_point_name || null, filename);
+    `,
+      [route_id, tour_type, stageNum, start_point_name || null, filename]
+    );
 
-    res.json({ success: true, id: result.lastInsertRowid });
+    res.json({ success: true, id: result.insertId });
   } catch (error) {
     console.error('Upload GPX error:', error);
     res
@@ -184,13 +185,14 @@ router.post('/', requireAuth, (req: Request, res: Response) => {
 });
 
 // DELETE /api/gpx/:fileId - Delete GPX file (protected)
-router.delete('/:fileId', requireAuth, (req: Request, res: Response) => {
+router.delete('/:fileId', requireAuth, async (req: Request, res: Response) => {
   try {
     const { fileId } = req.params;
 
-    const gpxFile = db
-      .prepare('SELECT file_path FROM gpx_files WHERE id = ?')
-      .get(fileId) as any;
+    const gpxFile = await queryOne<any>(
+      'SELECT file_path FROM gpx_files WHERE id = ?',
+      [fileId]
+    );
 
     if (!gpxFile) {
       return res
@@ -199,7 +201,7 @@ router.delete('/:fileId', requireAuth, (req: Request, res: Response) => {
     }
 
     // Delete from database
-    db.prepare('DELETE FROM gpx_files WHERE id = ?').run(fileId);
+    await run('DELETE FROM gpx_files WHERE id = ?', [fileId]);
 
     // Delete file from disk
     const filePath = path.join(gpxDir, gpxFile.file_path);
@@ -217,19 +219,18 @@ router.delete('/:fileId', requireAuth, (req: Request, res: Response) => {
 });
 
 // GET /api/gpx/start-points/:routeId - Get available start points for a route
-router.get('/start-points/:routeId', (req: Request, res: Response) => {
+router.get('/start-points/:routeId', async (req: Request, res: Response) => {
   try {
     const { routeId } = req.params;
 
-    const startPoints = db
-      .prepare(
-        `
+    const startPoints = await query<any[]>(
+      `
       SELECT DISTINCT start_point_name 
       FROM gpx_files 
       WHERE route_id = ? AND start_point_name IS NOT NULL
-    `
-      )
-      .all(routeId) as any[];
+    `,
+      [routeId]
+    );
 
     res.json({
       success: true,

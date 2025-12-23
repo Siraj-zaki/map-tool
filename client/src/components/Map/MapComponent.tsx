@@ -1,20 +1,17 @@
 import mapboxgl from 'mapbox-gl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { POI, Route } from '../../api';
-import { POI_ICON_FALLBACK, ROUTE_STYLES } from '../../constants/routeStyles';
+import {
+  getStageColor,
+  POI_ICON_FALLBACK,
+  ROUTE_STYLES,
+} from '../../constants/routeStyles';
 
 mapboxgl.accessToken =
   'pk.eyJ1IjoicHVuY2hpbmdtYW4iLCJhIjoiY2p1cjcyMmh2M3NpZDQ5bnEwMDV6ZTE1OSJ9.ef8y6l9fsKFMX91m_Rt2ng';
 
 // Tour type stage configuration
 type TourType = 'gold' | 'silver' | 'bronze';
-
-// Stage marker colors (for stage break markers)
-const stageMarkerColors: Record<TourType, string[]> = {
-  gold: ['#FFD700'],
-  silver: ['#C0C0C0', '#8A8A8A'],
-  bronze: ['#CD7F32', '#B87333', '#A0522D'],
-};
 
 const stageConfig: Record<TourType, { stages: number }> = {
   gold: { stages: 1 },
@@ -62,6 +59,7 @@ function getBearing(start: [number, number], end: [number, number]): number {
 interface MapComponentProps {
   route?: Route | null;
   tourType?: TourType;
+  selectedStage?: number | null;
   onPositionChange?: (position: {
     lng: number;
     lat: number;
@@ -76,6 +74,7 @@ interface MapComponentProps {
 export default function MapComponent({
   route,
   tourType = 'gold',
+  selectedStage,
   onPositionChange,
   onPoiClick,
   isFullscreen = false,
@@ -259,7 +258,7 @@ export default function MapComponent({
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/outdoors-v12',
+      style: 'mapbox://styles/sirajmuneer/cmjh1h0wb000b01se721kbl7m',
       center: [10.57, 51.92],
       zoom: 10,
       pitch: 45,
@@ -378,31 +377,86 @@ export default function MapComponent({
         },
       });
 
-      // Route outline
+      // Route shadow layer (rendered first, underneath)
       map.current!.addLayer({
         id: outlineLayerId,
         type: 'line',
         source: sourceId,
         layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: {
-          'line-color': ROUTE_STYLES.MAIN.OUTLINE_COLOR,
-          'line-width':
-            ROUTE_STYLES.MAIN.WIDTH + ROUTE_STYLES.MAIN.OUTLINE_WIDTH * 2,
+          'line-color': ROUTE_STYLES.SHADOW.COLOR,
+          'line-opacity': ROUTE_STYLES.SHADOW.OPACITY,
+          'line-width': ROUTE_STYLES.MAIN.WIDTH + 2,
+          'line-blur': ROUTE_STYLES.SHADOW.BLUR,
+          'line-translate': [
+            ROUTE_STYLES.SHADOW.OFFSET_X,
+            ROUTE_STYLES.SHADOW.OFFSET_Y,
+          ],
         },
       });
 
-      // Route line
+      // Route line with stage color
+      const stageColor = getStageColor(index);
       map.current!.addLayer({
         id: layerId,
         type: 'line',
         source: sourceId,
         layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: {
-          'line-color': ROUTE_STYLES.MAIN.COLOR,
+          'line-color': stageColor,
           'line-width': ROUTE_STYLES.MAIN.WIDTH,
         },
       });
     });
+
+    // Add stage boundary markers (small numbered dots at stage start/end)
+    if (stageSegments.length > 1) {
+      const stageMarkersData: {
+        coordinates: [number, number];
+        stageNumber: number;
+        color: string;
+      }[] = [];
+
+      stageSegments.forEach((segment, index) => {
+        if (index > 0) {
+          // Add marker at start of each stage (except first)
+          stageMarkersData.push({
+            coordinates: segment[0],
+            stageNumber: index + 1,
+            color: getStageColor(index),
+          });
+        }
+      });
+
+      // Create markers using mapboxgl Marker
+      stageMarkersData.forEach(({ coordinates, stageNumber, color }) => {
+        // Create marker element
+        const el = document.createElement('div');
+        el.className = 'stage-marker';
+        el.style.cssText = `
+          width: 24px;
+          height: 24px;
+          background: ${color};
+          border: 2px solid #ffffff;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 11px;
+          font-weight: 700;
+          color: #ffffff;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+          cursor: default;
+        `;
+        el.textContent = String(stageNumber);
+
+        // Add marker to map and save reference for cleanup
+        const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+          .setLngLat(coordinates)
+          .addTo(map.current!);
+        stageMarkersRef.current.push(marker);
+      });
+    }
 
     // Add invisible hover layer
     map.current.addSource('route-hover-source', {
@@ -480,84 +534,83 @@ export default function MapComponent({
 
     map.current.on('zoomend', handleZoom);
 
-    // Stage break markers for Silver/Bronze
-    const markerColors = stageMarkerColors[tourType];
-    if (config.stages > 1) {
-      const pointsPerStage = Math.ceil(coordinates.length / config.stages);
+    // Stage break markers for Silver/Bronze (commented out by user)
+    // const markerColors = stageMarkerColors[tourType];
+    //   const pointsPerStage = Math.ceil(coordinates.length / config.stages);
 
-      for (let i = 1; i < config.stages; i++) {
-        const breakIndex = Math.min(i * pointsPerStage, coordinates.length - 1);
-        const breakPoint = coordinates[breakIndex];
-        const markerColor = markerColors[(i - 1) % markerColors.length];
+    //   for (let i = 1; i < config.stages; i++) {
+    //     const breakIndex = Math.min(i * pointsPerStage, coordinates.length - 1);
+    //     const breakPoint = coordinates[breakIndex];
+    //     const markerColor = markerColors[(i - 1) % markerColors.length];
 
-        const el = document.createElement('div');
-        el.className = 'stage-marker';
-        el.innerHTML = `
-          <div style="
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            cursor: pointer;
-          ">
-            <div class="stage-tooltip" style="
-              position: absolute;
-              bottom: 100%;
-              left: 50%;
-              transform: translateX(-50%) translateY(-4px);
-              background: ${markerColor};
-              color: ${tourType === 'gold' ? '#000' : '#fff'};
-              font-weight: bold;
-              font-size: 11px;
-              padding: 4px 10px;
-              border-radius: 6px;
-              border: 2px solid white;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-              white-space: nowrap;
-              opacity: 0;
-              pointer-events: none;
-              transition: opacity 0.2s ease, transform 0.2s ease;
-            ">
-              Stage ${i} → ${i + 1}
-            </div>
-            <div class="stage-dot" style="
-              width: 20px;
-              height: 20px;
-              background: ${markerColor};
-              border-radius: 50%;
-              border: 3px solid white;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-size: 10px;
-              font-weight: bold;
-              color: ${tourType === 'gold' ? '#000' : '#fff'};
-            ">${i}</div>
-          </div>
-        `;
+    //     const el = document.createElement('div');
+    //     el.className = 'stage-marker';
+    //     el.innerHTML = `
+    //       <div style="
+    //         position: relative;
+    //         display: flex;
+    //         flex-direction: column;
+    //         align-items: center;
+    //         cursor: pointer;
+    //       ">
+    //         <div class="stage-tooltip" style="
+    //           position: absolute;
+    //           bottom: 100%;
+    //           left: 50%;
+    //           transform: translateX(-50%) translateY(-4px);
+    //           background: ${markerColor};
+    //           color: ${tourType === 'gold' ? '#000' : '#fff'};
+    //           font-weight: bold;
+    //           font-size: 11px;
+    //           padding: 4px 10px;
+    //           border-radius: 6px;
+    //           border: 2px solid white;
+    //           box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    //           white-space: nowrap;
+    //           opacity: 0;
+    //           pointer-events: none;
+    //           transition: opacity 0.2s ease, transform 0.2s ease;
+    //         ">
+    //           Stage ${i} → ${i + 1}
+    //         </div>
+    //         <div class="stage-dot" style="
+    //           width: 20px;
+    //           height: 20px;
+    //           background: ${markerColor};
+    //           border-radius: 50%;
+    //           border: 3px solid white;
+    //           box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    //           display: flex;
+    //           align-items: center;
+    //           justify-content: center;
+    //           font-size: 10px;
+    //           font-weight: bold;
+    //           color: ${tourType === 'gold' ? '#000' : '#fff'};
+    //         ">${i}</div>
+    //       </div>
+    //     `;
 
-        el.addEventListener('mouseenter', () => {
-          const tooltip = el.querySelector('.stage-tooltip') as HTMLElement;
-          if (tooltip) {
-            tooltip.style.opacity = '1';
-            tooltip.style.transform = 'translateX(-50%) translateY(-8px)';
-          }
-        });
-        el.addEventListener('mouseleave', () => {
-          const tooltip = el.querySelector('.stage-tooltip') as HTMLElement;
-          if (tooltip) {
-            tooltip.style.opacity = '0';
-            tooltip.style.transform = 'translateX(-50%) translateY(-4px)';
-          }
-        });
+    //     el.addEventListener('mouseenter', () => {
+    //       const tooltip = el.querySelector('.stage-tooltip') as HTMLElement;
+    //       if (tooltip) {
+    //         tooltip.style.opacity = '1';
+    //         tooltip.style.transform = 'translateX(-50%) translateY(-8px)';
+    //       }
+    //     });
+    //     el.addEventListener('mouseleave', () => {
+    //       const tooltip = el.querySelector('.stage-tooltip') as HTMLElement;
+    //       if (tooltip) {
+    //         tooltip.style.opacity = '0';
+    //         tooltip.style.transform = 'translateX(-50%) translateY(-4px)';
+    //       }
+    //     });
 
-        const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-          .setLngLat(breakPoint)
-          .addTo(map.current);
-        stageMarkersRef.current.push(marker);
-      }
-    }
+    //     const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+    //       .setLngLat(breakPoint)
+    //       .addTo(map.current);
+    //     stageMarkersRef.current.push(marker);
+    //   }
+    // }
 
     // Start marker - matching original design
     const startEl = document.createElement('div');
@@ -732,6 +785,69 @@ export default function MapComponent({
       highlightMarkerRef.current?.remove();
     };
   }, []);
+
+  // Stage zoom animation - fly to selected stage
+  useEffect(() => {
+    if (
+      !map.current ||
+      !isLoaded ||
+      !route ||
+      selectedStage === null ||
+      selectedStage === undefined
+    )
+      return;
+
+    const config = stageConfig[tourType];
+
+    // Only process if we have multiple stages and valid selection
+    if (
+      config.stages <= 1 ||
+      selectedStage < 1 ||
+      selectedStage > config.stages
+    )
+      return;
+
+    // Get coordinates
+    let coordinates: [number, number][];
+    if (route.routeGeometry && route.routeGeometry.length > 0) {
+      coordinates = route.routeGeometry;
+    } else {
+      coordinates = [route.startPoint, ...route.waypoints, route.endPoint] as [
+        number,
+        number
+      ][];
+    }
+
+    // Calculate stage segment
+    const stageSegments = getStageSegments(coordinates, config.stages);
+    const stageIndex = selectedStage - 1; // Convert to 0-indexed
+
+    if (!stageSegments[stageIndex] || stageSegments[stageIndex].length === 0)
+      return;
+
+    const stageCoords = stageSegments[stageIndex];
+
+    // Calculate bounds for this stage
+    const bounds = stageCoords.reduce(
+      (boundsObj, coord) => boundsObj.extend(coord as [number, number]),
+      new mapboxgl.LngLatBounds(stageCoords[0], stageCoords[0])
+    );
+
+    // Animate to stage with smooth transition
+    map.current.fitBounds(bounds, {
+      padding: { top: 80, bottom: 120, left: 60, right: 60 },
+      maxZoom: 14,
+      pitch: 50,
+      bearing: 10 + selectedStage * 15, // Slight bearing change per stage
+      duration: 2000, // Smooth 2-second animation
+      essential: true,
+    });
+
+    console.log(`[Map] Zooming to Stage ${selectedStage}`, {
+      stageCoords: stageCoords.length,
+      bounds: bounds.toArray(),
+    });
+  }, [selectedStage, tourType, route, isLoaded, getStageSegments]);
 
   return (
     <div

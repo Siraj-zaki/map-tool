@@ -2,12 +2,19 @@ import * as d3 from 'd3';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { POI, Route } from '../../api';
-import { POI_PROFILE_ICONS, ROUTE_STYLES } from '../../constants/routeStyles';
+import {
+  getElevationStageColor,
+  getStageAreaColor,
+  POI_PROFILE_ICONS,
+  ROUTE_STYLES,
+} from '../../constants/routeStyles';
+import { getRouteElevations } from '../../utils/elevation';
 import './ElevationProfile.css';
 
 interface ElevationProfileProps {
   route: Route | null;
   pois?: POI[];
+  tourType?: 'gold' | 'silver' | 'bronze';
   onPositionChange?: (
     position: {
       lng: number;
@@ -49,6 +56,7 @@ function calculateDistance(
 export default function ElevationProfile({
   route,
   pois = [],
+  tourType = 'gold',
   onPositionChange,
   highlightDistance,
   onPoiClick,
@@ -57,6 +65,10 @@ export default function ElevationProfile({
   const svgRef = useRef<SVGSVGElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 140 });
+
+  // Real elevation data state
+  const [realElevations, setRealElevations] = useState<number[] | null>(null);
+  const [_elevationsLoading, setElevationsLoading] = useState(false);
 
   // Zoom state
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -70,70 +82,125 @@ export default function ElevationProfile({
   const MAX_ZOOM = 10;
   const margin = { top: 10, right: 15, bottom: 25, left: 45 };
 
-  // Generate elevation data from route
-  const generateElevationData = useCallback((): ElevationPoint[] => {
-    if (!route) return [];
+  // Generate elevation data from route - uses real elevations if available
+  const generateElevationData = useCallback(
+    (elevations: number[] | null): ElevationPoint[] => {
+      if (!route) return [];
 
-    // Use stored routeGeometry if available, otherwise fall back to waypoints
-    let coords: [number, number][];
-    if (route.routeGeometry && route.routeGeometry.length > 0) {
-      coords = route.routeGeometry;
-      console.log(
-        '[ElevationProfile] Using stored routeGeometry:',
-        coords.length,
-        'points'
-      );
-    } else {
-      coords = [route.startPoint, ...route.waypoints, route.endPoint] as [
-        number,
-        number
-      ][];
-      console.log(
-        '[ElevationProfile] No routeGeometry, using waypoints:',
-        coords.length,
-        'points'
-      );
-    }
-
-    const data: ElevationPoint[] = [];
-    let accumulatedDistance = 0;
-
-    // Calculate elevation range
-    const elevRange = route.highestPoint - route.lowestPoint;
-
-    for (let i = 0; i < coords.length; i++) {
-      if (i > 0) {
-        const dist = calculateDistance(
-          coords[i - 1][1],
-          coords[i - 1][0],
-          coords[i][1],
-          coords[i][0]
+      // Use stored routeGeometry if available, otherwise fall back to waypoints
+      let coords: [number, number][];
+      if (route.routeGeometry && route.routeGeometry.length > 0) {
+        coords = route.routeGeometry;
+        console.log(
+          '[ElevationProfile] Using stored routeGeometry:',
+          coords.length,
+          'points'
         );
-        accumulatedDistance += dist;
+      } else {
+        coords = [route.startPoint, ...route.waypoints, route.endPoint] as [
+          number,
+          number
+        ][];
+        console.log(
+          '[ElevationProfile] No routeGeometry, using waypoints:',
+          coords.length,
+          'points'
+        );
       }
 
-      // Generate synthetic elevation using sine waves (matching elevation.js generateSyntheticElevation)
-      const normalizedPos = accumulatedDistance / (route.distance || 1);
-      const base = route.lowestPoint + elevRange * 0.3;
-      const wave1 = Math.sin(normalizedPos * Math.PI * 2) * elevRange * 0.3;
-      const wave2 = Math.sin(normalizedPos * Math.PI * 4) * elevRange * 0.15;
-      const wave3 = Math.sin(normalizedPos * Math.PI * 8) * elevRange * 0.05;
-      const curve = Math.sin(normalizedPos * Math.PI) * elevRange * 0.2;
+      const data: ElevationPoint[] = [];
+      let accumulatedDistance = 0;
 
-      const elevation = Math.max(
-        route.lowestPoint,
-        Math.min(route.highestPoint, base + wave1 + wave2 + wave3 + curve)
-      );
+      const hasRealElevations =
+        elevations && elevations.length === coords.length;
 
-      data.push({
-        distance: accumulatedDistance,
-        elevation,
-        index: i,
-        coordinates: coords[i],
+      if (hasRealElevations) {
+        console.log('[ElevationProfile] Using REAL elevation data from API');
+      } else {
+        console.log('[ElevationProfile] Using synthetic elevation data');
+      }
+
+      for (let i = 0; i < coords.length; i++) {
+        if (i > 0) {
+          const dist = calculateDistance(
+            coords[i - 1][1],
+            coords[i - 1][0],
+            coords[i][1],
+            coords[i][0]
+          );
+          accumulatedDistance += dist;
+        }
+
+        let elevation: number;
+
+        if (hasRealElevations) {
+          // Use real elevation data from API
+          elevation = elevations[i];
+        } else {
+          // Fallback: Generate synthetic elevation using sine waves
+          const elevRange = route.highestPoint - route.lowestPoint;
+          const normalizedPos = accumulatedDistance / (route.distance || 1);
+          const base = route.lowestPoint + elevRange * 0.3;
+          const wave1 = Math.sin(normalizedPos * Math.PI * 2) * elevRange * 0.3;
+          const wave2 =
+            Math.sin(normalizedPos * Math.PI * 4) * elevRange * 0.15;
+          const wave3 =
+            Math.sin(normalizedPos * Math.PI * 8) * elevRange * 0.05;
+          const curve = Math.sin(normalizedPos * Math.PI) * elevRange * 0.2;
+
+          elevation = Math.max(
+            route.lowestPoint,
+            Math.min(route.highestPoint, base + wave1 + wave2 + wave3 + curve)
+          );
+        }
+
+        data.push({
+          distance: accumulatedDistance,
+          elevation,
+          index: i,
+          coordinates: coords[i],
+        });
+      }
+
+      return data;
+    },
+    [route]
+  );
+
+  // Fetch real elevation data from API
+  useEffect(() => {
+    if (!route) return;
+
+    const coords =
+      route.routeGeometry && route.routeGeometry.length > 0
+        ? route.routeGeometry
+        : ([route.startPoint, ...route.waypoints, route.endPoint] as [
+            number,
+            number
+          ][]);
+
+    // Only fetch if we have coordinates
+    if (coords.length < 2) return;
+
+    setElevationsLoading(true);
+    console.log('[ElevationProfile] Fetching real elevation data...');
+
+    getRouteElevations(coords)
+      .then(elevations => {
+        console.log(
+          '[ElevationProfile] Received',
+          elevations.length,
+          'elevation points'
+        );
+        setRealElevations(elevations);
+      })
+      .catch(err => {
+        console.error('[ElevationProfile] Failed to fetch elevations:', err);
+        setRealElevations(null);
+      })
+      .finally(() => {
+        setElevationsLoading(false);
       });
-    }
-
-    return data;
   }, [route]);
 
   // Resize observer
@@ -174,7 +241,7 @@ export default function ElevationProfile({
 
     if (innerWidth <= 0 || innerHeight <= 0) return;
 
-    const elevationData = generateElevationData();
+    const elevationData = generateElevationData(realElevations);
     if (elevationData.length === 0) return;
     elevationDataRef.current = elevationData;
 
@@ -336,22 +403,120 @@ export default function ElevationProfile({
       .attr('stroke-width', 2)
       .attr('d', line);
 
-    // Draw main (visible) area and line on top
-    chartContent
-      .append('path')
-      .datum(elevationData)
-      .attr('class', 'area')
-      .attr('fill', COLORS.PROFILE_AREA)
-      .attr('d', area);
+    // Stage configuration
+    const stageConfigLocal = {
+      gold: 1,
+      silver: 2,
+      bronze: 3,
+    };
+    const numStages = stageConfigLocal[tourType];
 
-    chartContent
-      .append('path')
-      .datum(elevationData)
-      .attr('class', 'line')
-      .attr('fill', 'none')
-      .attr('stroke', COLORS.PROFILE_LINE)
-      .attr('stroke-width', 2)
-      .attr('d', line);
+    console.log('[ElevationProfile] Drawing stages:', {
+      tourType,
+      numStages,
+      dataPoints: elevationData.length,
+    });
+
+    // Split elevation data into stage segments
+    const pointsPerStage = Math.ceil(elevationData.length / numStages);
+
+    // Draw each stage with its color (area then line)
+    for (let stageIndex = 0; stageIndex < numStages; stageIndex++) {
+      const startIdx = stageIndex * pointsPerStage;
+      const endIdx = Math.min(
+        (stageIndex + 1) * pointsPerStage,
+        elevationData.length
+      );
+
+      // Get stage data with overlap for smooth joins
+      const stageData = elevationData.slice(
+        startIdx,
+        Math.min(endIdx + 1, elevationData.length)
+      );
+
+      if (stageData.length < 2) continue;
+
+      const stageColor = getElevationStageColor(stageIndex);
+      const stageAreaColor = getStageAreaColor(stageIndex);
+
+      console.log(`[ElevationProfile] Stage ${stageIndex + 1}:`, {
+        stageColor,
+        stageAreaColor,
+        points: stageData.length,
+        startDist: stageData[0]?.distance.toFixed(2),
+        endDist: stageData[stageData.length - 1]?.distance.toFixed(2),
+      });
+
+      // Draw stage area
+      chartContent
+        .append('path')
+        .datum(stageData)
+        .attr('class', `area stage-${stageIndex}`)
+        .attr('fill', stageAreaColor)
+        .attr('d', area);
+
+      // Draw stage line
+      chartContent
+        .append('path')
+        .datum(stageData)
+        .attr('class', `line stage-${stageIndex}`)
+        .attr('fill', 'none')
+        .attr('stroke', stageColor)
+        .attr('stroke-width', 2.5)
+        .attr('d', line);
+    }
+
+    // Draw stage boundary markers (vertical lines with numbers)
+    if (numStages > 1) {
+      for (let i = 1; i < numStages; i++) {
+        const boundaryIdx = Math.min(
+          i * pointsPerStage,
+          elevationData.length - 1
+        );
+        const boundaryPoint = elevationData[boundaryIdx];
+
+        if (boundaryPoint) {
+          const boundaryX = xScale(boundaryPoint.distance);
+          const stageColor = getElevationStageColor(i);
+
+          // Draw vertical dashed line at stage boundary
+          chartContent
+            .append('line')
+            .attr('class', `stage-boundary stage-boundary-${i}`)
+            .attr('x1', boundaryX)
+            .attr('x2', boundaryX)
+            .attr('y1', 0)
+            .attr('y2', innerHeight)
+            .attr('stroke', stageColor)
+            .attr('stroke-width', 2)
+            .attr('stroke-dasharray', '4,3')
+            .attr('opacity', 0.8);
+
+          // Draw stage number circle at top
+          chartContent
+            .append('circle')
+            .attr('class', `stage-marker-circle stage-marker-${i}`)
+            .attr('cx', boundaryX)
+            .attr('cy', 12)
+            .attr('r', 10)
+            .attr('fill', stageColor)
+            .attr('stroke', '#fff')
+            .attr('stroke-width', 2);
+
+          // Draw stage number text
+          chartContent
+            .append('text')
+            .attr('class', `stage-marker-text`)
+            .attr('x', boundaryX)
+            .attr('y', 16)
+            .attr('text-anchor', 'middle')
+            .attr('fill', '#fff')
+            .attr('font-size', '10px')
+            .attr('font-weight', 'bold')
+            .text(i + 1);
+        }
+      }
+    }
 
     // Draw axes - matching elevation.js styling
     g.append('g')
@@ -755,6 +920,8 @@ export default function ElevationProfile({
     highlightDistance,
     onPositionChange,
     generateElevationData,
+    realElevations,
+    tourType,
     COLORS,
     margin,
   ]);

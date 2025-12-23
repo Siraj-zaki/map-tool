@@ -1,0 +1,138 @@
+/* Tour Selector - Map Overlay */
+
+.tour-selector-overlay {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(11, 18, 21, 0.85);
+  backdrop-filter: blur(10px);
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.tour-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tour-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 6px;
+  background: rgba(30, 42, 51, 0.6);
+  color: #a0a0a0;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: capitalize;
+  min-width: 150px;
+}
+
+.tour-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tour-btn.active {
+  background: rgba(8, 141, 149, 0.2);
+  color: #fff;
+}
+
+.tour-btn[data-type='gold'].active {
+  border-color: #ffd700;
+  color: #ffd700;
+  background: rgba(255, 215, 0, 0.15);
+}
+
+.tour-btn[data-type='silver'].active {
+  border-color: #c0c0c0;
+  color: #c0c0c0;
+  background: rgba(192, 192, 192, 0.15);
+}
+
+.tour-btn[data-type='bronze'].active {
+  border-color: #cd7f32;
+  color: #cd7f32;
+  background: rgba(205, 127, 50, 0.15);
+}
+
+/* Stage buttons */
+.stage-buttons {
+  display: flex;
+  gap: 4px;
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.stage-btn {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 50%;
+  background: rgba(8, 141, 149, 0.3);
+  color: #088d95;
+  border: 2px solid #088d95;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stage-btn:hover {
+  background: rgba(8, 141, 149, 0.5);
+  color: #fff;
+  transform: scale(1.1);
+}
+
+.stage-btn.active {
+  background: #088d95;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(8, 141, 149, 0.6);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 12px rgba(8, 141, 149, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(8, 141, 149, 0.9);
+  }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .tour-selector-overlay {
+    padding: 8px;
+    gap: 4px;
+  }
+
+  .tour-btn {
+    padding: 6px 12px;
+    font-size: 11px;
+    min-width: 60px;
+  }
+
+  .stage-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
+  }
+}

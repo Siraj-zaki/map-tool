@@ -288,7 +288,8 @@ export default function POIModal({
           {/* Coordinates (readonly) */}
           <div className="p-3 bg-[#080e11] rounded-lg text-sm text-gray-500">
             <i className="fas fa-map-marker-alt mr-2 text-[#088d95]"></i>
-            {t('coordinates')}: {lngLat[0].toFixed(5)}, {lngLat[1].toFixed(5)}
+            {t('coordinates')}: {parseFloat(String(lngLat[0])).toFixed(5)},{' '}
+            {parseFloat(String(lngLat[1])).toFixed(5)}
           </div>
         </div>
 

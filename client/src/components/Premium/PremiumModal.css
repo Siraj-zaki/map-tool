@@ -1,0 +1,239 @@
+/* Premium Modal Styles */
+
+.premium-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.premium-modal {
+  position: relative;
+  background: linear-gradient(145deg, #0d1a1f 0%, #0b1215 100%);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 20px;
+  padding: 40px 32px;
+  max-width: 420px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 0 60px rgba(255, 215, 0, 0.15), 0 20px 40px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.premium-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  color: #a0a0a0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.premium-modal-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.premium-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  background: linear-gradient(135deg, #ffd700 0%, #ffb800 50%, #ff9500 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.4), 0 10px 20px rgba(0, 0, 0, 0.3);
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+  from {
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.4), 0 10px 20px rgba(0, 0, 0, 0.3);
+  }
+  to {
+    box-shadow: 0 0 50px rgba(255, 215, 0, 0.6), 0 10px 30px rgba(0, 0, 0, 0.4);
+  }
+}
+
+.premium-icon i {
+  font-size: 36px;
+  color: #0b1215;
+}
+
+.premium-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #ffd700;
+  margin: 0 0 8px;
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+.premium-feature-name {
+  font-size: 14px;
+  color: #a0a0a0;
+  margin: 0 0 16px;
+  padding: 6px 16px;
+  background: rgba(255, 215, 0, 0.1);
+  border-radius: 20px;
+  display: inline-block;
+}
+
+.premium-description {
+  font-size: 14px;
+  color: #c0c0c0;
+  line-height: 1.6;
+  margin: 0 0 24px;
+}
+
+.premium-benefits {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.benefit-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  color: #e0e0e0;
+  transition: all 0.2s ease;
+}
+
+.benefit-item:hover {
+  background: rgba(255, 215, 0, 0.08);
+  border-color: rgba(255, 215, 0, 0.2);
+}
+
+.benefit-item i {
+  color: #ffd700;
+  font-size: 14px;
+}
+
+.premium-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.premium-btn {
+  padding: 14px 24px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.premium-btn.primary {
+  background: linear-gradient(135deg, #ffd700 0%, #ffb800 100%);
+  color: #0b1215;
+  border: none;
+  box-shadow: 0 4px 20px rgba(255, 215, 0, 0.3);
+}
+
+.premium-btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(255, 215, 0, 0.4);
+}
+
+.premium-btn.secondary {
+  background: transparent;
+  color: #a0a0a0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.premium-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.premium-login {
+  font-size: 13px;
+  color: #808080;
+  margin: 0;
+}
+
+.login-link {
+  color: #088d95;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.login-link:hover {
+  color: #0ab5c0;
+  text-decoration: underline;
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .premium-modal {
+    padding: 32px 24px;
+    margin: 20px;
+  }
+
+  .premium-icon {
+    width: 64px;
+    height: 64px;
+  }
+
+  .premium-icon i {
+    font-size: 28px;
+  }
+
+  .premium-title {
+    font-size: 20px;
+  }
+
+  .premium-benefits {
+    grid-template-columns: 1fr;
+  }
+}

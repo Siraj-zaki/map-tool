@@ -2,7 +2,7 @@ import { Request, Response, Router } from 'express';
 import fs from 'fs';
 import multer from 'multer';
 import path from 'path';
-import db from '../db.js';
+import { query, run } from '../db.js';
 import { requireAuth } from './auth.js';
 
 const router = Router();
@@ -42,11 +42,11 @@ const upload = multer({
 });
 
 // GET /api/pois - Get all POIs (optionally filtered by route)
-router.get('/', (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     const { route_id } = req.query;
 
-    let query = `
+    let sql = `
       SELECT p.poi_id, p.route_id, p.name, p.description, p.location, 
              p.type, p.best_time, p.created_at
       FROM pois p
@@ -54,27 +54,31 @@ router.get('/', (req: Request, res: Response) => {
     const params: any[] = [];
 
     if (route_id) {
-      query += ' WHERE p.route_id = ?';
+      sql += ' WHERE p.route_id = ?';
       params.push(route_id);
     }
 
-    const pois = db.prepare(query).all(...params) as any[];
+    const pois = await query(sql, params);
 
-    const poisWithDetails = pois.map(poi => {
-      const images = db
-        .prepare('SELECT image_path FROM poi_images WHERE poi_id = ?')
-        .all(poi.poi_id) as any[];
-      const amenities = db
-        .prepare('SELECT amenity FROM poi_amenities WHERE poi_id = ?')
-        .all(poi.poi_id) as any[];
+    const poisWithDetails = await Promise.all(
+      pois.map(async (poi: any) => {
+        const images = await query(
+          'SELECT image_path FROM poi_images WHERE poi_id = ?',
+          [poi.poi_id]
+        );
+        const amenities = await query(
+          'SELECT amenity FROM poi_amenities WHERE poi_id = ?',
+          [poi.poi_id]
+        );
 
-      return {
-        ...poi,
-        lngLat: JSON.parse(poi.location),
-        images: images.map(img => img.image_path),
-        amenities: amenities.map(a => a.amenity),
-      };
-    });
+        return {
+          ...poi,
+          lngLat: JSON.parse(poi.location),
+          images: images.map((img: any) => img.image_path),
+          amenities: amenities.map((a: any) => a.amenity),
+        };
+      })
+    );
 
     res.json({ success: true, data: poisWithDetails });
   } catch (error) {
@@ -88,7 +92,7 @@ router.post(
   '/',
   requireAuth,
   upload.array('images', 10),
-  (req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     try {
       const {
         route_id,
@@ -112,45 +116,44 @@ router.post(
       const location = typeof lngLat === 'string' ? JSON.parse(lngLat) : lngLat;
 
       // Insert POI
-      const result = db
-        .prepare(
-          `
-      INSERT INTO pois (route_id, name, description, location, type, best_time)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `
-        )
-        .run(
+      const result = await run(
+        `
+        INSERT INTO pois (route_id, name, description, location, type, best_time)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `,
+        [
           route_id,
           name,
           description || null,
           JSON.stringify(location),
           type || null,
-          best_time || null
-        );
+          best_time || null,
+        ]
+      );
 
-      const poiId = result.lastInsertRowid;
+      const poiId = result.insertId;
 
       // Insert images
       if (files && files.length > 0) {
-        const imageStmt = db.prepare(
-          'INSERT INTO poi_images (poi_id, image_path) VALUES (?, ?)'
-        );
-        files.forEach(file => {
+        for (const file of files) {
           const imagePath = `/uploads/poi/${file.filename}`;
-          imageStmt.run(poiId, imagePath);
-        });
+          await run(
+            'INSERT INTO poi_images (poi_id, image_path) VALUES (?, ?)',
+            [poiId, imagePath]
+          );
+        }
       }
 
       // Insert amenities
       if (amenities) {
         const amenityList =
           typeof amenities === 'string' ? JSON.parse(amenities) : amenities;
-        const amenityStmt = db.prepare(
-          'INSERT INTO poi_amenities (poi_id, amenity) VALUES (?, ?)'
-        );
-        amenityList.forEach((amenity: string) => {
-          amenityStmt.run(poiId, amenity);
-        });
+        for (const amenity of amenityList) {
+          await run(
+            'INSERT INTO poi_amenities (poi_id, amenity) VALUES (?, ?)',
+            [poiId, amenity]
+          );
+        }
       }
 
       res.json({ success: true, poiId });
@@ -162,24 +165,25 @@ router.post(
 );
 
 // DELETE /api/pois/:id - Delete POI (protected)
-router.delete('/:id', requireAuth, (req: Request, res: Response) => {
+router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
     // Get images to delete files
-    const images = db
-      .prepare('SELECT image_path FROM poi_images WHERE poi_id = ?')
-      .all(id) as any[];
+    const images = await query(
+      'SELECT image_path FROM poi_images WHERE poi_id = ?',
+      [id]
+    );
 
     // Delete from database (cascades to images and amenities)
-    const result = db.prepare('DELETE FROM pois WHERE poi_id = ?').run(id);
+    const result = await run('DELETE FROM pois WHERE poi_id = ?', [id]);
 
-    if (result.changes === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, error: 'POI not found' });
     }
 
     // Delete image files
-    images.forEach(img => {
+    images.forEach((img: any) => {
       const filePath = path.join(__dirname, '..', '..', img.image_path);
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);

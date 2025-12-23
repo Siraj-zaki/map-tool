@@ -266,8 +266,9 @@ export default function POISidebar({
               <div className="location-coordinates">
                 <i className="fas fa-map-marker-alt"></i>
                 <span>
-                  {t('coordinates')}: {poi.lngLat[0].toFixed(2)},{' '}
-                  {poi.lngLat[1].toFixed(2)}
+                  {t('coordinates')}:{' '}
+                  {parseFloat(String(poi.lngLat[0])).toFixed(2)},{' '}
+                  {parseFloat(String(poi.lngLat[1])).toFixed(2)}
                 </span>
               </div>
 
@@ -276,7 +277,9 @@ export default function POISidebar({
                   <i className="fas fa-route"></i>
                   {t('distanceToRoute')}:{' '}
                   {routeStartPoint
-                    ? calculateDistance(routeStartPoint, poi.lngLat).toFixed(1)
+                    ? parseFloat(
+                        String(calculateDistance(routeStartPoint, poi.lngLat))
+                      ).toFixed(1)
                     : '0.0'}{' '}
                   km
                 </p>

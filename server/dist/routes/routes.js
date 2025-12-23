@@ -1,24 +1,19 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
-const db_js_1 = __importDefault(require("../db.js"));
+const db_js_1 = require("../db.js");
 const auth_js_1 = require("./auth.js");
 const router = (0, express_1.Router)();
 // GET /api/routes - List all routes
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
     try {
-        const routes = db_js_1.default
-            .prepare(`
+        const routes = await (0, db_js_1.query)(`
       SELECT route_id as id, name, description, start_point, end_point, 
              distance, duration, highest_point, lowest_point, 
              total_ascent, total_descent, created_at
       FROM routes 
       ORDER BY created_at DESC
-    `)
-            .all();
+    `);
         // Parse JSON coordinates and map to camelCase
         const parsedRoutes = routes.map((route) => ({
             id: route.id,
@@ -42,49 +37,39 @@ router.get('/', (req, res) => {
     }
 });
 // GET /api/routes/:id - Get single route with waypoints and POIs
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const route = db_js_1.default
-            .prepare(`
+        const route = await (0, db_js_1.queryOne)(`
       SELECT route_id as id, name, description, start_point, end_point,
              route_geometry, distance, duration, highest_point, lowest_point,
              total_ascent, total_descent, created_at
       FROM routes WHERE route_id = ?
-    `)
-            .get(id);
+    `, [id]);
         if (!route) {
             return res.status(404).json({ success: false, error: 'Route not found' });
         }
         // Get waypoints
-        const waypoints = db_js_1.default
-            .prepare(`
+        const waypoints = await (0, db_js_1.query)(`
       SELECT location FROM waypoints 
       WHERE route_id = ? 
       ORDER BY position
-    `)
-            .all(id);
+    `, [id]);
         // Get POIs with images and amenities
-        const pois = db_js_1.default
-            .prepare(`
+        const pois = await (0, db_js_1.query)(`
       SELECT poi_id, name, description, location, type, best_time
       FROM pois WHERE route_id = ?
-    `)
-            .all(id);
-        const poisWithDetails = pois.map((poi) => {
-            const images = db_js_1.default
-                .prepare('SELECT image_path FROM poi_images WHERE poi_id = ?')
-                .all(poi.poi_id);
-            const amenities = db_js_1.default
-                .prepare('SELECT amenity FROM poi_amenities WHERE poi_id = ?')
-                .all(poi.poi_id);
+    `, [id]);
+        const poisWithDetails = await Promise.all(pois.map(async (poi) => {
+            const images = await (0, db_js_1.query)('SELECT image_path FROM poi_images WHERE poi_id = ?', [poi.poi_id]);
+            const amenities = await (0, db_js_1.query)('SELECT amenity FROM poi_amenities WHERE poi_id = ?', [poi.poi_id]);
             return {
                 ...poi,
                 lngLat: JSON.parse(poi.location),
-                images: images.map(img => img.image_path),
-                amenities: amenities.map(a => a.amenity),
+                images: images.map((img) => img.image_path),
+                amenities: amenities.map((a) => a.amenity),
             };
-        });
+        }));
         res.json({
             success: true,
             route: {
@@ -96,7 +81,6 @@ router.get('/:id', (req, res) => {
                     : null,
                 waypoints: waypoints.map((wp) => JSON.parse(wp.location)),
                 pois: poisWithDetails,
-                // Additional fields for compatibility
                 highestPoint: route.highest_point,
                 lowestPoint: route.lowest_point,
                 totalAscent: route.total_ascent,
@@ -110,7 +94,7 @@ router.get('/:id', (req, res) => {
     }
 });
 // POST /api/routes - Create new route (protected)
-router.post('/', auth_js_1.requireAuth, (req, res) => {
+router.post('/', auth_js_1.requireAuth, async (req, res) => {
     try {
         const { name, description, startPoint, endPoint, routeGeometry, waypoints, distance, duration, highestPoint, lowestPoint, totalAscent, totalDescent, pois, } = req.body;
         if (!name || !startPoint || !endPoint) {
@@ -120,39 +104,56 @@ router.post('/', auth_js_1.requireAuth, (req, res) => {
             });
         }
         // Insert route
-        const result = db_js_1.default
-            .prepare(`
+        const result = await (0, db_js_1.run)(`
       INSERT INTO routes (name, description, start_point, end_point, route_geometry, distance, duration,
                           highest_point, lowest_point, total_ascent, total_descent)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-            .run(name, description || null, JSON.stringify(startPoint), JSON.stringify(endPoint), routeGeometry ? JSON.stringify(routeGeometry) : null, distance || null, duration || null, highestPoint || null, lowestPoint || null, totalAscent || null, totalDescent || null);
-        const routeId = result.lastInsertRowid;
+    `, [
+            name,
+            description || null,
+            JSON.stringify(startPoint),
+            JSON.stringify(endPoint),
+            routeGeometry ? JSON.stringify(routeGeometry) : null,
+            distance || null,
+            duration || null,
+            highestPoint || null,
+            lowestPoint || null,
+            totalAscent || null,
+            totalDescent || null,
+        ]);
+        const routeId = result.insertId;
         // Insert waypoints
         if (waypoints && waypoints.length > 0) {
-            const waypointStmt = db_js_1.default.prepare('INSERT INTO waypoints (route_id, position, location) VALUES (?, ?, ?)');
-            waypoints.forEach((wp, index) => {
-                waypointStmt.run(routeId, index, JSON.stringify(wp));
-            });
+            for (let index = 0; index < waypoints.length; index++) {
+                await (0, db_js_1.run)('INSERT INTO waypoints (route_id, position, location) VALUES (?, ?, ?)', [routeId, index, JSON.stringify(waypoints[index])]);
+            }
         }
         // Insert POIs
         if (pois && pois.length > 0) {
-            const poiStmt = db_js_1.default.prepare(`
-        INSERT INTO pois (route_id, name, description, location, type, best_time)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
-            const imageStmt = db_js_1.default.prepare('INSERT INTO poi_images (poi_id, image_path) VALUES (?, ?)');
-            const amenityStmt = db_js_1.default.prepare('INSERT INTO poi_amenities (poi_id, amenity) VALUES (?, ?)');
-            pois.forEach((poi) => {
-                const poiResult = poiStmt.run(routeId, poi.name, poi.description || null, JSON.stringify(poi.lngLat), poi.type || null, poi.best_time || null);
-                const poiId = poiResult.lastInsertRowid;
+            for (const poi of pois) {
+                const poiResult = await (0, db_js_1.run)(`
+          INSERT INTO pois (route_id, name, description, location, type, best_time)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `, [
+                    routeId,
+                    poi.name,
+                    poi.description || null,
+                    JSON.stringify(poi.lngLat),
+                    poi.type || null,
+                    poi.best_time || null,
+                ]);
+                const poiId = poiResult.insertId;
                 if (poi.images) {
-                    poi.images.forEach((img) => imageStmt.run(poiId, img));
+                    for (const img of poi.images) {
+                        await (0, db_js_1.run)('INSERT INTO poi_images (poi_id, image_path) VALUES (?, ?)', [poiId, img]);
+                    }
                 }
                 if (poi.amenities) {
-                    poi.amenities.forEach((amenity) => amenityStmt.run(poiId, amenity));
+                    for (const amenity of poi.amenities) {
+                        await (0, db_js_1.run)('INSERT INTO poi_amenities (poi_id, amenity) VALUES (?, ?)', [poiId, amenity]);
+                    }
                 }
-            });
+            }
         }
         res.json({ success: true, routeId });
     }
@@ -162,54 +163,72 @@ router.post('/', auth_js_1.requireAuth, (req, res) => {
     }
 });
 // PUT /api/routes/:id - Update route (protected)
-router.put('/:id', auth_js_1.requireAuth, (req, res) => {
+router.put('/:id', auth_js_1.requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const { name, description, startPoint, endPoint, routeGeometry, waypoints, distance, duration, highestPoint, lowestPoint, totalAscent, totalDescent, pois, } = req.body;
         // Check if route exists
-        const existing = db_js_1.default
-            .prepare('SELECT route_id FROM routes WHERE route_id = ?')
-            .get(id);
+        const existing = await (0, db_js_1.queryOne)('SELECT route_id FROM routes WHERE route_id = ?', [id]);
         if (!existing) {
             return res.status(404).json({ success: false, error: 'Route not found' });
         }
         // Update route
-        db_js_1.default.prepare(`
+        await (0, db_js_1.run)(`
       UPDATE routes SET 
         name = ?, description = ?, start_point = ?, end_point = ?, route_geometry = ?,
         distance = ?, duration = ?, highest_point = ?, lowest_point = ?,
         total_ascent = ?, total_descent = ?
       WHERE route_id = ?
-    `).run(name, description, JSON.stringify(startPoint), JSON.stringify(endPoint), routeGeometry ? JSON.stringify(routeGeometry) : null, distance, duration, highestPoint, lowestPoint, totalAscent, totalDescent, id);
+    `, [
+            name,
+            description,
+            JSON.stringify(startPoint),
+            JSON.stringify(endPoint),
+            routeGeometry ? JSON.stringify(routeGeometry) : null,
+            distance,
+            duration,
+            highestPoint,
+            lowestPoint,
+            totalAscent,
+            totalDescent,
+            id,
+        ]);
         // Delete and re-insert waypoints
-        db_js_1.default.prepare('DELETE FROM waypoints WHERE route_id = ?').run(id);
+        await (0, db_js_1.run)('DELETE FROM waypoints WHERE route_id = ?', [id]);
         if (waypoints && waypoints.length > 0) {
-            const waypointStmt = db_js_1.default.prepare('INSERT INTO waypoints (route_id, position, location) VALUES (?, ?, ?)');
-            waypoints.forEach((wp, index) => {
-                waypointStmt.run(id, index, JSON.stringify(wp));
-            });
+            for (let index = 0; index < waypoints.length; index++) {
+                await (0, db_js_1.run)('INSERT INTO waypoints (route_id, position, location) VALUES (?, ?, ?)', [id, index, JSON.stringify(waypoints[index])]);
+            }
         }
         // Delete and re-insert POIs
-        db_js_1.default.prepare('DELETE FROM poi_images WHERE poi_id IN (SELECT poi_id FROM pois WHERE route_id = ?)').run(id);
-        db_js_1.default.prepare('DELETE FROM poi_amenities WHERE poi_id IN (SELECT poi_id FROM pois WHERE route_id = ?)').run(id);
-        db_js_1.default.prepare('DELETE FROM pois WHERE route_id = ?').run(id);
+        await (0, db_js_1.run)('DELETE FROM poi_images WHERE poi_id IN (SELECT poi_id FROM pois WHERE route_id = ?)', [id]);
+        await (0, db_js_1.run)('DELETE FROM poi_amenities WHERE poi_id IN (SELECT poi_id FROM pois WHERE route_id = ?)', [id]);
+        await (0, db_js_1.run)('DELETE FROM pois WHERE route_id = ?', [id]);
         if (pois && pois.length > 0) {
-            const poiStmt = db_js_1.default.prepare(`
-        INSERT INTO pois (route_id, name, description, location, type, best_time)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
-            const imageStmt = db_js_1.default.prepare('INSERT INTO poi_images (poi_id, image_path) VALUES (?, ?)');
-            const amenityStmt = db_js_1.default.prepare('INSERT INTO poi_amenities (poi_id, amenity) VALUES (?, ?)');
-            pois.forEach((poi) => {
-                const poiResult = poiStmt.run(id, poi.name, poi.description || null, JSON.stringify(poi.lngLat), poi.type || null, poi.best_time || null);
-                const poiId = poiResult.lastInsertRowid;
+            for (const poi of pois) {
+                const poiResult = await (0, db_js_1.run)(`
+          INSERT INTO pois (route_id, name, description, location, type, best_time)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `, [
+                    id,
+                    poi.name,
+                    poi.description || null,
+                    JSON.stringify(poi.lngLat),
+                    poi.type || null,
+                    poi.best_time || null,
+                ]);
+                const poiId = poiResult.insertId;
                 if (poi.images) {
-                    poi.images.forEach((img) => imageStmt.run(poiId, img));
+                    for (const img of poi.images) {
+                        await (0, db_js_1.run)('INSERT INTO poi_images (poi_id, image_path) VALUES (?, ?)', [poiId, img]);
+                    }
                 }
                 if (poi.amenities) {
-                    poi.amenities.forEach((amenity) => amenityStmt.run(poiId, amenity));
+                    for (const amenity of poi.amenities) {
+                        await (0, db_js_1.run)('INSERT INTO poi_amenities (poi_id, amenity) VALUES (?, ?)', [poiId, amenity]);
+                    }
                 }
-            });
+            }
         }
         res.json({ success: true, routeId: id });
     }
@@ -219,11 +238,11 @@ router.put('/:id', auth_js_1.requireAuth, (req, res) => {
     }
 });
 // DELETE /api/routes/:id - Delete route (protected)
-router.delete('/:id', auth_js_1.requireAuth, (req, res) => {
+router.delete('/:id', auth_js_1.requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
-        const result = db_js_1.default.prepare('DELETE FROM routes WHERE route_id = ?').run(id);
-        if (result.changes === 0) {
+        const result = await (0, db_js_1.run)('DELETE FROM routes WHERE route_id = ?', [id]);
+        if (result.affectedRows === 0) {
             return res.status(404).json({ success: false, error: 'Route not found' });
         }
         res.json({ success: true, message: 'Route deleted successfully' });

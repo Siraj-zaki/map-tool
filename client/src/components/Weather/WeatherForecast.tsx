@@ -60,9 +60,9 @@ export default function WeatherForecast({
 
   if (loading) {
     return (
-      <div className="weather-forecast-container">
-        <div className="flex items-center justify-center py-8 text-gray-400">
-          <i className="fas fa-spinner fa-spin text-2xl text-[#088d95]"></i>
+      <div className="weather-forecast-compact">
+        <div className="flex items-center justify-center py-3 text-gray-400">
+          <i className="fas fa-spinner fa-spin text-lg text-[#088d95]"></i>
         </div>
       </div>
     );
@@ -73,13 +73,12 @@ export default function WeatherForecast({
   return (
     <div
       style={{
-        background: 'rgba(132, 192, 137, 0.43)',
-        backdropFilter: 'blur(20px)',
-        borderRadius: '12px',
-        border: '1px solid black',
-        padding: '20px 24px',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
-        margin: '0 16px 16px 16px',
+        background: 'rgba(132, 192, 137, 0.85)',
+        backdropFilter: 'blur(10px)',
+        borderRadius: '10px',
+        border: '1px solid rgba(0,0,0,0.2)',
+        padding: '12px 16px',
+        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.15)',
       }}
     >
       {/* 7-Day Forecast Grid */}
@@ -92,16 +91,17 @@ export default function WeatherForecast({
         }}
       >
         {forecast.map(day => (
-          <div key={day.date} style={{ minWidth: '70px' }}>
-            {/* Day Name */}
+          <div key={day.date} style={{ minWidth: '50px' }}>
+            {/* Day Name - Full */}
             <div
               style={{
-                fontSize: '11px',
-                fontWeight: '500',
-                color: '#000000ff',
+                fontSize: '10px',
+                fontWeight: '600',
+                color: '#000',
                 textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                marginBottom: '8px',
+                letterSpacing: '0.3px',
+                marginBottom: '6px',
+                whiteSpace: 'nowrap',
               }}
             >
               {day.dayName}
@@ -110,9 +110,9 @@ export default function WeatherForecast({
             {/* Weather Icon */}
             <div
               style={{
-                fontSize: '48px',
-                marginBottom: '8px',
-                height: '36px',
+                fontSize: '24px',
+                marginBottom: '4px',
+                height: '28px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -124,7 +124,7 @@ export default function WeatherForecast({
             {/* Temperature */}
             <div
               style={{
-                fontSize: '16px',
+                fontSize: '12px',
                 fontWeight: '600',
                 color: '#333',
               }}
@@ -134,18 +134,6 @@ export default function WeatherForecast({
           </div>
         ))}
       </div>
-
-      {/* Powered By Footer */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          alignItems: 'center',
-          marginTop: '12px',
-          fontSize: '10px',
-          color: '#999',
-        }}
-      ></div>
     </div>
   );
 }
@@ -178,7 +166,6 @@ function getDayName(dateString: string, index: number, lang: string): string {
 }
 
 function getWeatherIcon(code: number): string {
-  // Return emoji weather icons for clean modern look
   if (code === 0) return '☀️';
   if (code <= 3) return '⛅';
   if (code <= 48) return '🌫️';

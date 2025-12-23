@@ -131,7 +131,7 @@ export default function Editor() {
     try {
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/outdoors-v12',
+        style: 'mapbox://styles/sirajmuneer/cmjh1h0wb000b01se721kbl7m',
         center: [10.7865, 51.8054],
         zoom: 11,
       });
