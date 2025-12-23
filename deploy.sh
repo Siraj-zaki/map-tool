@@ -155,7 +155,7 @@ cat > "$SCRIPT_DIR/server/.env" <<EOF
 PORT=3001
 NODE_ENV=production
 SESSION_SECRET=$(openssl rand -hex 32)
-SECURE_COOKIES=true
+SECURE_COOKIES=false
 
 # MariaDB Database Configuration
 DB_HOST=$DB_HOST

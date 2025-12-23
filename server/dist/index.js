@@ -8,13 +8,13 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const express_1 = __importDefault(require("express"));
 const express_session_1 = __importDefault(require("express-session"));
 const path_1 = __importDefault(require("path"));
+// Load environment variables from server/.env explicitly
+dotenv_1.default.config({ path: path_1.default.resolve(__dirname, '..', '.env') });
 const db_js_1 = require("./db.js");
 const auth_js_1 = __importDefault(require("./routes/auth.js"));
 const gpx_js_1 = __importDefault(require("./routes/gpx.js"));
 const pois_js_1 = __importDefault(require("./routes/pois.js"));
 const routes_js_1 = __importDefault(require("./routes/routes.js"));
-// Load environment variables
-dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 3001;
 // Middleware

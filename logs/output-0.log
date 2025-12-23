@@ -62,3 +62,51 @@
 2025-12-22 17:13:27: 📊 Health check: http://localhost:3001/api/health
 2025-12-22 17:13:27: 🗄️  Database: MariaDB at localhost:3306
 2025-12-22 17:13:27: 🌐 Serving frontend from: client/dist
+2025-12-23 18:54:30: SIGINT received, shutting down gracefully...
+2025-12-23 18:54:31: [DB] Connecting to MariaDB: harterbrocken_user@localhost:3306/harterbrocken
+2025-12-23 18:54:31: Initializing MariaDB database...
+2025-12-23 18:54:31: MariaDB database initialized successfully
+2025-12-23 18:54:31: 🚀 Harterbrocken API server running on http://localhost:3001
+2025-12-23 18:54:31: 📊 Health check: http://localhost:3001/api/health
+2025-12-23 18:54:31: 🗄️  Database: MariaDB at localhost:3306
+2025-12-23 18:54:31: 🌐 Serving frontend from: client/dist
+2025-12-23 18:57:53: SIGINT received, shutting down gracefully...
+2025-12-23 18:57:53: [DB] Connecting to MariaDB: harterbrocken_user@localhost:3306/harterbrocken
+2025-12-23 18:57:53: Initializing MariaDB database...
+2025-12-23 18:57:53: MariaDB database initialized successfully
+2025-12-23 18:57:53: 🚀 Harterbrocken API server running on http://localhost:3001
+2025-12-23 18:57:53: 📊 Health check: http://localhost:3001/api/health
+2025-12-23 18:57:53: 🗄️  Database: MariaDB at localhost:3306
+2025-12-23 18:57:53: 🌐 Serving frontend from: client/dist
+2025-12-23 18:59:01: SIGINT received, shutting down gracefully...
+2025-12-23 18:59:02: [DB] Connecting to MariaDB: harterbrocken_user@localhost:3306/harterbrocken
+2025-12-23 18:59:02: Initializing MariaDB database...
+2025-12-23 18:59:02: MariaDB database initialized successfully
+2025-12-23 18:59:02: 🚀 Harterbrocken API server running on http://localhost:3001
+2025-12-23 18:59:02: 📊 Health check: http://localhost:3001/api/health
+2025-12-23 18:59:02: 🗄️  Database: MariaDB at localhost:3306
+2025-12-23 18:59:02: 🌐 Serving frontend from: client/dist
+2025-12-23 18:59:06: SIGINT received, shutting down gracefully...
+2025-12-23 18:59:06: [DB] Connecting to MariaDB: harterbrocken_user@localhost:3306/harterbrocken
+2025-12-23 18:59:06: Initializing MariaDB database...
+2025-12-23 18:59:06: MariaDB database initialized successfully
+2025-12-23 18:59:06: 🚀 Harterbrocken API server running on http://localhost:3001
+2025-12-23 18:59:06: 📊 Health check: http://localhost:3001/api/health
+2025-12-23 18:59:06: 🗄️  Database: MariaDB at localhost:3306
+2025-12-23 18:59:06: 🌐 Serving frontend from: client/dist
+2025-12-23 19:00:34: SIGINT received, shutting down gracefully...
+2025-12-23 19:00:35: [DB] Connecting to MariaDB: harterbrocken_user@localhost:3306/harterbrocken
+2025-12-23 19:00:35: Initializing MariaDB database...
+2025-12-23 19:00:35: MariaDB database initialized successfully
+2025-12-23 19:00:35: 🚀 Harterbrocken API server running on http://localhost:3001
+2025-12-23 19:00:35: 📊 Health check: http://localhost:3001/api/health
+2025-12-23 19:00:35: 🗄️  Database: MariaDB at localhost:3306
+2025-12-23 19:00:35: 🌐 Serving frontend from: client/dist
+2025-12-23 19:00:37: SIGINT received, shutting down gracefully...
+2025-12-23 19:00:37: [DB] Connecting to MariaDB: harterbrocken_user@localhost:3306/harterbrocken
+2025-12-23 19:00:37: Initializing MariaDB database...
+2025-12-23 19:00:37: MariaDB database initialized successfully
+2025-12-23 19:00:37: 🚀 Harterbrocken API server running on http://localhost:3001
+2025-12-23 19:00:37: 📊 Health check: http://localhost:3001/api/health
+2025-12-23 19:00:37: 🗄️  Database: MariaDB at localhost:3306
+2025-12-23 19:00:37: 🌐 Serving frontend from: client/dist

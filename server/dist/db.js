@@ -12,8 +12,10 @@ exports.closeDatabase = closeDatabase;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const promise_1 = __importDefault(require("mysql2/promise"));
-// Load environment variables BEFORE creating config
-dotenv_1.default.config();
+const path_1 = __importDefault(require("path"));
+// Load environment variables from server/.env explicitly
+// This ensures the .env is found regardless of the current working directory (e.g., when run via PM2)
+dotenv_1.default.config({ path: path_1.default.resolve(__dirname, '..', '.env') });
 // MariaDB connection configuration
 const dbConfig = {
     host: process.env.DB_HOST || 'localhost',
