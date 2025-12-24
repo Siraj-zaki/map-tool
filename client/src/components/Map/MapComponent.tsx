@@ -1,11 +1,8 @@
 import mapboxgl from 'mapbox-gl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { POI, Route } from '../../api';
-import {
-  getStageColor,
-  POI_ICON_FALLBACK,
-  ROUTE_STYLES,
-} from '../../constants/routeStyles';
+import { POI_ICON_FALLBACK, ROUTE_STYLES } from '../../constants/routeStyles';
+import { useColorSettings } from '../../contexts/ColorSettingsContext';
 
 mapboxgl.accessToken =
   'pk.eyJ1IjoicHVuY2hpbmdtYW4iLCJhIjoiY2p1cjcyMmh2M3NpZDQ5bnEwMDV6ZTE1OSJ9.ef8y6l9fsKFMX91m_Rt2ng';
@@ -88,6 +85,9 @@ export default function MapComponent({
   const highlightMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const routeCoordinatesRef = useRef<[number, number][]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // Get dynamic colors from context
+  const { routeSettings, getStageColor } = useColorSettings();
 
   // Calculate distance to point along route
   const getDistanceAlongRoute = useCallback(
@@ -384,9 +384,9 @@ export default function MapComponent({
         source: sourceId,
         layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: {
-          'line-color': ROUTE_STYLES.SHADOW.COLOR,
-          'line-opacity': ROUTE_STYLES.SHADOW.OPACITY,
-          'line-width': ROUTE_STYLES.MAIN.WIDTH + 2,
+          'line-color': routeSettings.shadowColor,
+          'line-opacity': routeSettings.shadowOpacity,
+          'line-width': routeSettings.lineWidth + 2,
           'line-blur': ROUTE_STYLES.SHADOW.BLUR,
           'line-translate': [
             ROUTE_STYLES.SHADOW.OFFSET_X,
@@ -395,8 +395,8 @@ export default function MapComponent({
         },
       });
 
-      // Route line with stage color
-      const stageColor = getStageColor(index);
+      // Route line with stage color from database
+      const stageColor = getStageColor(tourType, index);
       map.current!.addLayer({
         id: layerId,
         type: 'line',
@@ -404,7 +404,7 @@ export default function MapComponent({
         layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: {
           'line-color': stageColor,
-          'line-width': ROUTE_STYLES.MAIN.WIDTH,
+          'line-width': routeSettings.lineWidth,
         },
       });
     });
@@ -423,7 +423,7 @@ export default function MapComponent({
           stageMarkersData.push({
             coordinates: segment[0],
             stageNumber: index + 1,
-            color: getStageColor(index),
+            color: getStageColor(tourType, index),
           });
         }
       });

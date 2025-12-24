@@ -46,7 +46,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     const route = await queryOne(
       `
       SELECT route_id as id, name, description, start_point, end_point,
-             route_geometry, distance, duration, highest_point, lowest_point,
+             route_geometry, elevation_data, distance, duration, highest_point, lowest_point,
              total_ascent, total_descent, created_at
       FROM routes WHERE route_id = ?
     `,
@@ -105,6 +105,9 @@ router.get('/:id', async (req: Request, res: Response) => {
         routeGeometry: route.route_geometry
           ? JSON.parse(route.route_geometry)
           : null,
+        elevationData: route.elevation_data
+          ? JSON.parse(route.elevation_data)
+          : null,
         waypoints: waypoints.map((wp: any) => JSON.parse(wp.location)),
         pois: poisWithDetails,
         highestPoint: route.highest_point,
@@ -128,6 +131,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
       startPoint,
       endPoint,
       routeGeometry,
+      elevationData,
       waypoints,
       distance,
       duration,
@@ -148,9 +152,9 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     // Insert route
     const result = await run(
       `
-      INSERT INTO routes (name, description, start_point, end_point, route_geometry, distance, duration,
+      INSERT INTO routes (name, description, start_point, end_point, route_geometry, elevation_data, distance, duration,
                           highest_point, lowest_point, total_ascent, total_descent)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
       [
         name,
@@ -158,6 +162,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
         JSON.stringify(startPoint),
         JSON.stringify(endPoint),
         routeGeometry ? JSON.stringify(routeGeometry) : null,
+        elevationData ? JSON.stringify(elevationData) : null,
         distance || null,
         duration || null,
         highestPoint || null,
@@ -234,6 +239,7 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
       startPoint,
       endPoint,
       routeGeometry,
+      elevationData,
       waypoints,
       distance,
       duration,
@@ -257,7 +263,7 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
     await run(
       `
       UPDATE routes SET 
-        name = ?, description = ?, start_point = ?, end_point = ?, route_geometry = ?,
+        name = ?, description = ?, start_point = ?, end_point = ?, route_geometry = ?, elevation_data = ?,
         distance = ?, duration = ?, highest_point = ?, lowest_point = ?,
         total_ascent = ?, total_descent = ?
       WHERE route_id = ?
@@ -268,6 +274,7 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
         JSON.stringify(startPoint),
         JSON.stringify(endPoint),
         routeGeometry ? JSON.stringify(routeGeometry) : null,
+        elevationData ? JSON.stringify(elevationData) : null,
         distance,
         duration,
         highestPoint,
@@ -361,5 +368,105 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: 'Failed to delete route' });
   }
 });
+
+// GET /api/routes/:id/split-points - Get split points for a route
+router.get('/:id/split-points', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { tourType } = req.query;
+
+    let sql = `
+      SELECT id, tour_type as tourType, stage_number as stageNumber, 
+             location_name as locationName, lng, lat, distance_km as distanceKm
+      FROM stage_split_points 
+      WHERE route_id = ?
+    `;
+    const params: any[] = [id];
+
+    if (tourType) {
+      sql += ' AND tour_type = ?';
+      params.push(tourType);
+    }
+
+    sql += ' ORDER BY tour_type, stage_number';
+
+    const splitPoints = await query(sql, params);
+
+    // Group by tour type
+    const grouped: Record<string, any[]> = {
+      silver: [],
+      bronze: [],
+    };
+
+    splitPoints.forEach((sp: any) => {
+      grouped[sp.tourType].push({
+        stageNumber: sp.stageNumber,
+        locationName: sp.locationName,
+        lng: parseFloat(sp.lng),
+        lat: parseFloat(sp.lat),
+        distanceKm: parseFloat(sp.distanceKm),
+      });
+    });
+
+    res.json({ success: true, splitPoints: grouped });
+  } catch (error) {
+    console.error('Get split points error:', error);
+    res
+      .status(500)
+      .json({ success: false, error: 'Failed to fetch split points' });
+  }
+});
+
+// PUT /api/routes/:id/split-points - Save split points for a route (protected)
+router.put(
+  '/:id/split-points',
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { tourType, splitPoints } = req.body;
+
+      if (!tourType || !['silver', 'bronze'].includes(tourType)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid tour type. Must be silver or bronze.',
+        });
+      }
+
+      // Delete existing split points for this tour type
+      await run(
+        'DELETE FROM stage_split_points WHERE route_id = ? AND tour_type = ?',
+        [id, tourType]
+      );
+
+      // Insert new split points
+      if (splitPoints && splitPoints.length > 0) {
+        for (const sp of splitPoints) {
+          await run(
+            `INSERT INTO stage_split_points 
+           (route_id, tour_type, stage_number, location_name, lng, lat, distance_km)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+              id,
+              tourType,
+              sp.stageNumber,
+              sp.locationName,
+              sp.lng,
+              sp.lat,
+              sp.distanceKm,
+            ]
+          );
+        }
+      }
+
+      res.json({ success: true, message: 'Split points saved' });
+    } catch (error) {
+      console.error('Save split points error:', error);
+      res
+        .status(500)
+        .json({ success: false, error: 'Failed to save split points' });
+    }
+  }
+);
 
 export default router;

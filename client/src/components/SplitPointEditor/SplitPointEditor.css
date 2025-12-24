@@ -1,0 +1,200 @@
+.split-point-editor {
+  background: #080e11;
+  border: 1px solid #1e2a33;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.split-point-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #088d95;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.tour-type-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tour-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  background: #0b1215;
+  border: 1px solid #1e2a33;
+  border-radius: 6px;
+  color: #9ca3af;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tour-tab:hover {
+  border-color: #088d95;
+  color: white;
+}
+
+.tour-tab.active {
+  background: #088d95;
+  color: white;
+  border-color: #088d95;
+}
+
+.tour-tab .stage-count {
+  font-size: 10px;
+  opacity: 0.7;
+  margin-top: 2px;
+}
+
+.split-points-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.split-point-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: #0b1215;
+  border: 1px solid #1e2a33;
+  border-radius: 6px;
+}
+
+.split-point-badge {
+  width: 36px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.split-point-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.split-point-input {
+  width: 100%;
+  padding: 6px 8px;
+  background: #080e11;
+  border: 1px solid #1e2a33;
+  border-radius: 4px;
+  color: white;
+  font-size: 11px;
+}
+
+.split-point-input:focus {
+  outline: none;
+  border-color: #088d95;
+}
+
+.split-point-distance {
+  font-size: 10px;
+  color: #6b7280;
+}
+
+.split-point-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.action-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1e2a33;
+  border: none;
+  border-radius: 4px;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: #088d95;
+  color: white;
+}
+
+.action-btn.active {
+  background: #088d95;
+  color: white;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.action-btn.delete:hover {
+  background: #ef4444;
+}
+
+.save-split-points-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  background: #088d95;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.save-split-points-btn:hover:not(:disabled) {
+  background: #0da6ae;
+}
+
+.save-split-points-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.split-point-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 8px;
+  background: #1e2a33;
+  border-radius: 4px;
+  font-size: 10px;
+  color: #9ca3af;
+}
+
+.split-point-info i {
+  color: #088d95;
+  margin-top: 1px;
+}

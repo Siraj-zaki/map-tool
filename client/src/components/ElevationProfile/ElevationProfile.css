@@ -41,12 +41,12 @@
 
 /* Chart Elements */
 .area {
-  fill: rgba(8, 131, 115, 0.15);
+  /* fill: rgba(8, 131, 115, 0.15); */
 }
 
 .line {
   fill: none;
-  stroke: #088373;
+  /* stroke: #088373; */
   stroke-width: 2;
 }
 

@@ -15,6 +15,7 @@ const auth_js_1 = __importDefault(require("./routes/auth.js"));
 const gpx_js_1 = __importDefault(require("./routes/gpx.js"));
 const pois_js_1 = __importDefault(require("./routes/pois.js"));
 const routes_js_1 = __importDefault(require("./routes/routes.js"));
+const settings_js_1 = __importDefault(require("./routes/settings.js"));
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 3001;
 // Middleware
@@ -48,6 +49,7 @@ app.use('/api/auth', auth_js_1.default);
 app.use('/api/routes', routes_js_1.default);
 app.use('/api/pois', pois_js_1.default);
 app.use('/api/gpx', gpx_js_1.default);
+app.use('/api/settings', settings_js_1.default);
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });

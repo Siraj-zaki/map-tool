@@ -11,6 +11,8 @@ import {
 } from '../api';
 import ElevationProfile from '../components/ElevationProfile/ElevationProfile';
 import POIModal, { type POIData } from '../components/POI/POIModal';
+import SplitPointEditor from '../components/SplitPointEditor/SplitPointEditor';
+import { useColorSettings } from '../contexts/ColorSettingsContext';
 import {
   getGPXRouteName,
   parseGPX,
@@ -32,6 +34,7 @@ export default function Editor() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { routeSettings } = useColorSettings();
   const isEditing = Boolean(id);
 
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -51,10 +54,21 @@ export default function Editor() {
   const [routeGeometry, setRouteGeometry] = useState<[number, number][] | null>(
     null
   );
+  // Track if route came from GPX upload (to skip Directions API calls)
+  const [isGpxRoute, setIsGpxRoute] = useState(false);
   const [pois, setPois] = useState<any[]>([]);
   const [editMode, setEditMode] = useState<
-    'start' | 'end' | 'waypoint' | 'poi'
+    'start' | 'end' | 'waypoint' | 'poi' | 'splitpoint'
   >('start');
+
+  // Split point selection state
+  const [splitPointTourType, setSplitPointTourType] = useState<
+    'silver' | 'bronze'
+  >('silver');
+  const [splitPointStageNumber, setSplitPointStageNumber] = useState<number>(1);
+  const splitPointCallbackRef = useRef<
+    ((lng: number, lat: number, distanceKm: number) => void) | null
+  >(null);
 
   // POI Modal state
   const [poiModalOpen, setPoiModalOpen] = useState(false);
@@ -82,11 +96,13 @@ export default function Editor() {
   const highlightMarkerRef = useRef<mapboxgl.Marker | null>(null);
 
   // Mode labels for info overlay
-  const modeLabels = {
+  const modeLabels: Record<string, string> = {
     start: t('clickToSetStart'),
     waypoint: t('clickToAddWaypoint'),
     end: t('clickToSetEnd'),
     poi: t('clickToAddPoi'),
+    splitpoint:
+      t('clickToSetSplitPoint') || 'Click on route to set stage boundary',
   };
 
   // Check auth
@@ -167,6 +183,50 @@ export default function Editor() {
 
     const handleClick = (e: mapboxgl.MapMouseEvent) => {
       const coord: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+
+      // Handle split point mode
+      if (editMode === 'splitpoint') {
+        if (splitPointCallbackRef.current && routeGeometry) {
+          // Find closest point on route and calculate distance
+          let minDist = Infinity;
+          let closestCoord = coord;
+          let distanceKm = 0;
+          let accumulatedDistance = 0;
+
+          for (let i = 0; i < routeGeometry.length; i++) {
+            const rc = routeGeometry[i];
+            const d = Math.sqrt(
+              Math.pow(coord[0] - rc[0], 2) + Math.pow(coord[1] - rc[1], 2)
+            );
+            if (i > 0) {
+              const prev = routeGeometry[i - 1];
+              const R = 6371;
+              const dLat = ((rc[1] - prev[1]) * Math.PI) / 180;
+              const dLon = ((rc[0] - prev[0]) * Math.PI) / 180;
+              const a =
+                Math.sin(dLat / 2) ** 2 +
+                Math.cos((prev[1] * Math.PI) / 180) *
+                  Math.cos((rc[1] * Math.PI) / 180) *
+                  Math.sin(dLon / 2) ** 2;
+              accumulatedDistance +=
+                R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            }
+            if (d < minDist) {
+              minDist = d;
+              closestCoord = rc;
+              distanceKm = accumulatedDistance;
+            }
+          }
+
+          splitPointCallbackRef.current(
+            closestCoord[0],
+            closestCoord[1],
+            distanceKm
+          );
+        }
+        setEditMode('waypoint'); // Return to normal mode
+        return;
+      }
 
       if (editMode === 'start') {
         setStartPoint(coord);
@@ -285,25 +345,83 @@ export default function Editor() {
     return () => clearTimeout(timer);
   }, [startPoint, waypoints, endPoint, pois, mapLoaded]);
 
-  // Calculate route
+  // Calculate route - draws progressively as waypoints are added
+  // Also handles pre-existing routeGeometry from GPX uploads
   useEffect(() => {
-    if (!map.current || !mapLoaded || !startPoint || !endPoint) return;
+    // Draw route if we have at least start + 1 waypoint OR start + end
+    const hasMinimumPoints = startPoint && (waypoints.length > 0 || endPoint);
+    if (!map.current || !mapLoaded || !hasMinimumPoints) return;
 
-    const calculateRoute = async () => {
+    const drawRoute = async () => {
       try {
         // Wait for style to be fully loaded
         if (!map.current!.isStyleLoaded()) {
-          // If style not loaded, wait and retry
           map.current!.once('style.load', () => {
-            calculateRoute();
+            drawRoute();
           });
           return;
         }
 
+        // If route came from GPX upload, use existing geometry directly (skip API)
+        if (isGpxRoute && routeGeometry && routeGeometry.length > 0) {
+          console.log(
+            '[Editor] GPX route - using existing geometry:',
+            routeGeometry.length,
+            'coordinates'
+          );
+
+          // Clean up existing layers/sources
+          if (map.current!.getLayer('route')) map.current!.removeLayer('route');
+          if (map.current!.getSource('route'))
+            map.current!.removeSource('route');
+
+          map.current!.addSource('route', {
+            type: 'geojson',
+            lineMetrics: true,
+            data: {
+              type: 'Feature',
+              properties: {},
+              geometry: {
+                type: 'LineString',
+                coordinates: routeGeometry,
+              },
+            },
+          });
+          map.current!.addLayer({
+            id: 'route',
+            type: 'line',
+            source: 'route',
+            layout: { 'line-join': 'round', 'line-cap': 'round' },
+            paint: {
+              'line-color': routeSettings.mainColor,
+              'line-width': routeSettings.lineWidth,
+            },
+          });
+          return;
+        }
+
+        // No existing geometry - calculate route via Mapbox Directions API
+        // Limit waypoints to avoid exceeding API limit (25 total including start/end)
+        const MAX_API_WAYPOINTS = 23; // Leave room for start and end
+        const effectiveEnd = endPoint || waypoints[waypoints.length - 1];
+        let effectiveWaypoints = endPoint ? waypoints : waypoints.slice(0, -1);
+
+        // If too many waypoints, sample them evenly
+        if (effectiveWaypoints.length > MAX_API_WAYPOINTS) {
+          const step = Math.ceil(effectiveWaypoints.length / MAX_API_WAYPOINTS);
+          effectiveWaypoints = effectiveWaypoints.filter(
+            (_, i) => i % step === 0
+          );
+          console.log(
+            '[Editor] Sampled waypoints for API:',
+            effectiveWaypoints.length
+          );
+        }
+
         const result = await getDirections(
           startPoint,
-          waypoints,
-          endPoint,
+          effectiveWaypoints,
+          effectiveEnd,
           'walking'
         );
         if (result.routes?.[0]) {
@@ -318,19 +436,28 @@ export default function Editor() {
             'coordinates'
           );
 
-          // Fetch elevation data for the route
-          const elevationData = await getElevationData(geometry);
-          console.log('[Editor] Elevation data:', elevationData);
+          // Only calculate full elevation stats when route is complete (has endPoint)
+          if (endPoint) {
+            const elevationData = await getElevationData(geometry);
+            console.log('[Editor] Elevation data:', elevationData);
 
-          setRouteStats(prev => ({
-            ...prev,
-            distance: Number((route.distance / 1000).toFixed(2)),
-            duration: Math.round(route.duration / 60),
-            highestPoint: elevationData.highestPoint,
-            lowestPoint: elevationData.lowestPoint,
-            totalAscent: elevationData.totalAscent,
-            totalDescent: elevationData.totalDescent,
-          }));
+            setRouteStats(prev => ({
+              ...prev,
+              distance: Number((route.distance / 1000).toFixed(2)),
+              duration: Math.round(route.duration / 60),
+              highestPoint: elevationData.highestPoint,
+              lowestPoint: elevationData.lowestPoint,
+              totalAscent: elevationData.totalAscent,
+              totalDescent: elevationData.totalDescent,
+            }));
+          } else {
+            // Just update distance for partial route (no elevation fetch to keep it fast)
+            setRouteStats(prev => ({
+              ...prev,
+              distance: Number((route.distance / 1000).toFixed(2)),
+              duration: Math.round(route.duration / 60),
+            }));
+          }
 
           // Clean up existing layers/sources
           if (map.current!.getLayer('route')) map.current!.removeLayer('route');
@@ -354,7 +481,10 @@ export default function Editor() {
             type: 'line',
             source: 'route',
             layout: { 'line-join': 'round', 'line-cap': 'round' },
-            paint: { 'line-color': '#088D95', 'line-width': 4 },
+            paint: {
+              'line-color': routeSettings.mainColor,
+              'line-width': routeSettings.lineWidth,
+            },
           });
         }
       } catch (error) {
@@ -363,9 +493,17 @@ export default function Editor() {
     };
 
     // Small delay to ensure map is ready
-    const timer = setTimeout(calculateRoute, 100);
+    const timer = setTimeout(drawRoute, 100);
     return () => clearTimeout(timer);
-  }, [startPoint, waypoints, endPoint, mapLoaded]);
+  }, [
+    startPoint,
+    waypoints,
+    endPoint,
+    routeGeometry,
+    isGpxRoute,
+    mapLoaded,
+    routeSettings,
+  ]);
 
   // Load existing route
   useEffect(() => {
@@ -526,6 +664,8 @@ export default function Editor() {
     setEndPoint(null);
     setWaypoints([]);
     setPois([]);
+    setRouteGeometry(null);
+    setIsGpxRoute(false);
     setRouteStats({
       distance: 0,
       duration: 0,
@@ -562,12 +702,20 @@ export default function Editor() {
       const routeData = processGPXToRoute(points);
       const routeName = getGPXRouteName(text);
 
-      clearRoute();
+      // Mark as GPX route FIRST to prevent any intermediate API calls
+      setIsGpxRoute(true);
+
+      // Clear any existing route visual (but don't reset isGpxRoute)
+      if (map.current?.getLayer('route')) map.current.removeLayer('route');
+      if (map.current?.getSource('route')) map.current.removeSource('route');
+
+      // Set all the route data
       setStartPoint(routeData.startPoint);
       setEndPoint(routeData.endPoint);
       setWaypoints(routeData.waypoints);
-      // Save the complete geometry from GPX file
       setRouteGeometry(routeData.routeGeometry);
+      setPois([]);
+
       console.log(
         '[Editor] GPX geometry saved:',
         routeData.routeGeometry.length,
@@ -779,6 +927,31 @@ export default function Editor() {
               <i className="fas fa-upload"></i> {t('uploadGPX')}
             </button>
           </div>
+
+          {/* Split Point Editor - only show when editing existing route */}
+          {isEditing && routeGeometry && (
+            <SplitPointEditor
+              routeId={id ? Number(id) : null}
+              routeGeometry={routeGeometry}
+              totalDistance={routeStats.distance}
+              onSetSplitPointMode={(
+                active,
+                tourType,
+                stageNumber,
+                callback
+              ) => {
+                if (active) {
+                  setEditMode('splitpoint');
+                  setSplitPointTourType(tourType);
+                  setSplitPointStageNumber(stageNumber);
+                  splitPointCallbackRef.current = callback;
+                } else {
+                  setEditMode('waypoint');
+                  splitPointCallbackRef.current = null;
+                }
+              }}
+            />
+          )}
 
           {/* POIs Section */}
           {pois.length > 0 && (

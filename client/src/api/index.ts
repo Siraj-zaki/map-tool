@@ -11,6 +11,7 @@ export interface Route {
   endPoint: [number, number];
   waypoints: [number, number][];
   routeGeometry?: [number, number][];
+  elevationData?: { elevation: number; distance: number }[];
   distance: number;
   duration: number;
   highestPoint: number;
@@ -142,6 +143,53 @@ export const routesApi = {
   ): Promise<{ success: boolean; route: Route }> => {
     clearCache(`routes:${id}`);
     const res = await fetch(`${API_BASE}/routes/${id}`);
+    return res.json();
+  },
+};
+
+// Split Point Types
+export interface SplitPoint {
+  stageNumber: number;
+  locationName: string;
+  lng: number;
+  lat: number;
+  distanceKm: number;
+}
+
+export interface SplitPointsResponse {
+  success: boolean;
+  splitPoints: {
+    silver: SplitPoint[];
+    bronze: SplitPoint[];
+  };
+}
+
+// Split Points API
+export const splitPointsApi = {
+  getByRoute: async (routeId: number): Promise<SplitPointsResponse> => {
+    return cachedFetch(
+      `splitPoints:${routeId}`,
+      async () => {
+        const res = await fetch(`${API_BASE}/routes/${routeId}/split-points`);
+        return res.json();
+      },
+      5 * 60 * 1000 // 5 minute cache
+    );
+  },
+
+  save: async (
+    routeId: number,
+    tourType: 'silver' | 'bronze',
+    splitPoints: SplitPoint[]
+  ) => {
+    const res = await fetch(`${API_BASE}/routes/${routeId}/split-points`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ tourType, splitPoints }),
+    });
+    // Invalidate cache
+    clearCache(`splitPoints:${routeId}`);
     return res.json();
   },
 };
@@ -323,3 +371,91 @@ export function formatDuration(seconds: number): string {
   const minutes = Math.floor((seconds % 3600) / 60);
   return `${hours}h ${minutes}m`;
 }
+
+// Settings API for route and stage colors
+export interface RouteSettings {
+  mainColor: string;
+  lineWidth: number;
+  shadowColor: string;
+  shadowOpacity: number;
+}
+
+export interface StageColorSetting {
+  stageNumber: number;
+  lineColor: string;
+  lineOpacity: number;
+  areaColor: string | null;
+  areaOpacity: number;
+}
+
+export interface AllSettings {
+  routeSettings: RouteSettings | null;
+  stageColors: {
+    gold: StageColorSetting[];
+    silver: StageColorSetting[];
+    bronze: StageColorSetting[];
+  };
+}
+
+export const settingsApi = {
+  // Get all settings (route + stages)
+  getAll: async (): Promise<{ success: boolean } & AllSettings> => {
+    return cachedFetch(
+      'settings:all',
+      async () => {
+        const res = await fetch(`${API_BASE}/settings/all`);
+        return res.json();
+      },
+      5 * 60 * 1000 // 5 minute cache
+    );
+  },
+
+  // Get route settings only
+  getRouteSettings: async (): Promise<{
+    success: boolean;
+    settings: RouteSettings;
+  }> => {
+    const res = await fetch(`${API_BASE}/settings/route`);
+    return res.json();
+  },
+
+  // Update route settings
+  updateRouteSettings: async (settings: Partial<RouteSettings>) => {
+    clearCache('settings:all');
+    const res = await fetch(`${API_BASE}/settings/route`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(settings),
+    });
+    return res.json();
+  },
+
+  // Get all stage colors
+  getStageColors: async (): Promise<{
+    success: boolean;
+    stages: AllSettings['stageColors'];
+  }> => {
+    const res = await fetch(`${API_BASE}/settings/stages`);
+    return res.json();
+  },
+
+  // Update a specific stage color
+  updateStageColor: async (
+    tourType: 'gold' | 'silver' | 'bronze',
+    stageNumber: number,
+    colors: Partial<StageColorSetting>
+  ) => {
+    clearCache('settings:all');
+    const res = await fetch(
+      `${API_BASE}/settings/stages/${tourType}/${stageNumber}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(colors),
+      }
+    );
+    return res.json();
+  },
+};

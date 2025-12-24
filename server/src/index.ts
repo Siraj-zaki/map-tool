@@ -12,6 +12,7 @@ import authRoutes from './routes/auth.js';
 import gpxRoutes from './routes/gpx.js';
 import poisRoutes from './routes/pois.js';
 import routesRoutes from './routes/routes.js';
+import settingsRoutes from './routes/settings.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -55,6 +56,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/routes', routesRoutes);
 app.use('/api/pois', poisRoutes);
 app.use('/api/gpx', gpxRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -101,6 +101,13 @@ export default function Dashboard() {
             <i className="fas fa-plus"></i>
             {t('createRoute')}
           </a>
+          <a
+            href="/admin/settings"
+            className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-[#1e2a33] rounded-lg transition-all"
+          >
+            <i className="fas fa-palette"></i>
+            Settings
+          </a>
         </nav>
 
         <button

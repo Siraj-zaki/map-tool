@@ -8,6 +8,7 @@ const Editor = lazy(() => import('./pages/Editor'));
 const EmbedView = lazy(() => import('./pages/EmbedView'));
 const Login = lazy(() => import('./pages/Login'));
 const PublicView = lazy(() => import('./pages/PublicView'));
+const Settings = lazy(() => import('./pages/Settings'));
 
 // Loading fallback component
 function LoadingFallback() {
@@ -74,6 +75,7 @@ function App() {
           <Route path="/admin/login" element={<Login />} />
           <Route path="/admin/edit" element={<Editor />} />
           <Route path="/admin/edit/:id" element={<Editor />} />
+          <Route path="/admin/settings" element={<Settings />} />
         </Routes>
       </Suspense>
     </>

@@ -2,12 +2,8 @@ import * as d3 from 'd3';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { POI, Route } from '../../api';
-import {
-  getElevationStageColor,
-  getStageAreaColor,
-  POI_PROFILE_ICONS,
-  ROUTE_STYLES,
-} from '../../constants/routeStyles';
+import { POI_PROFILE_ICONS, ROUTE_STYLES } from '../../constants/routeStyles';
+import { useColorSettings } from '../../contexts/ColorSettingsContext';
 import { getRouteElevations } from '../../utils/elevation';
 import './ElevationProfile.css';
 
@@ -81,6 +77,9 @@ export default function ElevationProfile({
   const COLORS = ROUTE_STYLES.ELEVATION;
   const MAX_ZOOM = 10;
   const margin = { top: 10, right: 15, bottom: 25, left: 45 };
+
+  // Get dynamic colors from context
+  const { stageColors, getStageColor } = useColorSettings();
 
   // Generate elevation data from route - uses real elevations if available
   const generateElevationData = useCallback(
@@ -167,9 +166,22 @@ export default function ElevationProfile({
     [route]
   );
 
-  // Fetch real elevation data from API
+  // Fetch real elevation data from API (or use stored data)
   useEffect(() => {
     if (!route) return;
+
+    // Check if route already has stored elevation data
+    if (route.elevationData && route.elevationData.length > 0) {
+      console.log(
+        '[ElevationProfile] Using stored elevation data from database:',
+        route.elevationData.length,
+        'points'
+      );
+      // Extract just the elevation values from stored data
+      const elevations = route.elevationData.map(p => p.elevation);
+      setRealElevations(elevations);
+      return;
+    }
 
     const coords =
       route.routeGeometry && route.routeGeometry.length > 0
@@ -183,7 +195,7 @@ export default function ElevationProfile({
     if (coords.length < 2) return;
 
     setElevationsLoading(true);
-    console.log('[ElevationProfile] Fetching real elevation data...');
+    console.log('[ElevationProfile] Fetching real elevation data from API...');
 
     getRouteElevations(coords)
       .then(elevations => {
@@ -436,8 +448,23 @@ export default function ElevationProfile({
 
       if (stageData.length < 2) continue;
 
-      const stageColor = getElevationStageColor(stageIndex);
-      const stageAreaColor = getStageAreaColor(stageIndex);
+      // Get dynamic stage colors from context
+      const stageColor = getStageColor(tourType, stageIndex);
+
+      // Helper to convert hex to rgba
+      const hexToRgba = (hex: string, alpha: number): string => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        if (result) {
+          const r = parseInt(result[1], 16);
+          const g = parseInt(result[2], 16);
+          const b = parseInt(result[3], 16);
+          return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+        return `rgba(8, 141, 149, ${alpha})`; // Fallback
+      };
+
+      // Create area color: same as line color but with 25% opacity
+      const stageAreaColor = hexToRgba(stageColor, 0.25);
 
       console.log(`[ElevationProfile] Stage ${stageIndex + 1}:`, {
         stageColor,
@@ -477,7 +504,7 @@ export default function ElevationProfile({
 
         if (boundaryPoint) {
           const boundaryX = xScale(boundaryPoint.distance);
-          const stageColor = getElevationStageColor(i);
+          const stageColor = getStageColor(tourType, i);
 
           // Draw vertical dashed line at stage boundary
           chartContent
@@ -924,6 +951,8 @@ export default function ElevationProfile({
     tourType,
     COLORS,
     margin,
+    stageColors,
+    getStageColor,
   ]);
 
   const { t } = useTranslation();

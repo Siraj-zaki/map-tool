@@ -3,10 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { routesApi, type POI, type Route } from '../api';
 import ElevationProfile from '../components/ElevationProfile/ElevationProfile';
+import LocationFilter from '../components/LocationFilter/LocationFilter';
 import MapComponent from '../components/Map/MapComponent';
 import POISidebar from '../components/POI/POISidebar';
 import PremiumModal from '../components/Premium/PremiumModal';
 import RouteStatsBar from '../components/RouteStatsBar/RouteStatsBar';
+import StageDetailsPanel from '../components/StageDetails/StageDetailsPanel';
 import TourSelector from '../components/TourSelector/TourSelector';
 import WeatherForecast from '../components/Weather/WeatherForecast';
 
@@ -161,6 +163,10 @@ export default function EmbedView() {
             top: '12px',
             left: '60px',
             zIndex: 40,
+            display: 'flex',
+            gap: '12px',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
           }}
         >
           <TourSelector
@@ -169,6 +175,12 @@ export default function EmbedView() {
             selectedStage={selectedStage}
             onStageSelect={setSelectedStage}
           />
+          <StageDetailsPanel
+            route={route}
+            tourType={tourType}
+            selectedStage={selectedStage}
+          />
+          <LocationFilter routeId={route.id} tourType={tourType} />
         </div>
 
         {/* Weather Forecast Overlay - Top Right */}

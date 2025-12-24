@@ -1,0 +1,109 @@
+.stage-details-panel {
+  background: rgba(8, 14, 17, 0.95);
+  border: 1px solid #1e2a33;
+  border-radius: 8px;
+  padding: 12px;
+  min-width: 270px;
+  backdrop-filter: blur(10px);
+  font-size: 12px;
+  color: #fff;
+}
+
+.stage-details-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: inherit;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #088d95;
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+}
+
+.stage-details-header i {
+  font-size: 12px;
+}
+
+.stage-details-totals {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #1e2a33;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stat-item i {
+  width: 14px;
+  text-align: center;
+  color: #088d95;
+}
+
+.stat-value {
+  font-weight: 500;
+}
+
+.stage-details-elevation {
+  padding: 8px 0;
+  border-bottom: 1px solid #1e2a33;
+}
+
+.elevation-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #9ca3af;
+  font-size: 11px;
+}
+
+.elevation-range i {
+  color: #088d95;
+}
+
+.stage-details-stages {
+  padding-top: 8px;
+}
+
+.stages-header {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.stage-row {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0 6px 10px;
+  border-left: 3px solid #088d95;
+  margin-bottom: 6px;
+}
+
+.stage-name {
+  font-weight: 600;
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+
+.stage-stats {
+  display: flex;
+  gap: 8px;
+  font-size: 10px;
+  color: #9ca3af;
+}
+
+.stage-stats .ascent {
+  color: #22c55e;
+}
+
+.stage-stats .descent {
+  color: #ef4444;
+}
