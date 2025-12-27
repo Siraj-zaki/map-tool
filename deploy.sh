@@ -234,16 +234,16 @@ async function migrate() {
     });
     
     try {
-        // Migrate routes
+        // Migrate routes (including elevation_data column)
         console.log('Migrating routes...');
         const routes = sqliteDb.prepare('SELECT * FROM routes').all();
         for (const route of routes) {
             await pool.execute(
-                `INSERT INTO routes (route_id, name, description, start_point, end_point, route_geometry, 
+                `INSERT INTO routes (route_id, name, description, start_point, end_point, route_geometry, elevation_data,
                  distance, duration, highest_point, lowest_point, total_ascent, total_descent, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [route.route_id, route.name, route.description, route.start_point, route.end_point,
-                 route.route_geometry, route.distance, route.duration, route.highest_point,
+                 route.route_geometry, route.elevation_data || null, route.distance, route.duration, route.highest_point,
                  route.lowest_point, route.total_ascent, route.total_descent, route.created_at]
             );
         }
@@ -282,6 +282,22 @@ async function migrate() {
             );
         }
         console.log(`Migrated ${images.length} POI images`);
+        
+        // Migrate stage_split_points if exists
+        try {
+            console.log('Migrating stage split points...');
+            const splitPoints = sqliteDb.prepare('SELECT * FROM stage_split_points').all();
+            for (const sp of splitPoints) {
+                await pool.execute(
+                    `INSERT INTO stage_split_points (id, route_id, tour_type, stage_number, location_name, lng, lat, distance_km, created_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [sp.id, sp.route_id, sp.tour_type, sp.stage_number, sp.location_name, sp.lng, sp.lat, sp.distance_km, sp.created_at]
+                );
+            }
+            console.log(`Migrated ${splitPoints.length} stage split points`);
+        } catch (e) {
+            console.log('No stage_split_points table found, skipping...');
+        }
         
         // Migrate users (except default admin which is auto-created)
         console.log('Migrating users...');
