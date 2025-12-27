@@ -75,7 +75,7 @@ export default function LocationFilter({
       </div>
 
       <div className="location-tags">
-        {splitPoints.map((sp, index) => (
+        {splitPoints.map(sp => (
           <button
             key={sp.stageNumber}
             className={`location-tag ${

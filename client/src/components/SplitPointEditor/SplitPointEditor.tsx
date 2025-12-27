@@ -45,7 +45,7 @@ function haversineDistance(
 export default function SplitPointEditor({
   routeId,
   routeGeometry,
-  totalDistance,
+  totalDistance: _totalDistance,
   onSplitPointChange,
   onSetSplitPointMode,
 }: SplitPointEditorProps) {

@@ -62,10 +62,11 @@ export default function Editor() {
   >('start');
 
   // Split point selection state
-  const [splitPointTourType, setSplitPointTourType] = useState<
+  const [_splitPointTourType, setSplitPointTourType] = useState<
     'silver' | 'bronze'
   >('silver');
-  const [splitPointStageNumber, setSplitPointStageNumber] = useState<number>(1);
+  const [_splitPointStageNumber, setSplitPointStageNumber] =
+    useState<number>(1);
   const splitPointCallbackRef = useRef<
     ((lng: number, lat: number, distanceKm: number) => void) | null
   >(null);
