@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { formatDuration, type Route } from '../../api';
 import WeatherWidget from '../Weather/WeatherWidget';
+import LocationSearch from './LocationSearch';
 import './RouteStatsBar.css';
 
 interface RouteStatsBarProps {
@@ -8,6 +9,11 @@ interface RouteStatsBarProps {
   showWeather?: boolean;
   showDownloadButton?: boolean;
   onDownloadClick?: () => void;
+  onLocationSelect?: (coords: {
+    lng: number;
+    lat: number;
+    name: string;
+  }) => void;
 }
 
 export default function RouteStatsBar({
@@ -15,6 +21,7 @@ export default function RouteStatsBar({
   showWeather = true,
   showDownloadButton = false,
   onDownloadClick,
+  onLocationSelect,
 }: RouteStatsBarProps) {
   const { t } = useTranslation();
 
@@ -61,8 +68,12 @@ export default function RouteStatsBar({
         </div>
       </div>
 
-      {/* Right Section: Weather, Download, Logo */}
+      {/* Right Section: Search, Weather, Download, Logo */}
       <div className="stats-right">
+        {onLocationSelect && (
+          <LocationSearch onLocationSelect={onLocationSelect} />
+        )}
+
         {showWeather && (
           <div className="weather-container">
             <WeatherWidget lat={centerLat} lng={centerLng} compact />

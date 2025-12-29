@@ -66,6 +66,7 @@ interface MapComponentProps {
   onPoiClick?: (poi: POI) => void;
   isFullscreen?: boolean;
   highlightPosition?: { lng: number; lat: number } | null;
+  flyToLocation?: { lng: number; lat: number } | null;
 }
 
 export default function MapComponent({
@@ -76,6 +77,7 @@ export default function MapComponent({
   onPoiClick,
   isFullscreen = false,
   highlightPosition,
+  flyToLocation,
 }: MapComponentProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -84,7 +86,13 @@ export default function MapComponent({
   const hoverMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const highlightMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const routeCoordinatesRef = useRef<[number, number][]>([]);
+  const onPoiClickRef = useRef(onPoiClick);
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // Keep ref updated with latest callback
+  useEffect(() => {
+    onPoiClickRef.current = onPoiClick;
+  }, [onPoiClick]);
 
   // Get dynamic colors from context
   const { routeSettings, getStageColor } = useColorSettings();
@@ -266,7 +274,7 @@ export default function MapComponent({
       attributionControl: false,
     });
 
-    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+    map.current.addControl(new mapboxgl.NavigationControl(), 'bottom-left');
     map.current.addControl(new mapboxgl.ScaleControl(), 'bottom-left');
 
     map.current.on('load', () => {
@@ -615,6 +623,11 @@ export default function MapComponent({
     // Start marker - matching original design
     const startEl = document.createElement('div');
     startEl.className = 'marker start-marker';
+    startEl.style.cssText = `
+      width: 36px;
+      height: 36px;
+      will-change: transform;
+    `;
     startEl.innerHTML = `
       <div style="
         background: #0b1215;
@@ -632,7 +645,11 @@ export default function MapComponent({
         <i class="fa-solid fa-play" style="font-size: 14px; color: #fff;"></i>
       </div>
     `;
-    const startMarker = new mapboxgl.Marker({ element: startEl })
+    const startMarker = new mapboxgl.Marker({
+      element: startEl,
+      anchor: 'center',
+      offset: [0, 0],
+    })
       .setLngLat(route.startPoint)
       .addTo(map.current);
     markersRef.current.push(startMarker);
@@ -640,6 +657,11 @@ export default function MapComponent({
     // End marker
     const endEl = document.createElement('div');
     endEl.className = 'marker end-marker';
+    endEl.style.cssText = `
+      width: 36px;
+      height: 36px;
+      will-change: transform;
+    `;
     endEl.innerHTML = `
       <div style="
         background: #0b1215;
@@ -656,49 +678,115 @@ export default function MapComponent({
         <i class="fa-solid fa-flag-checkered" style="font-size: 14px; color: #fff;"></i>
       </div>
     `;
-    const endMarker = new mapboxgl.Marker({ element: endEl })
+    const endMarker = new mapboxgl.Marker({
+      element: endEl,
+      anchor: 'center',
+      offset: [0, 0],
+    })
       .setLngLat(route.endPoint)
       .addTo(map.current);
     markersRef.current.push(endMarker);
 
-    // POI markers using HTML-based markers - Round circle design
+    // POI markers - using native Mapbox layers for stable positioning
     if (route.pois && route.pois.length > 0) {
-      route.pois.forEach(poi => {
-        const fallback =
-          POI_ICON_FALLBACK[poi.type || 'highlight'] ||
-          POI_ICON_FALLBACK.highlight;
+      // Remove existing POI layers/source if they exist
+      if (map.current.getLayer('poi-labels')) {
+        map.current.removeLayer('poi-labels');
+      }
+      if (map.current.getLayer('poi-circles')) {
+        map.current.removeLayer('poi-circles');
+      }
+      if (map.current.getSource('poi-source')) {
+        map.current.removeSource('poi-source');
+      }
 
-        const el = document.createElement('div');
-        const size = 36;
-        el.className = 'poi-marker';
-        el.style.width = `${size}px`;
-        el.style.height = `${size}px`;
-        el.style.backgroundColor = fallback.bg;
-        el.style.border = '3px solid white';
-        el.style.borderRadius = '50%';
-        el.style.display = 'flex';
-        el.style.alignItems = 'center';
-        el.style.justifyContent = 'center';
-        el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
-        el.style.cursor = 'pointer';
-        el.style.padding = '0';
-        el.tabIndex = 0;
+      // Create GeoJSON features for POIs
+      const poiFeatures: GeoJSON.Feature[] = route.pois.map((poi, index) => ({
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: poi.lngLat,
+        },
+        properties: {
+          id: index,
+          name: poi.name || '',
+          type: poi.type || 'highlight',
+          description: poi.description || '',
+          poiIndex: index,
+          // Map POI type to color
+          color: POI_ICON_FALLBACK[poi.type || 'highlight']?.bg || '#eab308',
+          // Map POI type to Maki icon name
+          makiIcon:
+            poi.type === 'hotel'
+              ? 'lodging'
+              : poi.type === 'restaurant'
+              ? 'restaurant'
+              : poi.type === 'gipfel'
+              ? 'mountain'
+              : 'star',
+        },
+      }));
 
-        // Add Font Awesome icon
-        const iconEl = document.createElement('i');
-        iconEl.className = `fas ${fallback.icon}`;
-        iconEl.style.color = 'white';
-        iconEl.style.fontSize = '14px';
-        iconEl.style.pointerEvents = 'none';
-        el.appendChild(iconEl);
+      // Add POI source
+      map.current.addSource('poi-source', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: poiFeatures,
+        },
+      });
 
-        el.addEventListener('click', () => {
-          onPoiClick?.(poi);
-        });
+      // Add circle layer for POI background
+      map.current.addLayer({
+        id: 'poi-circles',
+        type: 'circle',
+        source: 'poi-source',
+        paint: {
+          'circle-radius': 18,
+          'circle-color': ['get', 'color'],
+          'circle-stroke-width': 3,
+          'circle-stroke-color': '#ffffff',
+        },
+      });
 
-        new mapboxgl.Marker(el)
-          .setLngLat(poi.lngLat as [number, number])
-          .addTo(map.current!);
+      // Add symbol layer for POI icons using Mapbox Maki icons
+      map.current.addLayer({
+        id: 'poi-labels',
+        type: 'symbol',
+        source: 'poi-source',
+        layout: {
+          'icon-image': ['get', 'makiIcon'],
+          'icon-size': 1,
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+        },
+        paint: {
+          'icon-color': '#ffffff',
+        },
+      });
+
+      // Handle POI click events
+      map.current.on('click', 'poi-circles', e => {
+        if (e.features && e.features.length > 0) {
+          const feature = e.features[0];
+          const poiIndex = feature.properties?.poiIndex;
+          if (poiIndex !== undefined && route.pois[poiIndex]) {
+            onPoiClickRef.current?.(route.pois[poiIndex]);
+          }
+        }
+      });
+
+      // Change cursor on POI hover
+      map.current.on('mouseenter', 'poi-circles', () => {
+        if (map.current) {
+          map.current.getCanvas().style.cursor = 'pointer';
+        }
+      });
+
+      map.current.on('mouseleave', 'poi-circles', () => {
+        if (map.current) {
+          map.current.getCanvas().style.cursor = '';
+        }
       });
     }
 
@@ -738,11 +826,12 @@ export default function MapComponent({
     route,
     tourType,
     isLoaded,
-    onPoiClick,
     onPositionChange,
     getDistanceAlongRoute,
     getStageSegments,
     createArrowsSource,
+    routeSettings,
+    getStageColor,
   ]);
 
   // Handle highlight position from elevation profile hover
@@ -848,6 +937,20 @@ export default function MapComponent({
       bounds: bounds.toArray(),
     });
   }, [selectedStage, tourType, route, isLoaded, getStageSegments]);
+
+  // Fly to searched location
+  useEffect(() => {
+    if (!map.current || !isLoaded || !flyToLocation) return;
+
+    map.current.flyTo({
+      center: [flyToLocation.lng, flyToLocation.lat],
+      zoom: 14,
+      pitch: 45,
+      bearing: 0,
+      duration: 2000,
+      essential: true,
+    });
+  }, [flyToLocation, isLoaded]);
 
   return (
     <div

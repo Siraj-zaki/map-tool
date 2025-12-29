@@ -73,45 +73,67 @@ export default function WeatherForecast({
   return (
     <div
       style={{
-        background: 'rgba(132, 192, 137, 0.85)',
-        backdropFilter: 'blur(10px)',
-        borderRadius: '10px',
-        border: '1px solid rgba(0,0,0,0.2)',
-        padding: '12px 16px',
-        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.15)',
+        background: 'rgba(8, 14, 17, 0.9)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderRadius: '12px',
+        border: '1px solid #1e2a33',
+        padding: '12px',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+        minWidth: '130px',
       }}
     >
-      {/* 7-Day Forecast Grid */}
+      {/* Header */}
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(7, 1fr)',
-          gap: '8px',
+          fontSize: '10px',
+          fontWeight: '700',
+          color: '#088d95',
+          textTransform: 'uppercase',
+          letterSpacing: '1px',
+          marginBottom: '10px',
           textAlign: 'center',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '6px',
         }}
       >
-        {forecast.map(day => (
-          <div key={day.date} style={{ minWidth: '50px' }}>
-            {/* Day Name - Full */}
-            <div
-              style={{
-                fontSize: '10px',
-                fontWeight: '600',
-                color: '#000',
-                textTransform: 'uppercase',
-                letterSpacing: '0.3px',
-                marginBottom: '6px',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {day.dayName}
-            </div>
+        <span style={{ fontSize: '12px' }}>☁️</span>
+        7-Day
+      </div>
 
+      {/* Forecast Items */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '4px',
+        }}
+      >
+        {forecast.map((day, index) => (
+          <div
+            key={day.date}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '8px 10px',
+              borderRadius: '8px',
+              background:
+                index === 0
+                  ? 'rgba(8, 141, 149, 0.2)'
+                  : 'rgba(30, 42, 51, 0.5)',
+              border:
+                index === 0 ? '1px solid #088d95' : '1px solid transparent',
+              transition: 'all 0.2s ease',
+            }}
+          >
             {/* Weather Icon */}
             <div
               style={{
-                fontSize: '24px',
-                marginBottom: '4px',
+                fontSize: '20px',
+                width: '28px',
                 height: '28px',
                 display: 'flex',
                 alignItems: 'center',
@@ -121,15 +143,33 @@ export default function WeatherForecast({
               {day.icon}
             </div>
 
-            {/* Temperature */}
+            {/* Day Name */}
             <div
               style={{
                 fontSize: '12px',
                 fontWeight: '600',
-                color: '#333',
+                color: index === 0 ? '#088d95' : 'rgba(255, 255, 255, 0.7)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                flex: 1,
+                textAlign: 'left',
               }}
             >
-              {day.tempMax}°C
+              {day.dayName.slice(0, 3)}
+            </div>
+
+            {/* Temperature */}
+            <div
+              style={{
+                fontSize: '14px',
+                fontWeight: '700',
+                color: '#fff',
+                minWidth: '40px',
+                textAlign: 'right',
+                fontFamily: 'system-ui, -apple-system, sans-serif',
+              }}
+            >
+              {day.tempMax}°
             </div>
           </div>
         ))}

@@ -8,8 +8,7 @@ import MapComponent from '../components/Map/MapComponent';
 import POISidebar from '../components/POI/POISidebar';
 import PremiumModal from '../components/Premium/PremiumModal';
 import RouteStatsBar from '../components/RouteStatsBar/RouteStatsBar';
-import StageDetailsPanel from '../components/StageDetails/StageDetailsPanel';
-import TourSelector from '../components/TourSelector/TourSelector';
+import TourStagePanel from '../components/TourStagePanel/TourStagePanel';
 import WeatherForecast from '../components/Weather/WeatherForecast';
 
 export default function EmbedView() {
@@ -28,6 +27,10 @@ export default function EmbedView() {
     'gold'
   );
   const [selectedStage, setSelectedStage] = useState<number | null>(null);
+  const [flyToLocation, setFlyToLocation] = useState<{
+    lng: number;
+    lat: number;
+  } | null>(null);
 
   // Bi-directional sync between map and profile
   const [highlightDistance, setHighlightDistance] = useState<
@@ -152,6 +155,9 @@ export default function EmbedView() {
         showWeather={true}
         showDownloadButton={true}
         onDownloadClick={() => setShowPremiumModal(true)}
+        onLocationSelect={coords =>
+          setFlyToLocation({ lng: coords.lng, lat: coords.lat })
+        }
       />
 
       {/* Map Content Area */}
@@ -169,26 +175,23 @@ export default function EmbedView() {
             alignItems: 'flex-start',
           }}
         >
-          <TourSelector
+          <TourStagePanel
+            route={route}
             tourType={tourType}
             onTourTypeChange={setTourType}
             selectedStage={selectedStage}
             onStageSelect={setSelectedStage}
           />
-          <StageDetailsPanel
-            route={route}
-            tourType={tourType}
-            selectedStage={selectedStage}
-          />
           <LocationFilter routeId={route.id} tourType={tourType} />
         </div>
 
-        {/* Weather Forecast Overlay - Top Right */}
+        {/* Weather Forecast Overlay - Center Right */}
         <div
           style={{
             position: 'absolute',
-            top: '12px',
-            right: '60px',
+            top: '15px',
+            right: '12px',
+            // transform: 'translateY(-50%)',
             zIndex: 40,
           }}
         >
@@ -208,6 +211,7 @@ export default function EmbedView() {
             onPoiClick={setSelectedPoi}
             highlightPosition={highlightPosition}
             isFullscreen={isFullscreen}
+            flyToLocation={flyToLocation}
           />
         </div>
 

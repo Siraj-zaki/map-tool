@@ -56,27 +56,6 @@ export default function StageDetailsPanel({
 
   return (
     <div className="stage-details-panel">
-      <div className="stage-details-header">
-        <i className="fas fa-info-circle"></i>
-        <span>{t('routeDetails') || 'Route Details'}</span>
-      </div>
-
-      {/* Total Stats */}
-      <div className="stage-details-totals">
-        <div className="stat-item">
-          <i className="fas fa-route"></i>
-          <span className="stat-value">{totalDistance.toFixed(1)} km</span>
-        </div>
-        <div className="stat-item">
-          <i className="fas fa-arrow-up" style={{ color: '#22c55e' }}></i>
-          <span className="stat-value">{totalAscent} m</span>
-        </div>
-        <div className="stat-item">
-          <i className="fas fa-arrow-down" style={{ color: '#ef4444' }}></i>
-          <span className="stat-value">{totalDescent} m</span>
-        </div>
-      </div>
-
       {/* Elevation Range */}
       <div className="stage-details-elevation">
         <span className="elevation-range">
