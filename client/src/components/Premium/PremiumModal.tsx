@@ -4,14 +4,9 @@ import './PremiumModal.css';
 interface PremiumModalProps {
   isOpen: boolean;
   onClose: () => void;
-  featureName?: string;
 }
 
-export default function PremiumModal({
-  isOpen,
-  onClose,
-  featureName = 'GPX Download',
-}: PremiumModalProps) {
+export default function PremiumModal({ isOpen, onClose }: PremiumModalProps) {
   const { t } = useTranslation();
 
   if (!isOpen) return null;
@@ -24,65 +19,93 @@ export default function PremiumModal({
           <i className="fas fa-times"></i>
         </button>
 
-        {/* Premium Icon */}
+        {/* GPS Icon */}
         <div className="premium-icon">
-          <i className="fas fa-crown"></i>
+          <i className="fas fa-map-marked-alt"></i>
         </div>
 
         {/* Title */}
         <h2 className="premium-title">
-          {t('premiumFeature', 'Premium Feature')}
+          {t('gpsDataAndAppFeatures', 'GPS data & app features')}
         </h2>
-
-        {/* Feature Name */}
-        <p className="premium-feature-name">{featureName}</p>
 
         {/* Description */}
         <p className="premium-description">
           {t(
-            'premiumDescription',
-            'This feature requires a premium subscription to access. Upgrade your account to unlock all features including GPX downloads, offline maps, and more.'
+            'gpsModalDescription',
+            'This map lets you explore the full route in detail. The GPS download is included with the purchase of the tour and will be sent to you by email after checkout.'
           )}
         </p>
 
-        {/* Benefits List */}
-        <div className="premium-benefits">
-          <div className="benefit-item">
-            <i className="fas fa-download"></i>
-            <span>{t('benefitGpx', 'GPX Route Downloads')}</span>
+        {/* After Purchase Benefits */}
+        <div className="premium-benefits-section">
+          <h3 className="benefits-heading">
+            {t('afterPurchase', 'After purchase, you get:')}
+          </h3>
+          <div className="premium-benefits">
+            <div className="benefit-item">
+              <i className="fas fa-file-download"></i>
+              <span>
+                {t(
+                  'benefitFullGps',
+                  'The complete GPS file for the entire route via email'
+                )}
+              </span>
+            </div>
+            <div className="benefit-item">
+              <i className="fas fa-unlock-alt"></i>
+              <span>
+                {t('benefitFullAccess', 'Full access to all tour details')}
+              </span>
+            </div>
           </div>
-          <div className="benefit-item">
-            <i className="fas fa-map"></i>
-            <span>{t('benefitOffline', 'Offline Map Access')}</span>
-          </div>
-          <div className="benefit-item">
-            <i className="fas fa-route"></i>
-            <span>{t('benefitRoutes', 'Unlimited Route Storage')}</span>
-          </div>
-          <div className="benefit-item">
-            <i className="fas fa-star"></i>
-            <span>{t('benefitPriority', 'Priority Support')}</span>
+        </div>
+
+        {/* App-only Features */}
+        <div className="premium-benefits-section app-features">
+          <h3 className="benefits-heading">
+            <i className="fas fa-mobile-alt"></i>
+            {t('appOnlyFeatures', 'App-only features:')}
+          </h3>
+          <div className="premium-benefits">
+            <div className="benefit-item">
+              <i className="fas fa-layer-group"></i>
+              <span>
+                {t('benefitStageGps', 'Individual GPS files for each stage')}
+              </span>
+            </div>
+            <div className="benefit-item">
+              <i className="fas fa-cloud-download-alt"></i>
+              <span>
+                {t(
+                  'benefitEasyDownload',
+                  'Easy stage-by-stage downloads inside the app'
+                )}
+              </span>
+            </div>
+            <div className="benefit-item">
+              <i className="fas fa-compass"></i>
+              <span>
+                {t(
+                  'benefitNavigation',
+                  'Perfect for navigation, planning, and device sync'
+                )}
+              </span>
+            </div>
           </div>
         </div>
 
         {/* CTA Buttons */}
         <div className="premium-actions">
           <button className="premium-btn primary">
-            <i className="fas fa-crown"></i>
-            {t('upgradePremium', 'Upgrade to Premium')}
+            <i className="fas fa-shopping-cart"></i>
+            {t('purchaseTour', 'Purchase the tour to unlock all GPS data')}
           </button>
-          <button className="premium-btn secondary" onClick={onClose}>
-            {t('maybeLater', 'Maybe Later')}
+          <button className="premium-btn secondary app-download">
+            <i className="fas fa-download"></i>
+            {t('downloadApp', 'Download the app to access stage GPX files')}
           </button>
         </div>
-
-        {/* Login Link */}
-        <p className="premium-login">
-          {t('alreadyPremium', 'Already have premium?')}{' '}
-          <a href="/login" className="login-link">
-            {t('loginHere', 'Login here')}
-          </a>
-        </p>
       </div>
     </div>
   );

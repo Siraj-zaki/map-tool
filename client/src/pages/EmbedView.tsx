@@ -256,7 +256,6 @@ export default function EmbedView() {
       <PremiumModal
         isOpen={showPremiumModal}
         onClose={() => setShowPremiumModal(false)}
-        featureName="GPX Download"
       />
 
       <style>{wrapperStyles}</style>

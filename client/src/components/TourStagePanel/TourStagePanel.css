@@ -67,13 +67,8 @@
   color: #cd7f32;
 }
 
-.tour-icon {
-  font-size: 16px;
-  line-height: 1;
-}
-
 .tour-label {
-  display: none;
+  display: block;
 }
 
 /* Stage Tabs Row */
@@ -114,6 +109,13 @@
   border-color: #088d95;
 }
 
+/* All Stages Container */
+.all-stages-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 /* Stage Details Content */
 .stage-details-content {
   display: flex;
@@ -122,6 +124,17 @@
   background: rgba(30, 42, 51, 0.5);
   border-radius: 8px;
   border: 1px solid #1e2a33;
+  transition: all 0.2s ease;
+}
+
+.stage-details-content:hover {
+  background: rgba(30, 42, 51, 0.7);
+  border-color: rgba(8, 141, 149, 0.5);
+}
+
+.stage-details-content.active {
+  background: rgba(8, 141, 149, 0.15);
+  border-color: #088d95;
 }
 
 .stage-indicator {
@@ -166,7 +179,7 @@
   color: #088d95;
 }
 
-.stage-stats-grid .stat-item.ascent i {
+/* .stage-stats-grid .stat-item.ascent i {
   color: #22c55e;
 }
 
@@ -180,7 +193,7 @@
 
 .stage-stats-grid .stat-item.descent span {
   color: #ef4444;
-}
+} */
 
 .stage-stats-grid .stat-item.elevation {
   grid-column: span 2;

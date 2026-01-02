@@ -127,10 +127,7 @@ export default function LocationSearch({
   // Handle current location
   const handleLocateMe = () => {
     if (!navigator.geolocation) {
-      alert(
-        t('geolocationNotSupported') ||
-          'Geolocation is not supported by your browser'
-      );
+      alert(t('geolocationNotSupported'));
       return;
     }
 
@@ -142,13 +139,13 @@ export default function LocationSearch({
         onLocationSelect({
           lng: position.coords.longitude,
           lat: position.coords.latitude,
-          name: t('currentLocation') || 'Current Location',
+          name: t('currentLocation'),
         });
       },
       error => {
         setIsLocating(false);
         console.error('Geolocation error:', error);
-        alert(t('locationError') || 'Unable to get your location');
+        alert(t('locationError'));
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -192,7 +189,7 @@ export default function LocationSearch({
           ref={inputRef}
           type="text"
           className="search-input"
-          placeholder={t('searchLocation') || 'Search location...'}
+          placeholder={t('searchLocation')}
           value={query}
           onChange={handleInputChange}
           onFocus={() => results.length > 0 && setIsOpen(true)}
@@ -204,7 +201,7 @@ export default function LocationSearch({
         className="locate-btn"
         onClick={handleLocateMe}
         disabled={isLocating}
-        title={t('myLocation') || 'My Location'}
+        title={t('myLocation')}
       >
         {isLocating ? (
           <i className="fas fa-spinner fa-spin" />

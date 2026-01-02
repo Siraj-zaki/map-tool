@@ -56,6 +56,10 @@ export default function Editor() {
   );
   // Track if route came from GPX upload (to skip Directions API calls)
   const [isGpxRoute, setIsGpxRoute] = useState(false);
+  // Store elevation data for persistence (avoids repeated API calls)
+  const [elevationData, setElevationData] = useState<
+    { elevation: number; distance: number }[] | null
+  >(null);
   const [pois, setPois] = useState<any[]>([]);
   const [editMode, setEditMode] = useState<
     'start' | 'end' | 'waypoint' | 'poi' | 'splitpoint'
@@ -439,17 +443,28 @@ export default function Editor() {
 
           // Only calculate full elevation stats when route is complete (has endPoint)
           if (endPoint) {
-            const elevationData = await getElevationData(geometry);
-            console.log('[Editor] Elevation data:', elevationData);
+            const elevData = await getElevationData(geometry);
+            console.log('[Editor] Elevation data:', elevData);
+
+            // Store elevation data for saving - create array of {elevation, distance} pairs
+            const elevationDataArray = elevData.elevations.map((elev, i) => ({
+              elevation: elev,
+              distance:
+                i === 0
+                  ? 0
+                  : (routeStats.distance * i) /
+                    (elevData.elevations.length - 1),
+            }));
+            setElevationData(elevationDataArray);
 
             setRouteStats(prev => ({
               ...prev,
               distance: Number((route.distance / 1000).toFixed(2)),
               duration: Math.round(route.duration / 60),
-              highestPoint: elevationData.highestPoint,
-              lowestPoint: elevationData.lowestPoint,
-              totalAscent: elevationData.totalAscent,
-              totalDescent: elevationData.totalDescent,
+              highestPoint: elevData.highestPoint,
+              lowestPoint: elevData.lowestPoint,
+              totalAscent: elevData.totalAscent,
+              totalDescent: elevData.totalDescent,
             }));
           } else {
             // Just update distance for partial route (no elevation fetch to keep it fast)
@@ -535,6 +550,7 @@ export default function Editor() {
           setEndPoint(result.route.endPoint);
           setWaypoints(result.route.waypoints || []);
           setRouteGeometry(result.route.routeGeometry || null);
+          setElevationData(result.route.elevationData || null); // Restore stored elevation data
           setPois(result.route.pois || []);
           setRouteStats({
             distance: result.route.distance || 0,
@@ -601,16 +617,43 @@ export default function Editor() {
   };
 
   // Handler for POI click on elevation profile - zoom to POI on map
-  const handlePoiClickFromProfile = (poi: {
+  const handlePoiClickFromProfile = ({
+    lngLat,
+  }: {
     lngLat: [number, number];
-    name?: string;
+    name: string;
   }) => {
-    if (map.current && poi.lngLat) {
+    if (!lngLat) return;
+
+    // Fly to location
+    if (map.current) {
       map.current.flyTo({
-        center: poi.lngLat,
-        zoom: 15,
-        duration: 1000,
+        center: lngLat,
+        zoom: 16,
+        essential: true,
       });
+    }
+
+    // Open POI modal using coordinates to find the POI
+    const poiIndex = pois.findIndex(p => {
+      // Normalize p.lngLat which might be array or object
+      let pLng, pLat;
+      if (Array.isArray(p.lngLat)) {
+        pLng = p.lngLat[0];
+        pLat = p.lngLat[1];
+      } else {
+        pLng = p.lngLat.lng;
+        pLat = p.lngLat.lat;
+      }
+      return (
+        Math.abs(pLng - lngLat[0]) < 0.00001 &&
+        Math.abs(pLat - lngLat[1]) < 0.00001
+      );
+    });
+
+    if (poiIndex >= 0) {
+      setPoiModalLngLat(lngLat);
+      setPoiModalOpen(true);
     }
   };
 
@@ -632,6 +675,7 @@ export default function Editor() {
         startPoint,
         endPoint,
         routeGeometry,
+        elevationData, // Include elevation data for persistence
         waypoints,
         pois: pois.map(p => ({
           name: p.name,
@@ -666,6 +710,7 @@ export default function Editor() {
     setWaypoints([]);
     setPois([]);
     setRouteGeometry(null);
+    setElevationData(null); // Clear stored elevation data
     setIsGpxRoute(false);
     setRouteStats({
       distance: 0,
@@ -796,6 +841,7 @@ export default function Editor() {
                     endPoint,
                     waypoints,
                     routeGeometry: routeGeometry || undefined,
+                    elevationData: elevationData || undefined, // Pass stored elevation data
                     distance: routeStats.distance,
                     duration: routeStats.duration * 60,
                     highestPoint: routeStats.highestPoint,
@@ -1118,6 +1164,11 @@ export default function Editor() {
       <POIModal
         isOpen={poiModalOpen}
         lngLat={poiModalLngLat}
+        editingPoi={pois.find(
+          p =>
+            p.lngLat[0] === poiModalLngLat[0] &&
+            p.lngLat[1] === poiModalLngLat[1]
+        )}
         onSave={handlePOISave}
         onClose={() => {
           setPoiModalOpen(false);

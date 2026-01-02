@@ -9,13 +9,15 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@types/uuid": "^11.0.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.1",
     "express": "^4.18.2",
     "express-session": "^1.18.0",
     "multer": "^1.4.5-lts.1",
-    "mysql2": "^3.16.0"
+    "mysql2": "^3.16.0",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

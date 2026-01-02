@@ -1,5 +1,6 @@
 import { Request, Response, Router } from 'express';
 import { query, queryOne, run } from '../db.js';
+import { saveBase64Image } from '../utils/fileUpload.js';
 import { requireAuth } from './auth.js';
 
 const router = Router();
@@ -203,12 +204,16 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
         );
         const poiId = poiResult.insertId;
 
-        if (poi.images) {
+        if (poi.images && Array.isArray(poi.images)) {
           for (const img of poi.images) {
-            await run(
-              'INSERT INTO poi_images (poi_id, image_path) VALUES (?, ?)',
-              [poiId, img]
-            );
+            // Save base64 image to disk
+            const imagePath = saveBase64Image(img);
+            if (imagePath) {
+              await run(
+                'INSERT INTO poi_images (poi_id, image_path) VALUES (?, ?)',
+                [poiId, imagePath]
+              );
+            }
           }
         }
         if (poi.amenities) {
@@ -315,7 +320,7 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
           VALUES (?, ?, ?, ?, ?, ?)
         `,
           [
-            id,
+            id, // Use existing route id
             poi.name,
             poi.description || null,
             JSON.stringify(poi.lngLat),
@@ -325,12 +330,16 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
         );
         const poiId = poiResult.insertId;
 
-        if (poi.images) {
+        if (poi.images && Array.isArray(poi.images)) {
           for (const img of poi.images) {
-            await run(
-              'INSERT INTO poi_images (poi_id, image_path) VALUES (?, ?)',
-              [poiId, img]
-            );
+            // Save base64 image to disk
+            const imagePath = saveBase64Image(img);
+            if (imagePath) {
+              await run(
+                'INSERT INTO poi_images (poi_id, image_path) VALUES (?, ?)',
+                [poiId, imagePath]
+              );
+            }
           }
         }
         if (poi.amenities) {

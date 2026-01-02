@@ -1,5 +1,9 @@
 import mapboxgl from 'mapbox-gl';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import difficultyImage from '../../../public/images/difficulty.png';
+import hotelImage from '../../../public/images/hotel-ico.png';
+import mountainImage from '../../../public/images/mountain.png';
+import restaurantImage from '../../../public/images/restaurant-ico.png';
 import type { POI, Route } from '../../api';
 import { POI_ICON_FALLBACK, ROUTE_STYLES } from '../../constants/routeStyles';
 import { useColorSettings } from '../../contexts/ColorSettingsContext';
@@ -710,7 +714,7 @@ export default function MapComponent({
         properties: {
           id: index,
           name: poi.name || '',
-          type: poi.type || 'highlight',
+          type: poi.type || 'highlightNew',
           description: poi.description || '',
           poiIndex: index,
           // Map POI type to color
@@ -718,12 +722,12 @@ export default function MapComponent({
           // Map POI type to Maki icon name
           makiIcon:
             poi.type === 'hotel'
-              ? 'lodging'
+              ? 'hotelNew'
               : poi.type === 'restaurant'
-              ? 'restaurant'
+              ? 'restaurantNew'
               : poi.type === 'gipfel'
-              ? 'mountain'
-              : 'star',
+              ? 'mountainNew'
+              : 'starNew',
         },
       }));
 
@@ -737,36 +741,72 @@ export default function MapComponent({
       });
 
       // Add circle layer for POI background
-      map.current.addLayer({
-        id: 'poi-circles',
-        type: 'circle',
-        source: 'poi-source',
-        paint: {
-          'circle-radius': 18,
-          'circle-color': ['get', 'color'],
-          'circle-stroke-width': 3,
-          'circle-stroke-color': '#ffffff',
-        },
-      });
+      // map.current.addLayer({
+      //   id: 'poi-circles',
+      //   type: 'circle',
+      //   source: 'poi-source',
+      //   paint: {
+      //     'circle-radius': 18,
+      //     'circle-color': ['get', 'color'],
+      //     'circle-stroke-width': 3,
+      //     'circle-stroke-color': '#ffffff',
+      //   },
+      // });
 
       // Add symbol layer for POI icons using Mapbox Maki icons
-      map.current.addLayer({
-        id: 'poi-labels',
-        type: 'symbol',
-        source: 'poi-source',
-        layout: {
-          'icon-image': ['get', 'makiIcon'],
-          'icon-size': 1,
-          'icon-allow-overlap': true,
-          'icon-ignore-placement': true,
-        },
-        paint: {
-          'icon-color': '#ffffff',
-        },
-      });
+      // Load all images first, then add the layer
+      const loadImagePromise = (
+        url: string,
+        imageName: string
+      ): Promise<void> => {
+        return new Promise((resolve, reject) => {
+          map.current?.loadImage(url, (error, image) => {
+            if (error) {
+              reject(error);
+              return;
+            }
+            if (image && map.current && !map.current.hasImage(imageName)) {
+              map.current.addImage(imageName, image);
+            }
+            resolve();
+          });
+        });
+      };
+
+      Promise.all([
+        loadImagePromise(hotelImage, 'highlightNew'),
+        loadImagePromise(hotelImage, 'hotelNew'),
+        loadImagePromise(difficultyImage, 'lodgingNew'),
+        loadImagePromise(restaurantImage, 'restaurantNew'),
+        loadImagePromise(mountainImage, 'mountainNew'),
+        loadImagePromise(difficultyImage, 'starNew'),
+      ])
+        .then(() => {
+          // Only add the layer after all images are loaded
+          if (map.current && !map.current.getLayer('poi-labels')) {
+            map.current.addLayer({
+              id: 'poi-labels',
+              type: 'symbol',
+              source: 'poi-source',
+              layout: {
+                'icon-image': ['get', 'makiIcon'],
+                'icon-size': 0.03,
+                'icon-rotate': 180,
+                'icon-allow-overlap': true,
+                'icon-ignore-placement': true,
+              },
+              paint: {
+                'icon-color': '#ffffff',
+              },
+            });
+          }
+        })
+        .catch(error => {
+          console.error('Error loading POI images:', error);
+        });
 
       // Handle POI click events
-      map.current.on('click', 'poi-circles', e => {
+      map.current.on('click', 'poi-labels', e => {
         if (e.features && e.features.length > 0) {
           const feature = e.features[0];
           const poiIndex = feature.properties?.poiIndex;
@@ -777,13 +817,13 @@ export default function MapComponent({
       });
 
       // Change cursor on POI hover
-      map.current.on('mouseenter', 'poi-circles', () => {
+      map.current.on('mouseenter', 'poi-labels', () => {
         if (map.current) {
           map.current.getCanvas().style.cursor = 'pointer';
         }
       });
 
-      map.current.on('mouseleave', 'poi-circles', () => {
+      map.current.on('mouseleave', 'poi-labels', () => {
         if (map.current) {
           map.current.getCanvas().style.cursor = '';
         }

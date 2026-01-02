@@ -54,6 +54,7 @@ const resources = {
 
       // Elevation profile
       elevation: 'Elevation',
+      grade: 'Grade',
       surfaceType: 'Surface Type',
       trackType: 'Track Type',
 
@@ -134,6 +135,13 @@ const resources = {
       exitFullscreen: 'Exit Fullscreen',
       poweredBy: 'Powered by',
 
+      // Location Search
+      searchLocation: 'Search location...',
+      myLocation: 'My Location',
+      currentLocation: 'Current Location',
+      geolocationNotSupported: 'Geolocation is not supported by your browser',
+      locationError: 'Unable to get your location',
+
       // Editor page
       routeNamePlaceholder: 'Enter route name...',
       start: 'Start',
@@ -178,6 +186,20 @@ const resources = {
       shopifyStep3: 'Add a "Custom HTML" block',
       shopifyStep4: 'Paste the iFrame code',
       shopifyStep5: 'Save and publish',
+
+      // Premium Modal / GPS Modal
+      gpsDataAndAppFeatures: 'GPS data & app features',
+      gpsModalDescription:
+        'This map lets you explore the full route in detail. The GPS download is included with the purchase of the tour and will be sent to you by email after checkout.',
+      afterPurchase: 'After purchase, you get:',
+      benefitFullGps: 'The complete GPS file for the entire route via email',
+      benefitFullAccess: 'Full access to all tour details',
+      appOnlyFeatures: 'App-only features:',
+      benefitStageGps: 'Individual GPS files for each stage',
+      benefitEasyDownload: 'Easy stage-by-stage downloads inside the app',
+      benefitNavigation: 'Perfect for navigation, planning, and device sync',
+      purchaseTour: 'Purchase the tour to unlock all GPS data',
+      downloadApp: 'Download the app to access stage GPX files',
     },
   },
   de: {
@@ -231,6 +253,7 @@ const resources = {
 
       // Elevation profile
       elevation: 'Höhe',
+      grade: 'Steigung',
       surfaceType: 'Untergrund',
       trackType: 'Wegtyp',
 
@@ -311,6 +334,14 @@ const resources = {
       exitFullscreen: 'Vollbild beenden',
       poweredBy: 'Powered by',
 
+      // Location Search
+      searchLocation: 'Ort suchen...',
+      myLocation: 'Mein Standort',
+      currentLocation: 'Aktueller Standort',
+      geolocationNotSupported:
+        'Geolokalisierung wird von deinem Browser nicht unterstützt',
+      locationError: 'Standort konnte nicht ermittelt werden',
+
       // Editor page
       routeNamePlaceholder: 'Routenname eingeben...',
       start: 'Start',
@@ -357,6 +388,20 @@ const resources = {
       shopifyStep3: 'Fügen Sie einen "Custom HTML" Block hinzu',
       shopifyStep4: 'Fügen Sie den iFrame Code ein',
       shopifyStep5: 'Speichern und veröffentlichen',
+
+      // Premium Modal / GPS Modal
+      gpsDataAndAppFeatures: 'GPS-Daten & App-Features',
+      gpsModalDescription:
+        'Auf dieser Karte kannst du die Route vollständig ansehen und erkunden. Der GPS-Download gehört zum Kauf der Tour und wird nach dem Kauf per E-Mail bereitgestellt.',
+      afterPurchase: 'Nach dem Kauf erhältst du:',
+      benefitFullGps: 'Die kompletten GPS-Daten der gesamten Route per E-Mail',
+      benefitFullAccess: 'Zugriff auf alle Tourdetails',
+      appOnlyFeatures: 'Exklusiv in der App:',
+      benefitStageGps: 'Separate GPS-Tracks für jede einzelne Etappe',
+      benefitEasyDownload: 'Einfacher Download der Etappen direkt in der App',
+      benefitNavigation: 'Ideal für Navigation, Tagesplanung und Geräte-Import',
+      purchaseTour: 'Tour kaufen, um alle GPS-Daten freizuschalten',
+      downloadApp: 'App herunterladen, um Etappen-GPX zu nutzen',
     },
   },
 };

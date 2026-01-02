@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { routesApi, type POI, type Route } from '../api';
-import ElevationProfile from '../components/ElevationProfile/ElevationProfile';
+import ElevationProfile from '../components/ElevationProfile/ElevationProfileVisx';
 import LocationFilter from '../components/LocationFilter/LocationFilter';
 import MapComponent from '../components/Map/MapComponent';
 import POISidebar from '../components/POI/POISidebar';
@@ -41,6 +41,10 @@ export default function PublicView() {
     lat: number;
   } | null>(null);
   const flyToPoiRef = useRef<((poi: POI) => void) | null>(null);
+
+  // Mobile Toggles
+  const [showMobileRouteStats, setShowMobileRouteStats] = useState(false);
+  const [showMobileWeather, setShowMobileWeather] = useState(false);
 
   useEffect(() => {
     if (!routeId) {
@@ -162,19 +166,44 @@ export default function PublicView() {
       />
 
       {/* Map Container with Overlays */}
-      <div className="flex-1 relative h-full">
-        {/* Tour Selector - Top Left */}
+      <div className="flex-1 relative h-full overflow-hidden">
+        {/* Mobile Toggles (Top Right, below header) */}
+        <div className="absolute top-4 right-3 z-50 flex flex-col gap-2 md:hidden">
+          <button
+            onClick={() => {
+              setShowMobileRouteStats(!showMobileRouteStats);
+              setShowMobileWeather(false); // Toggle exclusive
+            }}
+            className={`w-10 h-10 flex items-center justify-center rounded-lg border shadow-lg transition-all ${
+              showMobileRouteStats
+                ? 'bg-[#088d95] border-[#088d95] text-white'
+                : 'bg-[#080e11] border-[#1e2a33] text-[#088d95]'
+            }`}
+          >
+            <i className="fas fa-list-ul"></i>
+          </button>
+          <button
+            onClick={() => {
+              setShowMobileWeather(!showMobileWeather);
+              setShowMobileRouteStats(false); // Toggle exclusive
+            }}
+            className={`w-10 h-10 flex items-center justify-center rounded-lg border shadow-lg transition-all ${
+              showMobileWeather
+                ? 'bg-[#088d95] border-[#088d95] text-white'
+                : 'bg-[#080e11] border-[#1e2a33] text-[#088d95]'
+            }`}
+          >
+            <i className="fas fa-cloud"></i>
+          </button>
+        </div>
+
+        {/* Tour Selector - Top Left (Hidden on mobile unless toggled) */}
         <div
-          style={{
-            position: 'absolute',
-            top: '12px',
-            left: '60px',
-            zIndex: 40,
-            display: 'flex',
-            gap: '12px',
-            flexDirection: 'column',
-            alignItems: 'flex-start',
-          }}
+          className={`absolute top-3 left-3 md:top-3 md:left-[60px] z-40 flex flex-col gap-3 items-start transition-opacity duration-300 ${
+            showMobileRouteStats
+              ? 'opacity-100 pointer-events-auto'
+              : 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto'
+          }`}
         >
           <TourStagePanel
             route={route}
@@ -186,15 +215,18 @@ export default function PublicView() {
           <LocationFilter routeId={route.id} tourType={tourType} />
         </div>
 
-        {/* Weather Forecast Overlay - Center Right */}
+        {/* Weather Forecast Overlay */}
+        {/* Desktop: Top Right. Mobile: Bottom Left (above profile) */}
         <div
-          style={{
-            position: 'absolute',
-            top: '15px',
-            right: '12px',
-            // transform: 'translateY(-50%)',
-            zIndex: 40,
-          }}
+          className={`absolute z-40 transition-all duration-300
+            md:top-4 md:right-3 md:bottom-auto md:left-auto md:opacity-100 md:pointer-events-auto
+            ${
+              showMobileWeather
+                ? 'opacity-100 pointer-events-auto'
+                : 'opacity-0 pointer-events-none'
+            }
+            bottom-4 left-3 right-3 md:w-auto
+            `}
         >
           <WeatherForecast
             lat={centerLat}
@@ -217,7 +249,7 @@ export default function PublicView() {
         {/* Fullscreen Button */}
         <button
           onClick={toggleFullscreen}
-          className="absolute top-3 left-3 z-50 w-10 h-10 flex items-center justify-center bg-[#080e11] border border-[#1e2a33] rounded-lg text-gray-400 hover:text-white hover:bg-[#088d95] hover:border-[#088d95] transition-all"
+          className="absolute top-4 left-3 z-50 w-10 h-10 flex items-center justify-center bg-[#080e11] border border-[#1e2a33] rounded-lg text-gray-400 hover:text-white hover:bg-[#088d95] hover:border-[#088d95] transition-all hidden md:flex"
         >
           <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>
         </button>
@@ -241,15 +273,6 @@ export default function PublicView() {
             highlightDistance={highlightDistance}
             onPoiClick={handlePoiClick}
           />
-
-          {/* Full Weather Widget - Mobile Only */}
-          <div className="md:hidden px-4 py-2 bg-[#080e11] border-t border-[#1e2a33]">
-            <WeatherForecast
-              lat={centerLat}
-              lng={centerLng}
-              locationName={route.name || 'Route'}
-            />
-          </div>
         </div>
       )}
 
@@ -257,7 +280,6 @@ export default function PublicView() {
       <PremiumModal
         isOpen={showPremiumModal}
         onClose={() => setShowPremiumModal(false)}
-        featureName="GPX Download"
       />
     </div>
   );

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getCurrentWeather } from '../../utils/weather';
 
 interface WeatherWidgetProps {
   lat: number;
@@ -28,25 +29,17 @@ export default function WeatherWidget({
   useEffect(() => {
     const fetchWeather = async () => {
       try {
-        const response = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m`
-        );
-        const data = await response.json();
+        const data = await getCurrentWeather(lat, lng);
 
-        if (data.current) {
-          const conditionKey = getWeatherConditionKey(
-            data.current.weather_code
-          );
+        if (data) {
+          const conditionKey = getWeatherConditionKey(data.weatherCode);
           setWeather({
-            temperature: Math.round(data.current.temperature_2m),
-            condition: getWeatherCondition(
-              data.current.weather_code,
-              i18n.language
-            ),
+            temperature: data.temperature,
+            condition: getWeatherCondition(data.weatherCode, i18n.language),
             conditionKey,
-            icon: getWeatherIcon(data.current.weather_code),
-            humidity: data.current.relative_humidity_2m,
-            wind: Math.round(data.current.wind_speed_10m),
+            icon: getWeatherIcon(data.weatherCode),
+            humidity: data.humidity,
+            wind: data.windSpeed,
           });
         }
       } catch (error) {

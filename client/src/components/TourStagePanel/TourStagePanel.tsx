@@ -31,12 +31,14 @@ export default function TourStagePanel({
   const { t } = useTranslation();
   const { getStageColor } = useColorSettings();
   const [activeStage, setActiveStage] = useState<number>(1);
+  const [hasManuallySelected, setHasManuallySelected] = useState(false);
 
   const numStages = stageConfig[tourType];
 
-  // Reset to stage 1 when tour type changes
+  // Reset to stage 1 and show all stages when tour type changes
   useEffect(() => {
     setActiveStage(1);
+    setHasManuallySelected(false); // Reset to show all stages
     if (onStageSelect) {
       onStageSelect(1);
     }
@@ -55,13 +57,14 @@ export default function TourStagePanel({
 
   const handleStageClick = (stage: number) => {
     setActiveStage(stage);
+    setHasManuallySelected(true); // User manually selected, show only this stage
     if (onStageSelect) {
       onStageSelect(stage);
     }
   };
 
-  // Calculate stats for the active stage
-  const getStageStats = () => {
+  // Calculate stats for a specific stage
+  const getStageStatsForStage = (stage: number) => {
     if (!route) return null;
 
     const totalDistance = parseFloat(String(route.distance || 0));
@@ -84,83 +87,128 @@ export default function TourStagePanel({
       descent: stageDescent,
       highestPoint,
       lowestPoint,
-      color: getStageColor(tourType, activeStage - 1),
+      color: getStageColor(tourType, stage - 1),
     };
   };
 
-  const stats = getStageStats();
-
   return (
     <div className="tour-stage-panel">
-      {/* Tour Type Buttons */}
-      <div className="tour-type-row">
-        {(['gold', 'silver', 'bronze'] as const).map(type => (
-          <button
-            key={type}
-            onClick={() => handleTourClick(type)}
-            className={`tour-type-btn ${tourType === type ? 'active' : ''}`}
-            data-type={type}
-          >
-            <span className="tour-icon">
-              {type === 'gold' && '🥇'}
-              {type === 'silver' && '🥈'}
-              {type === 'bronze' && '🥉'}
-            </span>
-            <span className="tour-label">{t(type)}</span>
-          </button>
-        ))}
+      {/* Difficulty Section */}
+      <div style={{ padding: '0 4px', marginBottom: '12px' }}>
+        <div
+          style={{
+            fontSize: '10px',
+            textTransform: 'uppercase',
+            color: '#6b7280', // gray-500
+            fontWeight: 600,
+            marginBottom: '6px',
+            letterSpacing: '0.5px',
+          }}
+        >
+          {t('difficultyLevel') || 'Difficulty Level'}
+        </div>
+        <div className="tour-type-row">
+          {(['gold', 'silver', 'bronze'] as const).map(type => (
+            <button
+              key={type}
+              onClick={() => handleTourClick(type)}
+              className={`tour-type-btn ${tourType === type ? 'active' : ''}`}
+              data-type={type}
+            >
+              <span className="tour-label">
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Stage Tabs */}
-      <div className="stage-tabs-row">
-        {Array.from({ length: numStages }, (_, i) => i + 1).map(stage => (
-          <button
-            key={stage}
-            onClick={() => handleStageClick(stage)}
-            className={`stage-tab ${activeStage === stage ? 'active' : ''}`}
-            style={
-              {
-                '--stage-color': getStageColor(tourType, stage - 1),
-              } as React.CSSProperties
-            }
-          >
-            {stage}
-          </button>
-        ))}
+      {/* Days Section */}
+      <div style={{ padding: '0 4px', marginBottom: '4px' }}>
+        <div
+          style={{
+            fontSize: '10px',
+            textTransform: 'uppercase',
+            color: '#6b7280', // gray-500
+            fontWeight: 600,
+            marginBottom: '6px',
+            letterSpacing: '0.5px',
+          }}
+        >
+          {t('days') || 'Days'}
+        </div>
+        <div className="stage-tabs-row">
+          {Array.from({ length: numStages }, (_, i) => i + 1).map(stage => (
+            <button
+              key={stage}
+              onClick={() => handleStageClick(stage)}
+              className={`stage-tab ${activeStage === stage ? 'active' : ''}`}
+              style={
+                {
+                  '--stage-color': getStageColor(tourType, stage - 1),
+                } as React.CSSProperties
+              }
+            >
+              {stage}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Stage Details */}
-      {route && stats && (
-        <div className="stage-details-content">
-          <div
-            className="stage-indicator"
-            style={{ backgroundColor: stats.color }}
-          />
-          <div className="stage-info">
-            <div className="stage-title" style={{ color: stats.color }}>
-              {t('stage')} {activeStage}
-            </div>
-            <div className="stage-stats-grid">
-              <div className="stat-item">
-                <i className="fas fa-route" />
-                <span>{stats.distance.toFixed(1)} km</span>
-              </div>
-              <div className="stat-item ascent">
-                <i className="fas fa-arrow-up" />
-                <span>{stats.ascent}m</span>
-              </div>
-              <div className="stat-item descent">
-                <i className="fas fa-arrow-down" />
-                <span>{stats.descent}m</span>
-              </div>
-              <div className="stat-item elevation">
-                <i className="fas fa-mountain" />
-                <span>
-                  {stats.lowestPoint}m - {stats.highestPoint}m
-                </span>
-              </div>
-            </div>
-          </div>
+      {/* Stage Details - Show all stages or only selected based on user action */}
+      {route && (
+        <div className="all-stages-container">
+          {Array.from({ length: numStages }, (_, i) => i + 1)
+            .filter(stage => !hasManuallySelected || stage === activeStage)
+            .map(stage => {
+              const stageStats = getStageStatsForStage(stage);
+              if (!stageStats) return null;
+              const isActive = activeStage === stage;
+
+              return (
+                <div
+                  key={stage}
+                  className={`stage-details-content ${
+                    isActive ? 'active' : ''
+                  }`}
+                  onClick={() => handleStageClick(stage)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div
+                    className="stage-indicator"
+                    style={{ backgroundColor: stageStats.color }}
+                  />
+                  <div className="stage-info">
+                    <div
+                      className="stage-title"
+                      style={{ color: stageStats.color }}
+                    >
+                      {t('stage')} {stage}
+                    </div>
+                    <div className="stage-stats-grid">
+                      <div className="stat-item">
+                        <i className="fas fa-route" />
+                        <span>{stageStats.distance.toFixed(1)} km</span>
+                      </div>
+                      <div className="stat-item ascent">
+                        <i className="fas fa-arrow-up" />
+                        <span>{stageStats.ascent}m</span>
+                      </div>
+                      <div className="stat-item descent">
+                        <i className="fas fa-arrow-down" />
+                        <span>{stageStats.descent}m</span>
+                      </div>
+                      <div className="stat-item elevation">
+                        <i className="fas fa-mountain" />
+                        <span>
+                          {stageStats.lowestPoint}m - {stageStats.highestPoint}m
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
         </div>
       )}
     </div>

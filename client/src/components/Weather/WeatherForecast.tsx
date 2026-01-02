@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getDailyForecast } from '../../utils/weather';
 
 interface WeatherForecastProps {
   lat: number;
@@ -28,22 +29,17 @@ export default function WeatherForecast({
   useEffect(() => {
     const fetchForecast = async () => {
       try {
-        const response = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Europe/Berlin`
-        );
-        const data = await response.json();
+        const data = await getDailyForecast(lat, lng);
 
-        if (data.daily) {
-          const days: DailyForecast[] = data.daily.time
-            .slice(0, 7)
-            .map((date: string, index: number) => ({
-              date,
-              dayName: getDayName(date, index, i18n.language),
-              weatherCode: data.daily.weather_code[index],
-              tempMax: Math.round(data.daily.temperature_2m_max[index]),
-              tempMin: Math.round(data.daily.temperature_2m_min[index]),
-              icon: getWeatherIcon(data.daily.weather_code[index]),
-            }));
+        if (data && data.length > 0) {
+          const days: DailyForecast[] = data.map((day, index) => ({
+            date: day.date,
+            dayName: getDayName(day.date, index, i18n.language),
+            weatherCode: day.weatherCode,
+            tempMax: day.tempMax,
+            tempMin: day.tempMin,
+            icon: getWeatherIcon(day.weatherCode),
+          }));
           setForecast(days);
         }
       } catch (error) {
