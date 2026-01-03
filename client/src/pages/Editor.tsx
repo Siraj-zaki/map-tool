@@ -9,7 +9,7 @@ import {
   routesApi,
   type Route,
 } from '../api';
-import ElevationProfile from '../components/ElevationProfile/ElevationProfile';
+import ElevationProfile from '../components/ElevationProfile/ElevationProfileVisx';
 import POIModal, { type POIData } from '../components/POI/POIModal';
 import SplitPointEditor from '../components/SplitPointEditor/SplitPointEditor';
 import { useColorSettings } from '../contexts/ColorSettingsContext';

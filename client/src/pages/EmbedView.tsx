@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { routesApi, type POI, type Route } from '../api';
-import ElevationProfile from '../components/ElevationProfile/ElevationProfile';
+import ElevationProfile from '../components/ElevationProfile/ElevationProfileVisx';
 import LocationFilter from '../components/LocationFilter/LocationFilter';
 import MapComponent from '../components/Map/MapComponent';
 import POISidebar from '../components/POI/POISidebar';
