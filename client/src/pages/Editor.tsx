@@ -100,6 +100,15 @@ export default function Editor() {
   } | null>(null);
   const highlightMarkerRef = useRef<mapboxgl.Marker | null>(null);
 
+  // Selected waypoint state for click selection and keyboard delete
+  const [selectedWaypointIndex, setSelectedWaypointIndex] = useState<
+    number | null
+  >(null);
+  const waypointListRef = useRef<HTMLDivElement>(null);
+
+  // Elevation calculation state - only calculate when user clicks button or saves
+  const [calculatingElevation, setCalculatingElevation] = useState(false);
+
   // Mode labels for info overlay
   const modeLabels: Record<string, string> = {
     start: t('clickToSetStart'),
@@ -189,6 +198,9 @@ export default function Editor() {
     const handleClick = (e: mapboxgl.MapMouseEvent) => {
       const coord: [number, number] = [e.lngLat.lng, e.lngLat.lat];
 
+      // Clear waypoint selection when clicking on map (not on a marker)
+      setSelectedWaypointIndex(null);
+
       // Handle split point mode
       if (editMode === 'splitpoint') {
         if (splitPointCallbackRef.current && routeGeometry) {
@@ -244,13 +256,84 @@ export default function Editor() {
         setPoiModalLngLat(coord);
         setPoiModalOpen(true);
       } else {
-        // Waypoint mode
+        // Waypoint mode - smart insertion between existing waypoints
         if (!startPoint) {
           setStartPoint(coord);
-        } else if (!endPoint) {
-          setWaypoints(prev => [...prev, coord]);
+        } else if (!endPoint && waypoints.length === 0) {
+          // No waypoints yet and no end point - add as first waypoint
+          setWaypoints([coord]);
         } else {
-          setWaypoints(prev => [...prev, coord]);
+          // Find the best position to insert the new waypoint
+          // Build the full path: start -> waypoints -> end (if exists)
+          const fullPath: [number, number][] = [startPoint];
+          waypoints.forEach(wp => fullPath.push(wp));
+          if (endPoint) fullPath.push(endPoint);
+
+          // Function to calculate perpendicular distance from point to line segment
+          const pointToSegmentDistance = (
+            point: [number, number],
+            segStart: [number, number],
+            segEnd: [number, number]
+          ): number => {
+            const dx = segEnd[0] - segStart[0];
+            const dy = segEnd[1] - segStart[1];
+            const lengthSq = dx * dx + dy * dy;
+
+            if (lengthSq === 0) {
+              // Segment is a point
+              return Math.sqrt(
+                Math.pow(point[0] - segStart[0], 2) +
+                  Math.pow(point[1] - segStart[1], 2)
+              );
+            }
+
+            // Project point onto the line segment
+            let t =
+              ((point[0] - segStart[0]) * dx + (point[1] - segStart[1]) * dy) /
+              lengthSq;
+            t = Math.max(0, Math.min(1, t)); // Clamp to segment
+
+            const projX = segStart[0] + t * dx;
+            const projY = segStart[1] + t * dy;
+
+            return Math.sqrt(
+              Math.pow(point[0] - projX, 2) + Math.pow(point[1] - projY, 2)
+            );
+          };
+
+          // Find the closest segment
+          let minDist = Infinity;
+          let insertIndex = waypoints.length; // Default to end
+
+          for (let i = 0; i < fullPath.length - 1; i++) {
+            const dist = pointToSegmentDistance(
+              coord,
+              fullPath[i],
+              fullPath[i + 1]
+            );
+            if (dist < minDist) {
+              minDist = dist;
+              // i=0 means between start and first waypoint (or end if no waypoints)
+              // So insertIndex should be i (insert at position i in waypoints array)
+              insertIndex = i;
+            }
+          }
+
+          // Insert the waypoint at the correct position
+          // Also clear GPX mode since we're modifying the route
+          setIsGpxRoute(false);
+          setRouteGeometry(null);
+          setWaypoints(prev => {
+            const newWaypoints = [...prev];
+            newWaypoints.splice(insertIndex, 0, coord);
+            return newWaypoints;
+          });
+
+          console.log(
+            `[Editor] Inserted waypoint at index ${insertIndex} (will be waypoint #${
+              insertIndex + 1
+            })`
+          );
         }
       }
     };
@@ -259,7 +342,7 @@ export default function Editor() {
     return () => {
       map.current?.off('click', handleClick);
     };
-  }, [mapLoaded, editMode, startPoint, endPoint]);
+  }, [mapLoaded, editMode, startPoint, endPoint, waypoints]);
   // Update markers
   useEffect(() => {
     if (!map.current || !mapLoaded) return;
@@ -284,9 +367,12 @@ export default function Editor() {
         const marker = new mapboxgl.Marker({ element: el, draggable: true })
           .setLngLat(startPoint)
           .addTo(map.current);
-        marker.on('dragend', () =>
-          setStartPoint([marker.getLngLat().lng, marker.getLngLat().lat])
-        );
+        marker.on('dragend', () => {
+          // Clear GPX mode to recalculate route via Directions API
+          setIsGpxRoute(false);
+          setRouteGeometry(null);
+          setStartPoint([marker.getLngLat().lng, marker.getLngLat().lat]);
+        });
         markersRef.current.push(marker);
       }
 
@@ -294,12 +380,53 @@ export default function Editor() {
       waypoints.forEach((wp: [number, number], index: number) => {
         const el = document.createElement('div');
         el.textContent = String(index + 1);
-        el.className =
-          'w-7 h-7 bg-[#088d95] rounded-full flex items-center justify-center border-2 border-white text-white text-xs font-bold cursor-move';
+        el.setAttribute('data-waypoint-index', String(index));
+
+        // Apply different styling based on selection state
+        const isSelected = selectedWaypointIndex === index;
+        el.className = isSelected
+          ? 'w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center border-3 border-white text-white text-xs font-bold cursor-pointer shadow-lg ring-2 ring-yellow-300'
+          : 'w-7 h-7 bg-[#088d95] rounded-full flex items-center justify-center border-2 border-white text-white text-xs font-bold cursor-pointer';
+
         const marker = new mapboxgl.Marker({ element: el, draggable: true })
           .setLngLat(wp)
           .addTo(map.current!);
+
+        // Click handler for selection
+        el.addEventListener('click', e => {
+          e.stopPropagation(); // Prevent map click from firing
+
+          // Set selected waypoint
+          setSelectedWaypointIndex(index);
+
+          // Zoom to the waypoint
+          if (map.current) {
+            map.current.flyTo({
+              center: wp,
+              zoom: 15,
+              essential: true,
+            });
+          }
+
+          // Scroll to waypoint in sidebar
+          if (waypointListRef.current) {
+            const waypointElements = waypointListRef.current.querySelectorAll(
+              '[data-waypoint-item]'
+            );
+            const targetElement = waypointElements[index] as HTMLElement;
+            if (targetElement) {
+              targetElement.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+              });
+            }
+          }
+        });
+
         marker.on('dragend', () => {
+          // Clear GPX mode to recalculate route via Directions API
+          setIsGpxRoute(false);
+          setRouteGeometry(null);
           setWaypoints(prev => {
             const newWp = [...prev];
             newWp[index] = [marker.getLngLat().lng, marker.getLngLat().lat];
@@ -319,9 +446,12 @@ export default function Editor() {
         const marker = new mapboxgl.Marker({ element: el, draggable: true })
           .setLngLat(endPoint)
           .addTo(map.current!);
-        marker.on('dragend', () =>
-          setEndPoint([marker.getLngLat().lng, marker.getLngLat().lat])
-        );
+        marker.on('dragend', () => {
+          // Clear GPX mode to recalculate route via Directions API
+          setIsGpxRoute(false);
+          setRouteGeometry(null);
+          setEndPoint([marker.getLngLat().lng, marker.getLngLat().lat]);
+        });
         markersRef.current.push(marker);
       }
 
@@ -348,7 +478,7 @@ export default function Editor() {
     // Call addMarkers with a small delay to ensure map is ready
     const timer = setTimeout(addMarkers, 50);
     return () => clearTimeout(timer);
-  }, [startPoint, waypoints, endPoint, pois, mapLoaded]);
+  }, [startPoint, waypoints, endPoint, pois, mapLoaded, selectedWaypointIndex]);
 
   // Calculate route - draws progressively as waypoints are added
   // Also handles pre-existing routeGeometry from GPX uploads
@@ -406,74 +536,137 @@ export default function Editor() {
         }
 
         // No existing geometry - calculate route via Mapbox Directions API
-        // Limit waypoints to avoid exceeding API limit (25 total including start/end)
-        const MAX_API_WAYPOINTS = 23; // Leave room for start and end
+        // The API has a limit of 25 waypoints total (including start/end)
+        // For routes with more waypoints, we batch the calls and concatenate results
+        const MAX_WAYPOINTS_PER_BATCH = 23; // Leave room for start and end in each batch
         const effectiveEnd = endPoint || waypoints[waypoints.length - 1];
-        let effectiveWaypoints = endPoint ? waypoints : waypoints.slice(0, -1);
+        const effectiveWaypoints = endPoint
+          ? waypoints
+          : waypoints.slice(0, -1);
 
-        // If too many waypoints, sample them evenly
-        if (effectiveWaypoints.length > MAX_API_WAYPOINTS) {
-          const step = Math.ceil(effectiveWaypoints.length / MAX_API_WAYPOINTS);
-          effectiveWaypoints = effectiveWaypoints.filter(
-            (_, i) => i % step === 0
+        let fullGeometry: [number, number][] = [];
+        let totalDistance = 0;
+        let totalDuration = 0;
+
+        if (effectiveWaypoints.length <= MAX_WAYPOINTS_PER_BATCH) {
+          // Simple case: single API call
+          const result = await getDirections(
+            startPoint,
+            effectiveWaypoints,
+            effectiveEnd,
+            'walking'
           );
+          if (result.routes?.[0]) {
+            fullGeometry = result.routes[0].geometry.coordinates as [
+              number,
+              number
+            ][];
+            totalDistance = result.routes[0].distance;
+            totalDuration = result.routes[0].duration;
+          }
+        } else {
+          // Complex case: batch API calls for many waypoints
           console.log(
-            '[Editor] Sampled waypoints for API:',
-            effectiveWaypoints.length
+            `[Editor] Batching ${effectiveWaypoints.length} waypoints into multiple API calls`
+          );
+
+          // Split waypoints into batches, ensuring overlap at batch boundaries
+          const batches: {
+            start: [number, number];
+            waypoints: [number, number][];
+            end: [number, number];
+          }[] = [];
+          let currentIndex = 0;
+
+          while (currentIndex < effectiveWaypoints.length) {
+            const batchStart =
+              currentIndex === 0
+                ? startPoint
+                : effectiveWaypoints[currentIndex - 1];
+            const remainingWaypoints = effectiveWaypoints.length - currentIndex;
+            const batchSize = Math.min(
+              MAX_WAYPOINTS_PER_BATCH,
+              remainingWaypoints
+            );
+            const batchWaypoints = effectiveWaypoints.slice(
+              currentIndex,
+              currentIndex + batchSize
+            );
+
+            // Determine batch end
+            const isLastBatch =
+              currentIndex + batchSize >= effectiveWaypoints.length;
+            const batchEnd = isLastBatch
+              ? effectiveEnd
+              : batchWaypoints[batchWaypoints.length - 1];
+
+            // For intermediate batches, don't include the last waypoint as a waypoint (it's the end)
+            const waypointsForApi = isLastBatch
+              ? batchWaypoints
+              : batchWaypoints.slice(0, -1);
+
+            batches.push({
+              start: batchStart,
+              waypoints: waypointsForApi,
+              end: batchEnd,
+            });
+
+            currentIndex += batchSize;
+          }
+
+          console.log(`[Editor] Split into ${batches.length} batches`);
+
+          // Execute all batch API calls
+          for (let i = 0; i < batches.length; i++) {
+            const batch = batches[i];
+            const result = await getDirections(
+              batch.start,
+              batch.waypoints,
+              batch.end,
+              'walking'
+            );
+
+            if (result.routes?.[0]) {
+              const batchGeometry = result.routes[0].geometry.coordinates as [
+                number,
+                number
+              ][];
+
+              // Skip first coordinate of subsequent batches to avoid duplicates
+              if (i > 0 && batchGeometry.length > 0) {
+                fullGeometry = [...fullGeometry, ...batchGeometry.slice(1)];
+              } else {
+                fullGeometry = [...fullGeometry, ...batchGeometry];
+              }
+
+              totalDistance += result.routes[0].distance;
+              totalDuration += result.routes[0].duration;
+            }
+          }
+
+          console.log(
+            `[Editor] Combined geometry has ${fullGeometry.length} coordinates`
           );
         }
 
-        const result = await getDirections(
-          startPoint,
-          effectiveWaypoints,
-          effectiveEnd,
-          'walking'
-        );
-        if (result.routes?.[0]) {
-          const route = result.routes[0];
-
+        if (fullGeometry.length > 0) {
           // Save the complete route geometry for storage
-          const geometry = route.geometry.coordinates as [number, number][];
-          setRouteGeometry(geometry);
+          setRouteGeometry(fullGeometry);
           console.log(
             '[Editor] Route geometry saved:',
-            geometry.length,
+            fullGeometry.length,
             'coordinates'
           );
 
-          // Only calculate full elevation stats when route is complete (has endPoint)
-          if (endPoint) {
-            const elevData = await getElevationData(geometry);
-            console.log('[Editor] Elevation data:', elevData);
+          // Update distance and duration (elevation is calculated manually or before save)
+          setRouteStats(prev => ({
+            ...prev,
+            distance: Number((totalDistance / 1000).toFixed(2)),
+            duration: Math.round(totalDuration / 60),
+          }));
 
-            // Store elevation data for saving - create array of {elevation, distance} pairs
-            const elevationDataArray = elevData.elevations.map((elev, i) => ({
-              elevation: elev,
-              distance:
-                i === 0
-                  ? 0
-                  : (routeStats.distance * i) /
-                    (elevData.elevations.length - 1),
-            }));
-            setElevationData(elevationDataArray);
-
-            setRouteStats(prev => ({
-              ...prev,
-              distance: Number((route.distance / 1000).toFixed(2)),
-              duration: Math.round(route.duration / 60),
-              highestPoint: elevData.highestPoint,
-              lowestPoint: elevData.lowestPoint,
-              totalAscent: elevData.totalAscent,
-              totalDescent: elevData.totalDescent,
-            }));
-          } else {
-            // Just update distance for partial route (no elevation fetch to keep it fast)
-            setRouteStats(prev => ({
-              ...prev,
-              distance: Number((route.distance / 1000).toFixed(2)),
-              duration: Math.round(route.duration / 60),
-            }));
-          }
+          // Clear elevation data since route changed - user needs to recalculate
+          setElevationData(null);
 
           // Clean up existing layers/sources
           if (map.current!.getLayer('route')) map.current!.removeLayer('route');
@@ -488,7 +681,7 @@ export default function Editor() {
               properties: {},
               geometry: {
                 type: 'LineString',
-                coordinates: route.geometry.coordinates,
+                coordinates: fullGeometry,
               },
             },
           });
@@ -511,15 +704,7 @@ export default function Editor() {
     // Small delay to ensure map is ready
     const timer = setTimeout(drawRoute, 100);
     return () => clearTimeout(timer);
-  }, [
-    startPoint,
-    waypoints,
-    endPoint,
-    routeGeometry,
-    isGpxRoute,
-    mapLoaded,
-    routeSettings,
-  ]);
+  }, [startPoint, waypoints, endPoint, isGpxRoute, mapLoaded, routeSettings]);
 
   // Load existing route
   useEffect(() => {
@@ -570,6 +755,52 @@ export default function Editor() {
     };
     loadRoute();
   }, [id, mapLoaded]);
+
+  // Keyboard event listener for deleting selected waypoint
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if Delete or Backspace is pressed and a waypoint is selected
+      if (
+        (e.key === 'Delete' || e.key === 'Backspace') &&
+        selectedWaypointIndex !== null
+      ) {
+        // Prevent default behavior (e.g., navigating back on Backspace)
+        e.preventDefault();
+
+        // Don't delete if user is typing in an input field
+        const activeElement = document.activeElement;
+        if (
+          activeElement &&
+          (activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA')
+        ) {
+          return;
+        }
+
+        console.log(`[Editor] Deleting waypoint ${selectedWaypointIndex + 1}`);
+
+        // Clear GPX mode since we're modifying the route
+        setIsGpxRoute(false);
+        setRouteGeometry(null);
+
+        // Remove the waypoint
+        setWaypoints(prev =>
+          prev.filter((_, i) => i !== selectedWaypointIndex)
+        );
+
+        // Clear selection
+        setSelectedWaypointIndex(null);
+      }
+
+      // Escape key to deselect
+      if (e.key === 'Escape' && selectedWaypointIndex !== null) {
+        setSelectedWaypointIndex(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedWaypointIndex]);
 
   // Manage highlight marker on map (from elevation profile hover)
   useEffect(() => {
@@ -657,6 +888,49 @@ export default function Editor() {
     }
   };
 
+  // Calculate elevation data manually (called from button or before save)
+  const calculateElevation = async () => {
+    if (!routeGeometry || routeGeometry.length === 0) {
+      alert('Please create a route first');
+      return;
+    }
+
+    setCalculatingElevation(true);
+    try {
+      console.log(
+        '[Editor] Calculating elevation for',
+        routeGeometry.length,
+        'coordinates'
+      );
+      const elevData = await getElevationData(routeGeometry);
+      console.log('[Editor] Elevation data:', elevData);
+
+      // Store elevation data for saving - create array of {elevation, distance} pairs
+      const distanceKm = routeStats.distance;
+      const elevationDataArray = elevData.elevations.map((elev, i) => ({
+        elevation: elev,
+        distance:
+          i === 0 ? 0 : (distanceKm * i) / (elevData.elevations.length - 1),
+      }));
+      setElevationData(elevationDataArray);
+
+      setRouteStats(prev => ({
+        ...prev,
+        highestPoint: elevData.highestPoint,
+        lowestPoint: elevData.lowestPoint,
+        totalAscent: elevData.totalAscent,
+        totalDescent: elevData.totalDescent,
+      }));
+
+      console.log('[Editor] Elevation calculated successfully');
+    } catch (error) {
+      console.error('[Editor] Failed to calculate elevation:', error);
+      alert('Failed to calculate elevation data');
+    } finally {
+      setCalculatingElevation(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!name.trim()) {
       alert('Route name is required');
@@ -666,16 +940,48 @@ export default function Editor() {
       alert('Please set start and end points');
       return;
     }
+    if (!routeGeometry || routeGeometry.length === 0) {
+      alert('Please wait for route to be calculated');
+      return;
+    }
 
     setSaving(true);
     try {
+      // Calculate elevation if not already done
+      let finalElevationData = elevationData;
+      let finalRouteStats = { ...routeStats };
+
+      if (!elevationData || elevationData.length === 0) {
+        console.log('[Editor] Calculating elevation before save...');
+        const elevData = await getElevationData(routeGeometry);
+
+        const distanceKm = routeStats.distance;
+        finalElevationData = elevData.elevations.map((elev, i) => ({
+          elevation: elev,
+          distance:
+            i === 0 ? 0 : (distanceKm * i) / (elevData.elevations.length - 1),
+        }));
+
+        finalRouteStats = {
+          ...routeStats,
+          highestPoint: elevData.highestPoint,
+          lowestPoint: elevData.lowestPoint,
+          totalAscent: elevData.totalAscent,
+          totalDescent: elevData.totalDescent,
+        };
+
+        // Update state for future reference
+        setElevationData(finalElevationData);
+        setRouteStats(finalRouteStats);
+      }
+
       const routeData = {
         name,
         description,
         startPoint,
         endPoint,
         routeGeometry,
-        elevationData, // Include elevation data for persistence
+        elevationData: finalElevationData, // Use calculated elevation data
         waypoints,
         pois: pois.map(p => ({
           name: p.name,
@@ -686,12 +992,12 @@ export default function Editor() {
           images: p.images || [],
           amenities: p.amenities || [],
         })),
-        distance: routeStats.distance,
-        duration: routeStats.duration * 60,
-        highestPoint: routeStats.highestPoint,
-        lowestPoint: routeStats.lowestPoint,
-        totalAscent: routeStats.totalAscent,
-        totalDescent: routeStats.totalDescent,
+        distance: finalRouteStats.distance,
+        duration: finalRouteStats.duration * 60,
+        highestPoint: finalRouteStats.highestPoint,
+        lowestPoint: finalRouteStats.lowestPoint,
+        totalAscent: finalRouteStats.totalAscent,
+        totalDescent: finalRouteStats.totalDescent,
       } as any;
       if (isEditing) await routesApi.update(Number(id), routeData);
       else await routesApi.create(routeData);
@@ -777,6 +1083,109 @@ export default function Editor() {
         totalAscent: Math.round(routeData.elevationGain),
         totalDescent: Math.round(routeData.elevationLoss),
       }));
+
+      // Draw the route immediately on the map (don't wait for useEffect)
+      if (map.current && map.current.isStyleLoaded()) {
+        // Clean up existing layers/sources
+        if (map.current.getLayer('route')) map.current.removeLayer('route');
+        if (map.current.getSource('route')) map.current.removeSource('route');
+
+        map.current.addSource('route', {
+          type: 'geojson',
+          lineMetrics: true,
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: routeData.routeGeometry,
+            },
+          },
+        });
+        map.current.addLayer({
+          id: 'route',
+          type: 'line',
+          source: 'route',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: {
+            'line-color': routeSettings.mainColor,
+            'line-width': routeSettings.lineWidth,
+          },
+        });
+        console.log('[Editor] GPX route drawn immediately on map');
+
+        // Draw markers immediately (don't wait for useEffect)
+        // Clear existing markers first
+        markersRef.current.forEach(m => m.remove());
+        markersRef.current = [];
+
+        // Start marker
+        const startEl = document.createElement('div');
+        startEl.innerHTML =
+          '<i class="fa-solid fa-play" style="color: white; font-size: 12px;"></i>';
+        startEl.className =
+          'w-8 h-8 bg-green-500 rounded-full flex items-center justify-center border-2 border-white cursor-move pl-0.5';
+        const startMarker = new mapboxgl.Marker({
+          element: startEl,
+          draggable: true,
+        })
+          .setLngLat(routeData.startPoint)
+          .addTo(map.current);
+        startMarker.on('dragend', () => {
+          // Clear GPX mode to recalculate route via Directions API
+          setIsGpxRoute(false);
+          setRouteGeometry(null);
+          setStartPoint([
+            startMarker.getLngLat().lng,
+            startMarker.getLngLat().lat,
+          ]);
+        });
+        markersRef.current.push(startMarker);
+
+        // Waypoint markers with numbers
+        routeData.waypoints.forEach((wp: [number, number], index: number) => {
+          const el = document.createElement('div');
+          el.textContent = String(index + 1);
+          el.className =
+            'w-7 h-7 bg-[#088d95] rounded-full flex items-center justify-center border-2 border-white text-white text-xs font-bold cursor-move';
+          const marker = new mapboxgl.Marker({ element: el, draggable: true })
+            .setLngLat(wp)
+            .addTo(map.current!);
+          marker.on('dragend', () => {
+            // Clear GPX mode to recalculate route via Directions API
+            setIsGpxRoute(false);
+            setRouteGeometry(null);
+            setWaypoints(prev => {
+              const newWp = [...prev];
+              newWp[index] = [marker.getLngLat().lng, marker.getLngLat().lat];
+              return newWp;
+            });
+          });
+          markersRef.current.push(marker);
+        });
+
+        // End marker
+        const endEl = document.createElement('div');
+        endEl.innerHTML =
+          '<i class="fa-solid fa-flag-checkered" style="color: white; font-size: 12px;"></i>';
+        endEl.className =
+          'w-8 h-8 bg-red-500 rounded-full flex items-center justify-center border-2 border-white cursor-move';
+        const endMarker = new mapboxgl.Marker({
+          element: endEl,
+          draggable: true,
+        })
+          .setLngLat(routeData.endPoint)
+          .addTo(map.current);
+        endMarker.on('dragend', () => {
+          // Clear GPX mode to recalculate route via Directions API
+          setIsGpxRoute(false);
+          setRouteGeometry(null);
+          setEndPoint([endMarker.getLngLat().lng, endMarker.getLngLat().lat]);
+        });
+        markersRef.current.push(endMarker);
+
+        console.log('[Editor] GPX markers drawn immediately on map');
+      }
 
       if (map.current) {
         const bounds = new mapboxgl.LngLatBounds();
@@ -958,6 +1367,34 @@ export default function Editor() {
             <i className="fas fa-trash"></i> {t('deleteRoute')}
           </button>
 
+          {/* Calculate Elevation Button */}
+          <button
+            onClick={calculateElevation}
+            disabled={
+              calculatingElevation ||
+              !routeGeometry ||
+              routeGeometry.length === 0
+            }
+            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg transition-all ${
+              elevationData && elevationData.length > 0
+                ? 'bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/30'
+                : 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30'
+            } disabled:opacity-50`}
+          >
+            {calculatingElevation ? (
+              <i className="fas fa-spinner fa-spin"></i>
+            ) : elevationData && elevationData.length > 0 ? (
+              <i className="fas fa-check-circle"></i>
+            ) : (
+              <i className="fas fa-mountain"></i>
+            )}{' '}
+            {calculatingElevation
+              ? 'Calculating...'
+              : elevationData && elevationData.length > 0
+              ? 'Elevation Calculated'
+              : 'Calculate Elevation'}
+          </button>
+
           {/* GPX Upload */}
           <div>
             <input
@@ -1042,67 +1479,112 @@ export default function Editor() {
               {t('routePoints')}
             </h4>
 
-            {startPoint && (
-              <div className="flex justify-between items-center py-1.5 border-b border-[#1e2a33]">
-                <span className="text-sm text-white">
-                  <i className="fas fa-play text-green-500 mr-2"></i>
-                  {t('start')}
-                </span>
-                <button
-                  onClick={() => {
-                    setStartPoint(null);
-                    setEditMode('start');
-                  }}
-                  className="text-red-400 hover:text-red-300 text-lg"
-                >
-                  ×
-                </button>
-              </div>
-            )}
-
-            {waypoints.map((_, idx) => (
-              <div
-                key={idx}
-                className="flex justify-between items-center py-1.5 border-b border-[#1e2a33]"
-              >
-                <span className="text-sm text-white flex items-center gap-2">
-                  <span className="w-5 h-5 bg-[#088d95] rounded-full flex items-center justify-center text-[11px] font-bold">
-                    {idx + 1}
+            <div
+              ref={waypointListRef}
+              className="max-h-[300px] overflow-y-auto"
+            >
+              {startPoint && (
+                <div className="flex justify-between items-center py-1.5 border-b border-[#1e2a33]">
+                  <span className="text-sm text-white">
+                    <i className="fas fa-play text-green-500 mr-2"></i>
+                    {t('start')}
                   </span>
-                  {t('waypoint')} {idx + 1}
-                </span>
-                <button
-                  onClick={() => removeWaypoint(idx)}
-                  className="text-red-400 hover:text-red-300 text-lg"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
+                  <button
+                    onClick={() => {
+                      setStartPoint(null);
+                      setEditMode('start');
+                    }}
+                    className="text-red-400 hover:text-red-300 text-lg"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
 
-            {endPoint && (
-              <div className="flex justify-between items-center py-1.5">
-                <span className="text-sm text-white">
-                  <i className="fas fa-flag text-red-500 mr-2"></i>
-                  {t('end')}
-                </span>
-                <button
+              {waypoints.map((wp, idx) => (
+                <div
+                  key={idx}
+                  data-waypoint-item
                   onClick={() => {
-                    setEndPoint(null);
-                    setEditMode('end');
-                  }}
-                  className="text-red-400 hover:text-red-300 text-lg"
-                >
-                  ×
-                </button>
-              </div>
-            )}
+                    // Select waypoint
+                    setSelectedWaypointIndex(idx);
 
-            {!startPoint && !endPoint && waypoints.length === 0 && (
-              <div className="text-gray-500 text-sm py-2">
-                {t('clickOnMap')}
-              </div>
-            )}
+                    // Zoom to waypoint on map
+                    if (map.current) {
+                      map.current.flyTo({
+                        center: wp,
+                        zoom: 15,
+                        essential: true,
+                      });
+                    }
+                  }}
+                  className={`flex justify-between items-center py-1.5 border-b border-[#1e2a33] cursor-pointer transition-all ${
+                    selectedWaypointIndex === idx
+                      ? 'bg-yellow-500/20 border-l-2 border-l-yellow-500 pl-2'
+                      : 'hover:bg-[#1e2a33]/50'
+                  }`}
+                >
+                  <span className="text-sm text-white flex items-center gap-2">
+                    <span
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                        selectedWaypointIndex === idx
+                          ? 'bg-yellow-500'
+                          : 'bg-[#088d95]'
+                      }`}
+                    >
+                      {idx + 1}
+                    </span>
+                    {t('waypoint')} {idx + 1}
+                  </span>
+                  <button
+                    onClick={e => {
+                      e.stopPropagation(); // Prevent selection when clicking delete
+                      // Clear GPX mode since we're modifying the route
+                      setIsGpxRoute(false);
+                      setRouteGeometry(null);
+                      removeWaypoint(idx);
+                      // Clear selection if deleting the selected waypoint
+                      if (selectedWaypointIndex === idx) {
+                        setSelectedWaypointIndex(null);
+                      } else if (
+                        selectedWaypointIndex !== null &&
+                        selectedWaypointIndex > idx
+                      ) {
+                        // Adjust selection index if deleting before selected
+                        setSelectedWaypointIndex(selectedWaypointIndex - 1);
+                      }
+                    }}
+                    className="text-red-400 hover:text-red-300 text-lg"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+
+              {endPoint && (
+                <div className="flex justify-between items-center py-1.5">
+                  <span className="text-sm text-white">
+                    <i className="fas fa-flag text-red-500 mr-2"></i>
+                    {t('end')}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setEndPoint(null);
+                      setEditMode('end');
+                    }}
+                    className="text-red-400 hover:text-red-300 text-lg"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
+              {!startPoint && !endPoint && waypoints.length === 0 && (
+                <div className="text-gray-500 text-sm py-2">
+                  {t('clickOnMap')}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Stats */}
