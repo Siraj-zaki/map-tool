@@ -2,17 +2,12 @@ import mapboxgl from 'mapbox-gl';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
-import {
-  authApi,
-  getDirections,
-  getElevationData,
-  routesApi,
-  type Route,
-} from '../api';
+import { authApi, getDirections, routesApi, type Route } from '../api';
 import ElevationProfile from '../components/ElevationProfile/ElevationProfileVisx';
 import POIModal, { type POIData } from '../components/POI/POIModal';
 import SplitPointEditor from '../components/SplitPointEditor/SplitPointEditor';
 import { useColorSettings } from '../contexts/ColorSettingsContext';
+import { getMapboxElevation } from '../utils/elevationMapbox';
 import {
   getGPXRouteName,
   parseGPX,
@@ -170,8 +165,11 @@ export default function Editor() {
 
       map.current.on('load', () => {
         console.log('[Editor] Map loaded');
+
         // Only set state if still mounted
         if (mountedRef.current) {
+          // 3. Enable terrain to make elevation data available
+          map.current?.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 });
           setMapLoaded(true);
         }
       });
@@ -895,14 +893,19 @@ export default function Editor() {
       return;
     }
 
+    if (!map.current) {
+      alert('Map not ready. Please try again.');
+      return;
+    }
+
     setCalculatingElevation(true);
     try {
       console.log(
-        '[Editor] Calculating elevation for',
+        '[Editor] Calculating elevation using Mapbox for',
         routeGeometry.length,
         'coordinates'
       );
-      const elevData = await getElevationData(routeGeometry);
+      const elevData = await getMapboxElevation(map.current, routeGeometry);
       console.log('[Editor] Elevation data:', elevData);
 
       // Store elevation data for saving - create array of {elevation, distance} pairs
@@ -925,7 +928,9 @@ export default function Editor() {
       console.log('[Editor] Elevation calculated successfully');
     } catch (error) {
       console.error('[Editor] Failed to calculate elevation:', error);
-      alert('Failed to calculate elevation data');
+      alert(
+        'Failed to calculate elevation data. Please ensure the map terrain is loaded.'
+      );
     } finally {
       setCalculatingElevation(false);
     }
@@ -952,8 +957,16 @@ export default function Editor() {
       let finalRouteStats = { ...routeStats };
 
       if (!elevationData || elevationData.length === 0) {
-        console.log('[Editor] Calculating elevation before save...');
-        const elevData = await getElevationData(routeGeometry);
+        console.log(
+          '[Editor] Calculating elevation using Mapbox before save...'
+        );
+
+        if (!map.current) {
+          alert('Map not ready. Cannot save without elevation data.');
+          return;
+        }
+
+        const elevData = await getMapboxElevation(map.current, routeGeometry);
 
         const distanceKm = routeStats.distance;
         finalElevationData = elevData.elevations.map((elev, i) => ({

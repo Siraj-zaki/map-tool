@@ -1,10 +1,8 @@
 import { AxisBottom, AxisLeft } from '@visx/axis';
-import { Brush } from '@visx/brush';
 import { curveMonotoneX } from '@visx/curve';
 import { localPoint } from '@visx/event';
 import { LinearGradient } from '@visx/gradient';
 import { Group } from '@visx/group';
-import { PatternLines } from '@visx/pattern';
 import { ParentSize } from '@visx/responsive';
 import { scaleLinear } from '@visx/scale';
 import { AreaClosed } from '@visx/shape';
@@ -13,7 +11,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { POI, Route } from '../../api';
 import { useColorSettings } from '../../contexts/ColorSettingsContext';
-import { getRouteElevations } from '../../utils/elevation';
 import './ElevationProfileVisx.css';
 
 interface ElevationProfileVisxProps {
@@ -65,22 +62,16 @@ function calculateDistance(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// POI icon mapping
-const POI_ICONS: Record<string, string> = {
-  gipfel: '⛰️',
-  highlight: '⭐',
-  hotel: '🏨',
-  restaurant: '🍽️',
-  viewpoint: '👁️',
-  peak: '🏔️',
-};
+// POI icon image path
+const POI_ICON_IMAGE = '/images/gipfel_profil1.png';
+const POI_ICON_SIZE = 24; // Size in pixels
 
-// Margins for chart
-const margin = { top: 20, right: 30, bottom: 50, left: 60 };
+// Margins for chart - reduced bottom margin since brush is removed
+const margin = { top: 15, right: 20, bottom: 35, left: 50 };
 
-// Brush height
-const BRUSH_HEIGHT = 30;
-const BRUSH_MARGIN = { top: 10, bottom: 15 };
+// Brush height - no longer used but kept for compatibility
+const BRUSH_HEIGHT = 0;
+const BRUSH_MARGIN = { top: 0, bottom: 0 };
 
 // Tooltip styles
 const tooltipStyles = {
@@ -140,19 +131,13 @@ function ElevationChart({
     tooltipTop,
   } = useTooltip<ElevationPoint>();
 
-  // Inner dimensions
+  // Inner dimensions - use full height since brush is removed
   const innerWidth = width - margin.left - margin.right;
-  const chartHeight =
-    height - BRUSH_HEIGHT - BRUSH_MARGIN.top - BRUSH_MARGIN.bottom;
+  const chartHeight = height;
   const innerHeight = chartHeight - margin.top - margin.bottom;
 
-  // Get filtered data based on brush domain
-  const displayData = useMemo(() => {
-    if (!brushDomain) return data;
-    return data.filter(
-      d => d.distance >= brushDomain.x0 && d.distance <= brushDomain.x1
-    );
-  }, [data, brushDomain]);
+  // Always use full data since brush is removed
+  const displayData = data;
 
   // Scales
   const xScale = useMemo(
@@ -487,21 +472,35 @@ function ElevationChart({
                   onPoiClick?.(poiData.poi);
                 }}
               >
+                {/* Transparent hit area for mouse events */}
                 <circle
-                  r={isHovered ? 14 : 12}
-                  fill="#0b1215"
-                  stroke={isHovered ? '#fff' : '#088d95'}
-                  strokeWidth={isHovered ? 3 : 2}
-                  style={{ transition: 'all 0.15s ease' }}
+                  r={POI_ICON_SIZE / 2 + 4}
+                  fill="transparent"
+                  style={{ cursor: 'pointer' }}
                 />
-                <text
-                  textAnchor="middle"
-                  dy="0.35em"
-                  fontSize={isHovered ? 16 : 14}
-                  style={{ pointerEvents: 'none' }}
-                >
-                  {POI_ICONS[poiData.poi.type || ''] || '📍'}
-                </text>
+                {/* Hover ring */}
+                {isHovered && (
+                  <circle
+                    r={POI_ICON_SIZE / 2 + 2}
+                    fill="none"
+                    stroke="#088d95"
+                    strokeWidth={2}
+                    style={{ transition: 'all 0.15s ease' }}
+                  />
+                )}
+                <image
+                  href={POI_ICON_IMAGE}
+                  x={-POI_ICON_SIZE / 2}
+                  y={-POI_ICON_SIZE / 2}
+                  width={POI_ICON_SIZE}
+                  height={POI_ICON_SIZE}
+                  style={{
+                    pointerEvents: 'none',
+                    opacity: isHovered ? 1 : 0.85,
+                    filter: isHovered ? 'drop-shadow(0 0 4px #088d95)' : 'none',
+                    transition: 'opacity 0.15s ease, filter 0.15s ease',
+                  }}
+                />
               </g>
             );
           })}
@@ -571,21 +570,35 @@ function ElevationChart({
                   onPoiClick?.(poiData.poi);
                 }}
               >
+                {/* Transparent hit area for mouse events */}
                 <circle
-                  r={isHovered ? 14 : 12}
-                  fill="#0b1215"
-                  stroke={isHovered ? '#fff' : '#088d95'}
-                  strokeWidth={isHovered ? 3 : 2}
-                  style={{ transition: 'all 0.15s ease' }}
+                  r={POI_ICON_SIZE / 2 + 4}
+                  fill="transparent"
+                  style={{ cursor: 'pointer' }}
                 />
-                <text
-                  textAnchor="middle"
-                  dy="0.35em"
-                  fontSize={isHovered ? 16 : 14}
-                  style={{ pointerEvents: 'none' }}
-                >
-                  {POI_ICONS[poiData.poi.type || ''] || '📍'}
-                </text>
+                {/* Hover ring */}
+                {isHovered && (
+                  <circle
+                    r={POI_ICON_SIZE / 2 + 2}
+                    fill="none"
+                    stroke="#088d95"
+                    strokeWidth={2}
+                    style={{ transition: 'all 0.15s ease' }}
+                  />
+                )}
+                <image
+                  href={POI_ICON_IMAGE}
+                  x={-POI_ICON_SIZE / 2}
+                  y={-POI_ICON_SIZE / 2}
+                  width={POI_ICON_SIZE}
+                  height={POI_ICON_SIZE}
+                  style={{
+                    pointerEvents: 'none',
+                    opacity: isHovered ? 1 : 0.85,
+                    filter: isHovered ? 'drop-shadow(0 0 4px #088d95)' : 'none',
+                    transition: 'opacity 0.15s ease, filter 0.15s ease',
+                  }}
+                />
               </g>
             );
           })}
@@ -602,7 +615,7 @@ function ElevationChart({
               textAnchor: 'middle',
             })}
             tickFormat={value => `${Number(value).toFixed(0)} km`}
-            numTicks={6}
+            numTicks={Math.min(20, Math.ceil(xScale.domain()[1] / 10))}
           />
 
           {/* Y Axis */}
@@ -622,47 +635,6 @@ function ElevationChart({
           />
         </Group>
       </svg>
-
-      {/* Brush for zoom */}
-      <svg
-        width={width}
-        height={BRUSH_HEIGHT + BRUSH_MARGIN.top + BRUSH_MARGIN.bottom}
-      >
-        <PatternLines
-          id="brush-pattern"
-          height={8}
-          width={8}
-          stroke="#088d95"
-          strokeWidth={1}
-          orientation={['diagonal']}
-        />
-        <Group left={margin.left} top={BRUSH_MARGIN.top}>
-          <AreaClosed<ElevationPoint>
-            data={data}
-            x={d => xScaleFull(d.distance)}
-            y={d => yScaleBrush(d.elevation)}
-            yScale={yScaleBrush}
-            curve={curveMonotoneX}
-            fill="#088d95"
-            fillOpacity={0.3}
-          />
-          <Brush
-            xScale={xScaleFull}
-            yScale={yScaleBrush}
-            width={innerWidth}
-            height={BRUSH_HEIGHT}
-            handleSize={8}
-            resizeTriggerAreas={['left', 'right']}
-            brushDirection="horizontal"
-            onChange={handleBrushChange}
-            selectedBoxStyle={{
-              fill: 'url(#brush-pattern)',
-              stroke: '#088d95',
-            }}
-          />
-        </Group>
-      </svg>
-
       {/* Tooltip - rendered outside SVG */}
       {tooltipOpen && tooltipData && !hoveredPoi && (
         <TooltipWithBounds
@@ -698,9 +670,12 @@ function ElevationChart({
             transform: 'translate(-50%, -100%)',
           }}
         >
-          <span className="poi-tooltip-icon">
-            {POI_ICONS[hoveredPoi.type || ''] || '📍'}
-          </span>
+          <img
+            src={POI_ICON_IMAGE}
+            alt=""
+            className="poi-tooltip-icon"
+            style={{ width: '18px', height: '18px' }}
+          />
           <span className="poi-tooltip-name">{hoveredPoi.name || 'POI'}</span>
         </div>
       )}
@@ -894,6 +869,11 @@ export default function ElevationProfileVisx({
       return;
     }
 
+    // DISABLED: Editor now handles elevation calculation explicitly
+    // The elevation profile will use synthetic data until elevation is calculated
+    // This prevents redundant API calls since Editor uses Mapbox client-side method
+
+    /* 
     const coords =
       route.routeGeometry && route.routeGeometry.length > 0
         ? route.routeGeometry
@@ -915,6 +895,7 @@ export default function ElevationProfileVisx({
         setRealElevations(null);
       })
       .finally(() => setElevationsLoading(false));
+    */
   }, [route]);
 
   // Get stage colors
@@ -951,23 +932,53 @@ export default function ElevationProfileVisx({
     );
   }
 
+  // Calculate minimum chart width based on distance (40 pixels per km for readability)
+  const minChartWidth = useMemo(() => {
+    if (!route) return 800;
+    const maxDistance =
+      elevationData.length > 0
+        ? Math.max(...elevationData.map(d => d.distance))
+        : route.distance || 0;
+    // Minimum 40 pixels per km, but at least 800px and max 8000px
+    return Math.max(800, Math.min(8000, maxDistance * 40));
+  }, [route, elevationData]);
+
   return (
     <div ref={containerRef} className="elevation-profile-visx-container">
       <ParentSize>
-        {({ width, height }) => (
-          <ElevationChart
-            width={width}
-            height={height}
-            data={elevationData}
-            pois={poiDataPoints}
-            stageColors={stageColors}
-            tourType={tourType}
-            onPositionChange={onPositionChange}
-            onPoiClick={onPoiClick}
-            highlightDistance={highlightDistance}
-            t={t}
-          />
-        )}
+        {({ width: containerWidth, height }) => {
+          // Use the larger of container width or calculated minimum
+          const chartWidth = Math.max(containerWidth, minChartWidth);
+          const needsScroll = chartWidth > containerWidth;
+
+          return (
+            <div
+              className="elevation-chart-scroll-container"
+              style={{
+                width: `${containerWidth}px`,
+                maxWidth: `${containerWidth}px`,
+                height: '100%',
+                overflowX: needsScroll ? 'auto' : 'hidden',
+                overflowY: 'hidden',
+              }}
+            >
+              <div style={{ width: chartWidth, height: '100%' }}>
+                <ElevationChart
+                  width={chartWidth}
+                  height={height}
+                  data={elevationData}
+                  pois={poiDataPoints}
+                  stageColors={stageColors}
+                  tourType={tourType}
+                  onPositionChange={onPositionChange}
+                  onPoiClick={onPoiClick}
+                  highlightDistance={highlightDistance}
+                  t={t}
+                />
+              </div>
+            </div>
+          );
+        }}
       </ParentSize>
     </div>
   );

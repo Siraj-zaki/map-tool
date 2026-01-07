@@ -199,7 +199,7 @@ export default function PublicView() {
 
         {/* Tour Selector - Top Left (Hidden on mobile unless toggled) */}
         <div
-          className={`absolute top-3 left-3 md:top-3 md:left-[60px] z-40 flex flex-col gap-3 items-start transition-opacity duration-300 ${
+          className={`absolute top-2 left-2 md:top-3 md:left-[60px] z-40 flex flex-col gap-3 items-start transition-opacity duration-300 ${
             showMobileRouteStats
               ? 'opacity-100 pointer-events-auto'
               : 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto'
@@ -225,7 +225,7 @@ export default function PublicView() {
                 ? 'opacity-100 pointer-events-auto'
                 : 'opacity-0 pointer-events-none'
             }
-            bottom-4 left-3 right-3 md:w-auto
+            bottom-2 left-2 right-2 md:w-auto
             `}
         >
           <WeatherForecast
@@ -249,9 +249,11 @@ export default function PublicView() {
         {/* Fullscreen Button */}
         <button
           onClick={toggleFullscreen}
-          className="absolute top-4 left-3 z-50 w-10 h-10 flex items-center justify-center bg-[#080e11] border border-[#1e2a33] rounded-lg text-gray-400 hover:text-white hover:bg-[#088d95] hover:border-[#088d95] transition-all hidden md:flex"
+          className="absolute bottom-3 left-3 z-50 w-9 h-9 flex items-center justify-center bg-[#080e11] border border-[#1e2a33] rounded-lg text-gray-400 hover:text-white hover:bg-[#088d95] hover:border-[#088d95] transition-all hidden md:flex"
         >
-          <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>
+          <i
+            className={`fas fa-${isFullscreen ? 'compress' : 'expand'} text-sm`}
+          ></i>
         </button>
 
         {/* POI Sidebar */}
@@ -264,7 +266,7 @@ export default function PublicView() {
 
       {/* Elevation Profile with Weather */}
       {!isFullscreen && (
-        <div className="flex flex-col bg-[#0b1215]">
+        <div className="flex flex-col bg-[#0b1215] h-[180px] sm:h-[200px] md:h-[220px] lg:h-[250px]">
           <ElevationProfile
             route={route}
             pois={route.pois}

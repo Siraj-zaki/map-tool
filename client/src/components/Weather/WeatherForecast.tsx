@@ -25,6 +25,20 @@ export default function WeatherForecast({
   const { i18n } = useTranslation();
   const [forecast, setForecast] = useState<DailyForecast[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+
+  // Detect screen size
+  useEffect(() => {
+    const checkScreenSize = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 600);
+      setIsTablet(width >= 600 && width < 1024);
+    };
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   useEffect(() => {
     const fetchForecast = async () => {
@@ -66,37 +80,45 @@ export default function WeatherForecast({
 
   if (forecast.length === 0) return null;
 
+  // Show fewer days on smaller screens
+  const displayDays = isMobile ? 4 : isTablet ? 5 : forecast.length;
+  const displayForecast = forecast.slice(0, displayDays);
+
   return (
     <div
       style={{
         background: 'rgba(8, 14, 17, 0.9)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        borderRadius: '12px',
+        borderRadius: isMobile ? '8px' : '12px',
         border: '1px solid #1e2a33',
-        padding: '12px',
+        padding: isMobile ? '6px' : isTablet ? '8px' : '12px',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-        minWidth: '130px',
+        minWidth: isMobile ? '100px' : isTablet ? '110px' : '130px',
       }}
     >
       {/* Header */}
       <div
         style={{
-          fontSize: '10px',
+          fontSize: isMobile ? '8px' : isTablet ? '9px' : '10px',
           fontWeight: '700',
           color: '#088d95',
           textTransform: 'uppercase',
-          letterSpacing: '1px',
-          marginBottom: '10px',
+          letterSpacing: isMobile ? '0.5px' : '1px',
+          marginBottom: isMobile ? '4px' : isTablet ? '6px' : '10px',
           textAlign: 'center',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: '6px',
+          gap: isMobile ? '3px' : '6px',
         }}
       >
-        <span style={{ fontSize: '12px' }}>☁️</span>
-        7-Day
+        <span
+          style={{ fontSize: isMobile ? '9px' : isTablet ? '10px' : '12px' }}
+        >
+          ☁️
+        </span>
+        {displayDays}-Day
       </div>
 
       {/* Forecast Items */}
@@ -104,18 +126,18 @@ export default function WeatherForecast({
         style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: '4px',
+          gap: isMobile ? '2px' : '4px',
         }}
       >
-        {forecast.map((day, index) => (
+        {displayForecast.map((day, index) => (
           <div
             key={day.date}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '10px',
-              padding: '8px 10px',
-              borderRadius: '8px',
+              gap: isMobile ? '4px' : isTablet ? '6px' : '10px',
+              padding: isMobile ? '4px 5px' : isTablet ? '5px 7px' : '8px 10px',
+              borderRadius: isMobile ? '4px' : '8px',
               background:
                 index === 0
                   ? 'rgba(8, 141, 149, 0.2)'
@@ -128,9 +150,9 @@ export default function WeatherForecast({
             {/* Weather Icon */}
             <div
               style={{
-                fontSize: '20px',
-                width: '28px',
-                height: '28px',
+                fontSize: isMobile ? '12px' : isTablet ? '14px' : '20px',
+                width: isMobile ? '16px' : isTablet ? '20px' : '28px',
+                height: isMobile ? '16px' : isTablet ? '20px' : '28px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -142,7 +164,7 @@ export default function WeatherForecast({
             {/* Day Name */}
             <div
               style={{
-                fontSize: '12px',
+                fontSize: isMobile ? '9px' : isTablet ? '10px' : '12px',
                 fontWeight: '600',
                 color: index === 0 ? '#088d95' : 'rgba(255, 255, 255, 0.7)',
                 textTransform: 'uppercase',
@@ -157,10 +179,10 @@ export default function WeatherForecast({
             {/* Temperature */}
             <div
               style={{
-                fontSize: '14px',
+                fontSize: isMobile ? '10px' : isTablet ? '11px' : '14px',
                 fontWeight: '700',
                 color: '#fff',
-                minWidth: '40px',
+                minWidth: isMobile ? '24px' : isTablet ? '30px' : '40px',
                 textAlign: 'right',
                 fontFamily: 'system-ui, -apple-system, sans-serif',
               }}

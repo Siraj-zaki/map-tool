@@ -70,12 +70,14 @@ export default function WeatherWidget({
 
   if (compact) {
     return (
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-[#080e11] border border-[#1e2a33] rounded-lg">
-        <i className={`fas fa-${weather.icon} text-[#088d95]`}></i>
-        <span className="text-white font-semibold">
+      <div className="flex items-center gap-1.5 px-2 py-1 bg-[#080e11] border border-[#1e2a33] rounded-lg text-sm sm:text-base sm:gap-2 sm:px-3 sm:py-1.5">
+        <i
+          className={`fas fa-${weather.icon} text-[#088d95] text-xs sm:text-sm`}
+        ></i>
+        <span className="text-white font-semibold text-xs sm:text-sm">
           {weather.temperature}°C
         </span>
-        <span className="text-gray-400 text-sm hidden sm:inline">
+        <span className="text-gray-400 text-xs hidden sm:inline">
           {weather.condition}
         </span>
       </div>

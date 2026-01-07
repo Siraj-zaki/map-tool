@@ -1,9 +1,7 @@
 import mapboxgl from 'mapbox-gl';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import difficultyImage from '../../../public/images/difficulty.png';
-import hotelImage from '../../../public/images/hotel-ico.png';
-import mountainImage from '../../../public/images/mountain.png';
-import restaurantImage from '../../../public/images/restaurant-ico.png';
+// import difficultyImage from '../../../public/images/difficulty.png';
+import difficultyImage from '../../../public/images/gipfel.png';
 import type { POI, Route } from '../../api';
 import { POI_ICON_FALLBACK, ROUTE_STYLES } from '../../constants/routeStyles';
 import { useColorSettings } from '../../contexts/ColorSettingsContext';
@@ -283,6 +281,9 @@ export default function MapComponent({
 
     map.current.on('load', () => {
       createArrowImage();
+
+      // 3. Enable terrain to make elevation data available
+      map.current?.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 });
       setIsLoaded(true);
     });
 
@@ -774,11 +775,11 @@ export default function MapComponent({
       };
 
       Promise.all([
-        loadImagePromise(hotelImage, 'highlightNew'),
-        loadImagePromise(hotelImage, 'hotelNew'),
+        loadImagePromise(difficultyImage, 'highlightNew'),
+        loadImagePromise(difficultyImage, 'hotelNew'),
         loadImagePromise(difficultyImage, 'lodgingNew'),
-        loadImagePromise(restaurantImage, 'restaurantNew'),
-        loadImagePromise(mountainImage, 'mountainNew'),
+        loadImagePromise(difficultyImage, 'restaurantNew'),
+        loadImagePromise(difficultyImage, 'mountainNew'),
         loadImagePromise(difficultyImage, 'starNew'),
       ])
         .then(() => {
@@ -790,8 +791,8 @@ export default function MapComponent({
               source: 'poi-source',
               layout: {
                 'icon-image': ['get', 'makiIcon'],
-                'icon-size': 0.03,
-                'icon-rotate': 180,
+                'icon-size': 0.06,
+                'icon-rotate': 0,
                 'icon-allow-overlap': true,
                 'icon-ignore-placement': true,
               },

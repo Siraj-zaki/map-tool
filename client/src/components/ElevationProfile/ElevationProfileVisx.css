@@ -1,11 +1,34 @@
 .elevation-profile-visx-container {
   width: 100%;
   height: 100%;
-  min-height: 300px;
+  min-height: 160px;
+  max-height: 220px;
   background: #0b1215;
   border-radius: 8px;
   position: relative;
   overflow: hidden;
+}
+
+/* Responsive height adjustments */
+@media (max-width: 1024px) {
+  .elevation-profile-visx-container {
+    min-height: 140px;
+    max-height: 180px;
+  }
+}
+
+@media (max-width: 768px) {
+  .elevation-profile-visx-container {
+    min-height: 120px;
+    max-height: 160px;
+  }
+}
+
+@media (max-width: 480px) {
+  .elevation-profile-visx-container {
+    min-height: 100px;
+    max-height: 140px;
+  }
 }
 
 .elevation-chart-visx {
@@ -82,12 +105,24 @@
   }
 }
 
-/* Brush styles */
+/* Brush styles - subtle and less prominent */
 .elevation-chart-visx .visx-brush-handle {
   fill: #088d95;
   stroke: #088d95;
+  opacity: 0.6;
 }
 
 .elevation-chart-visx .visx-brush-selection {
-  fill-opacity: 0.3;
+  fill-opacity: 0.2;
+}
+
+/* Further reduce brush visibility on mobile */
+@media (max-width: 768px) {
+  .elevation-chart-visx .visx-brush-handle {
+    opacity: 0.4;
+  }
+
+  .elevation-chart-visx .visx-brush-selection {
+    fill-opacity: 0.15;
+  }
 }

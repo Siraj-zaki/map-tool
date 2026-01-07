@@ -42,6 +42,10 @@ export default function EmbedView() {
   } | null>(null);
   const flyToPoiRef = useRef<((poi: POI) => void) | null>(null);
 
+  // Toggle states for widgets
+  const [showTourPanel, setShowTourPanel] = useState(true);
+  const [showWeatherWidget, setShowWeatherWidget] = useState(true);
+
   // Set language from URL parameter
   useEffect(() => {
     if (lang && (lang === 'de' || lang === 'en')) {
@@ -170,36 +174,99 @@ export default function EmbedView() {
             left: '60px',
             zIndex: 40,
             display: 'flex',
-            gap: '12px',
+            gap: '8px',
             flexDirection: 'column',
             alignItems: 'flex-start',
           }}
         >
-          <TourStagePanel
-            route={route}
-            tourType={tourType}
-            onTourTypeChange={setTourType}
-            selectedStage={selectedStage}
-            onStageSelect={setSelectedStage}
-          />
-          <LocationFilter routeId={route.id} tourType={tourType} />
+          {/* Toggle Button for Tour Panel */}
+          <button
+            onClick={() => setShowTourPanel(!showTourPanel)}
+            style={{
+              background: 'rgba(8, 14, 17, 0.9)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid #1e2a33',
+              borderRadius: '8px',
+              padding: '6px 10px',
+              color: showTourPanel ? '#088d95' : 'rgba(255,255,255,0.6)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '11px',
+              fontWeight: '600',
+              transition: 'all 0.2s ease',
+            }}
+            title={showTourPanel ? t('hideRouteInfo') : t('showRouteInfo')}
+          >
+            <i className={`fas fa-route`}></i>
+            <i
+              className={`fas fa-chevron-${showTourPanel ? 'up' : 'down'}`}
+              style={{ fontSize: '9px' }}
+            ></i>
+          </button>
+
+          {showTourPanel && (
+            <>
+              <TourStagePanel
+                route={route}
+                tourType={tourType}
+                onTourTypeChange={setTourType}
+                selectedStage={selectedStage}
+                onStageSelect={setSelectedStage}
+              />
+              <LocationFilter routeId={route.id} tourType={tourType} />
+            </>
+          )}
         </div>
 
         {/* Weather Forecast Overlay - Center Right */}
         <div
           style={{
             position: 'absolute',
-            top: '15px',
+            top: '12px',
             right: '12px',
-            // transform: 'translateY(-50%)',
             zIndex: 40,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+            gap: '8px',
           }}
         >
-          <WeatherForecast
-            lat={(route.startPoint[1] + route.endPoint[1]) / 2}
-            lng={(route.startPoint[0] + route.endPoint[0]) / 2}
-            locationName={route.name || 'Route'}
-          />
+          {/* Toggle Button for Weather */}
+          <button
+            onClick={() => setShowWeatherWidget(!showWeatherWidget)}
+            style={{
+              background: 'rgba(8, 14, 17, 0.9)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid #1e2a33',
+              borderRadius: '8px',
+              padding: '6px 10px',
+              color: showWeatherWidget ? '#088d95' : 'rgba(255,255,255,0.6)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '11px',
+              fontWeight: '600',
+              transition: 'all 0.2s ease',
+            }}
+            title={showWeatherWidget ? t('hideWeather') : t('showWeather')}
+          >
+            <i className="fas fa-cloud-sun"></i>
+            <i
+              className={`fas fa-chevron-${showWeatherWidget ? 'up' : 'down'}`}
+              style={{ fontSize: '9px' }}
+            ></i>
+          </button>
+
+          {showWeatherWidget && (
+            <WeatherForecast
+              lat={(route.startPoint[1] + route.endPoint[1]) / 2}
+              lng={(route.startPoint[0] + route.endPoint[0]) / 2}
+              locationName={route.name || 'Route'}
+            />
+          )}
         </div>
 
         <div id="map">
