@@ -81,10 +81,6 @@ function getPoiIcon(poiType: string | undefined): string {
 // Margins for chart - reduced bottom margin since brush is removed
 const margin = { top: 15, right: 20, bottom: 35, left: 50 };
 
-// Brush height - no longer used but kept for compatibility
-const BRUSH_HEIGHT = 0;
-const BRUSH_MARGIN = { top: 0, bottom: 0 };
-
 // Tooltip styles
 const tooltipStyles = {
   ...defaultStyles,
@@ -129,10 +125,6 @@ function ElevationChart({
   } | null>(null);
   const [currentGrade, setCurrentGrade] = useState<number>(0);
   const [cumulativeAscent, setCumulativeAscent] = useState<number>(0);
-  const [brushDomain, setBrushDomain] = useState<{
-    x0: number;
-    x1: number;
-  } | null>(null);
 
   const {
     showTooltip,
@@ -175,31 +167,6 @@ function ElevationChart({
         nice: true,
       }),
     [displayData, innerHeight]
-  );
-
-  // Full scale for brush
-  const xScaleFull = useMemo(
-    () =>
-      scaleLinear<number>({
-        domain: [
-          Math.min(...data.map(d => d.distance)),
-          Math.max(...data.map(d => d.distance)),
-        ],
-        range: [0, innerWidth],
-      }),
-    [data, innerWidth]
-  );
-
-  const yScaleBrush = useMemo(
-    () =>
-      scaleLinear<number>({
-        domain: [
-          Math.min(...data.map(d => d.elevation)),
-          Math.max(...data.map(d => d.elevation)),
-        ],
-        range: [BRUSH_HEIGHT - 5, 0],
-      }),
-    [data]
   );
 
   // Get stage segments
@@ -322,16 +289,6 @@ function ElevationChart({
     hideTooltip();
     onPositionChange?.(null);
   }, [hideTooltip, onPositionChange]);
-
-  // Handle brush change
-  const handleBrushChange = useCallback((domain: any) => {
-    if (!domain) {
-      setBrushDomain(null);
-      return;
-    }
-    const { x0, x1 } = domain;
-    setBrushDomain({ x0, x1 });
-  }, []);
 
   if (width < 100 || data.length === 0) return null;
 
@@ -720,7 +677,7 @@ export default function ElevationProfileVisx({
 
   // Real elevation data state
   const [realElevations, setRealElevations] = useState<number[] | null>(null);
-  const [elevationsLoading, setElevationsLoading] = useState(false);
+  const [elevationsLoading, _setElevationsLoading] = useState(false);
 
   // Get dynamic colors from context
   const { getStageColor } = useColorSettings();

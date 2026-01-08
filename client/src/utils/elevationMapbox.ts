@@ -9,69 +9,6 @@ export interface ElevationResult {
 }
 
 /**
- * Samples coordinates to reduce the number of queries
- * Similar to the existing sampling logic, takes max ~200 points
- */
-function sampleCoordinates(
-  coordinates: [number, number][],
-  maxPoints: number = 200
-): { sampled: [number, number][]; indices: number[] } {
-  if (coordinates.length <= maxPoints) {
-    return {
-      sampled: coordinates,
-      indices: coordinates.map((_, i) => i),
-    };
-  }
-
-  const step = Math.ceil(coordinates.length / maxPoints);
-  const sampled: [number, number][] = [];
-  const indices: number[] = [];
-
-  for (let i = 0; i < coordinates.length; i += step) {
-    sampled.push(coordinates[i]);
-    indices.push(i);
-  }
-
-  // Always include last point
-  if (indices[indices.length - 1] !== coordinates.length - 1) {
-    sampled.push(coordinates[coordinates.length - 1]);
-    indices.push(coordinates.length - 1);
-  }
-
-  return { sampled, indices };
-}
-
-/**
- * Interpolates elevation values for all coordinates based on sampled data
- */
-function interpolateElevations(
-  totalCount: number,
-  sampledIndices: number[],
-  sampledElevations: number[]
-): number[] {
-  const elevations: number[] = new Array(totalCount);
-  let sampleIdx = 0;
-
-  for (let i = 0; i < totalCount; i++) {
-    if (i === sampledIndices[sampleIdx]) {
-      elevations[i] = sampledElevations[sampleIdx];
-      sampleIdx = Math.min(sampleIdx + 1, sampledIndices.length - 1);
-    } else {
-      // Linear interpolation between sampled points
-      const prevIdx = sampledIndices[sampleIdx - 1] || 0;
-      const nextIdx = sampledIndices[sampleIdx];
-      const prevElev = sampledElevations[sampleIdx - 1] || sampledElevations[0];
-      const nextElev = sampledElevations[sampleIdx];
-
-      const t = (i - prevIdx) / (nextIdx - prevIdx);
-      elevations[i] = prevElev + t * (nextElev - prevElev);
-    }
-  }
-
-  return elevations;
-}
-
-/**
  * Waits for the map terrain to be loaded
  * Returns a promise that resolves when terrain is ready
  */
