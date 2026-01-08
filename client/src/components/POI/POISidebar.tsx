@@ -28,25 +28,44 @@ function haversineDistance(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Calculate minimum distance from POI to route (in meters)
-function calculateDistanceToRoute(
+// Calculate distance ALONG the route from start point to where POI is located (in meters)
+// This finds the closest point on the route to the POI, then calculates the route distance from start to that point
+function calculateDistanceAlongRoute(
   poiLngLat: [number, number],
   routeGeometry: [number, number][]
 ): number {
-  if (!routeGeometry || routeGeometry.length === 0) return -1;
+  if (!routeGeometry || routeGeometry.length < 2) return -1;
 
-  let minDistance = Infinity;
   const poiLat = poiLngLat[1];
   const poiLng = poiLngLat[0];
 
-  for (const point of routeGeometry) {
+  // Find the index of the closest route point to the POI
+  let minDistance = Infinity;
+  let closestIndex = 0;
+
+  for (let i = 0; i < routeGeometry.length; i++) {
+    const point = routeGeometry[i];
     const distance = haversineDistance(poiLat, poiLng, point[1], point[0]);
     if (distance < minDistance) {
       minDistance = distance;
+      closestIndex = i;
     }
   }
 
-  return Math.round(minDistance * 1000); // Return in meters
+  // Calculate the cumulative distance along the route from start to the closest point
+  let totalDistance = 0;
+  for (let i = 1; i <= closestIndex; i++) {
+    const prevPoint = routeGeometry[i - 1];
+    const currPoint = routeGeometry[i];
+    totalDistance += haversineDistance(
+      prevPoint[1],
+      prevPoint[0],
+      currPoint[1],
+      currPoint[0]
+    );
+  }
+
+  return Math.round(totalDistance * 1000); // Return in meters
 }
 
 export default function POISidebar({
@@ -256,7 +275,7 @@ export default function POISidebar({
                     }}
                   >
                     {(() => {
-                      const distanceMeters = calculateDistanceToRoute(
+                      const distanceMeters = calculateDistanceAlongRoute(
                         poi.lngLat,
                         routeGeometry
                       );
