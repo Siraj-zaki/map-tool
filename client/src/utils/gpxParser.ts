@@ -47,7 +47,7 @@ export function parseGPX(gpxText: string): GPXPoint[] {
 /**
  * Calculate distance between two points in km (Haversine formula)
  */
-function calculateDistance(p1: GPXPoint, p2: GPXPoint): number {
+export function calculateDistance(p1: GPXPoint, p2: GPXPoint): number {
   const R = 6371; // Earth's radius in km
   const dLat = ((p2.lat - p1.lat) * Math.PI) / 180;
   const dLon = ((p2.lon - p1.lon) * Math.PI) / 180;
@@ -156,4 +156,140 @@ export function getGPXRouteName(gpxText: string): string | null {
     gpx.querySelector('metadata > name')?.textContent;
 
   return name || null;
+}
+
+/**
+ * Creates elevation data array from GPX points with accumulated distance
+ * This preserves the accurate elevation data from source (e.g., Komoot)
+ */
+export function createElevationDataFromGPX(
+  points: GPXPoint[]
+): { elevation: number; distance: number }[] {
+  const elevationData: { elevation: number; distance: number }[] = [];
+  let accumulatedDistance = 0;
+
+  for (let i = 0; i < points.length; i++) {
+    if (i > 0) {
+      accumulatedDistance += calculateDistance(points[i - 1], points[i]);
+    }
+    elevationData.push({
+      elevation: Math.round(points[i].ele),
+      distance: Math.round(accumulatedDistance * 100) / 100,
+    });
+  }
+
+  return elevationData;
+}
+
+/**
+ * Accurate GPX Statistics Result
+ */
+export interface GPXAccurateStats {
+  distanceKm: number;
+  durationFormatted: string;
+  durationMinutes: number;
+  highestPointM: number;
+  lowestPointM: number;
+  totalAscentM: number;
+  totalDescentM: number;
+  coordinates: [number, number][];
+  elevationData: { elevation: number; distance: number }[];
+}
+
+/**
+ * Format duration hours to HH:MM:SS string
+ */
+function formatDurationHHMMSS(totalHours: number): string {
+  const hours = Math.floor(totalHours);
+  const remainingMinutes = (totalHours - hours) * 60;
+  const minutes = Math.floor(remainingMinutes);
+  const seconds = Math.floor((remainingMinutes - minutes) * 60);
+
+  return `${hours.toString().padStart(2, '0')}:${minutes
+    .toString()
+    .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Process GPX file with ACCURATE statistics calculation
+ *
+ * Key features:
+ * - Parses ALL track points (no sampling/simplification)
+ * - Uses Haversine formula for 2D distance
+ * - Calculates elevation stats WITHOUT smoothing/hysteresis to capture micro-terrain
+ * - Duration based on fixed 10.5 km/h average speed
+ *
+ * @param gpxText Raw GPX XML string
+ * @returns Accurate route statistics
+ */
+export function processGPXWithAccurateStats(gpxText: string): GPXAccurateStats {
+  const points = parseGPX(gpxText);
+
+  if (points.length < 2) {
+    throw new Error('GPX file must contain at least 2 points');
+  }
+
+  // Calculate total distance using Haversine formula
+  let totalDistanceKm = 0;
+  for (let i = 1; i < points.length; i++) {
+    totalDistanceKm += calculateDistance(points[i - 1], points[i]);
+  }
+
+  // Calculate duration at fixed 10.5 km/h
+  const AVERAGE_SPEED_KMH = 10.5;
+  const durationHours = totalDistanceKm / AVERAGE_SPEED_KMH;
+  const durationMinutes = Math.round(durationHours * 60);
+  const durationFormatted = formatDurationHHMMSS(durationHours);
+
+  // Calculate elevation statistics WITHOUT smoothing/hysteresis
+  // This captures micro-terrain for accurate elevation gain
+  let highestPointM = points[0].ele;
+  let lowestPointM = points[0].ele;
+  let totalAscentM = 0;
+  let totalDescentM = 0;
+
+  for (let i = 1; i < points.length; i++) {
+    const currentEle = points[i].ele;
+    const prevEle = points[i - 1].ele;
+    const eleDiff = currentEle - prevEle;
+
+    // Track high/low points
+    if (currentEle > highestPointM) highestPointM = currentEle;
+    if (currentEle < lowestPointM) lowestPointM = currentEle;
+
+    // Accumulate ascent/descent - NO threshold/hysteresis
+    if (eleDiff > 0) {
+      totalAscentM += eleDiff;
+    } else if (eleDiff < 0) {
+      totalDescentM += Math.abs(eleDiff);
+    }
+  }
+
+  // Create coordinates array [lng, lat] for Mapbox
+  const coordinates: [number, number][] = points.map(p => [p.lon, p.lat]);
+
+  // Create elevation data array with distances
+  const elevationData: { elevation: number; distance: number }[] = [];
+  let accumulatedDistance = 0;
+  for (let i = 0; i < points.length; i++) {
+    if (i > 0) {
+      accumulatedDistance += calculateDistance(points[i - 1], points[i]);
+    }
+    elevationData.push({
+      elevation: Math.round(points[i].ele),
+      distance: Math.round(accumulatedDistance * 100) / 100,
+    });
+  }
+
+  return {
+    distanceKm: Math.round(totalDistanceKm * 100) / 100,
+    durationFormatted,
+    durationMinutes,
+    highestPointM: Math.round(highestPointM),
+    lowestPointM: Math.round(lowestPointM),
+    totalAscentM: Math.round(totalAscentM),
+    totalDescentM: Math.round(totalDescentM),
+    coordinates,
+    elevationData,
+  };
 }

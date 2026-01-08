@@ -316,6 +316,7 @@ export default function EmbedView() {
       <POISidebar
         poi={selectedPoi}
         routeStartPoint={route.startPoint}
+        routeGeometry={route.routeGeometry}
         onClose={() => setSelectedPoi(null)}
       />
 

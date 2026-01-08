@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { formatDuration, type Route } from '../../api';
+import { calculateHikingDuration, formatDuration, type Route } from '../../api';
 import WeatherWidget from '../Weather/WeatherWidget';
 import LocationSearch from './LocationSearch';
 import './RouteStatsBar.css';
@@ -29,6 +29,11 @@ export default function RouteStatsBar({
   const centerLat = (route.startPoint[1] + route.endPoint[1]) / 2;
   const centerLng = (route.startPoint[0] + route.endPoint[0]) / 2;
 
+  // Calculate realistic hiking/cycling duration based on distance and elevation
+  const distanceKm = parseFloat(String(route.distance || 0));
+  const totalAscent = parseFloat(String(route.totalAscent || 0));
+  const calculatedDuration = calculateHikingDuration(distanceKm, totalAscent);
+
   return (
     <div className="route-stats-bar" id="route-stats-bar">
       {/* Left Section: Title */}
@@ -46,7 +51,7 @@ export default function RouteStatsBar({
         </div>
         <div className="stat-item" title={t('duration')}>
           <i className="fas fa-clock"></i>
-          <span>{formatDuration(Number(route.duration) || 0)}</span>
+          <span>{formatDuration(calculatedDuration)}</span>
         </div>
         <div className="stat-item" title={t('totalAscent')}>
           <i className="fas fa-arrow-up"></i>

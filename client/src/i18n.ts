@@ -55,6 +55,9 @@ const resources = {
       // Elevation profile
       elevation: 'Elevation',
       grade: 'Grade',
+      to: 'To',
+      elevationGain: 'Elevation gain',
+      steigung: 'Grade',
       surfaceType: 'Surface Type',
       trackType: 'Track Type',
 
@@ -254,6 +257,9 @@ const resources = {
       // Elevation profile
       elevation: 'Höhe',
       grade: 'Steigung',
+      to: 'Nach',
+      elevationGain: 'Höhenmeter',
+      steigung: 'Steigung',
       surfaceType: 'Untergrund',
       trackType: 'Wegtyp',
 

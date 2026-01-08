@@ -260,6 +260,7 @@ export default function PublicView() {
         <POISidebar
           poi={selectedPoi}
           routeStartPoint={route.startPoint}
+          routeGeometry={route.routeGeometry}
           onClose={() => setSelectedPoi(null)}
         />
       </div>

@@ -1,7 +1,10 @@
 import mapboxgl from 'mapbox-gl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 // import difficultyImage from '../../../public/images/difficulty.png';
-import difficultyImage from '../../../public/images/gipfel.png';
+import HighlightImage from '../../../public/images/highlight-marker.png';
+import HotelImage from '../../../public/images/hotel-marker.png';
+import SummitImage from '../../../public/images/mountain-marker.png';
+import RestaurantImage from '../../../public/images/resturant-marker.png';
 import type { POI, Route } from '../../api';
 import { POI_ICON_FALLBACK, ROUTE_STYLES } from '../../constants/routeStyles';
 import { useColorSettings } from '../../contexts/ColorSettingsContext';
@@ -532,8 +535,8 @@ export default function MapComponent({
       map.current!.getCanvas().style.cursor = '';
     };
 
-    map.current.on('mousemove', 'route-hover', handleMouseMove);
-    map.current.on('mouseleave', 'route-hover', handleMouseLeave);
+    // map.current.on('mousemove', 'route-hover', handleMouseMove);
+    // map.current.on('mouseleave', 'route-hover', handleMouseLeave);
 
     // Update arrows on zoom - matching route.js
     const handleZoom = () => {
@@ -692,7 +695,7 @@ export default function MapComponent({
       .addTo(map.current);
     markersRef.current.push(endMarker);
 
-    // POI markers - using native Mapbox layers for stable positioning
+    // POI markers - using native Mapbox layers with clustering
     if (route.pois && route.pois.length > 0) {
       // Remove existing POI layers/source if they exist
       if (map.current.getLayer('poi-labels')) {
@@ -700,6 +703,12 @@ export default function MapComponent({
       }
       if (map.current.getLayer('poi-circles')) {
         map.current.removeLayer('poi-circles');
+      }
+      if (map.current.getLayer('cluster-circles')) {
+        map.current.removeLayer('cluster-circles');
+      }
+      if (map.current.getLayer('cluster-count')) {
+        map.current.removeLayer('cluster-count');
       }
       if (map.current.getSource('poi-source')) {
         map.current.removeSource('poi-source');
@@ -732,30 +741,58 @@ export default function MapComponent({
         },
       }));
 
-      // Add POI source
+      // Add POI source with clustering enabled
       map.current.addSource('poi-source', {
         type: 'geojson',
         data: {
           type: 'FeatureCollection',
           features: poiFeatures,
         },
+        cluster: true,
+        clusterMaxZoom: 14, // Max zoom to cluster points
+        clusterRadius: 50, // Radius of each cluster when clustering points
       });
 
-      // Add circle layer for POI background
-      // map.current.addLayer({
-      //   id: 'poi-circles',
-      //   type: 'circle',
-      //   source: 'poi-source',
-      //   paint: {
-      //     'circle-radius': 18,
-      //     'circle-color': ['get', 'color'],
-      //     'circle-stroke-width': 3,
-      //     'circle-stroke-color': '#ffffff',
-      //   },
-      // });
+      // Add cluster circles layer
+      map.current.addLayer({
+        id: 'cluster-circles',
+        type: 'circle',
+        source: 'poi-source',
+        filter: ['has', 'point_count'],
+        paint: {
+          'circle-color': '#000',
+          'circle-radius': [
+            'step',
+            ['get', 'point_count'],
+            18, // 18px radius for clusters with < 5 points
+            5,
+            22, // 22px radius for clusters with 5-10 points
+            10,
+            28, // 28px radius for clusters with 10+ points
+          ],
+          'circle-stroke-width': 3,
+          'circle-stroke-color': '#ffffff',
+        },
+      });
 
-      // Add symbol layer for POI icons using Mapbox Maki icons
-      // Load all images first, then add the layer
+      // Add cluster count label layer
+      map.current.addLayer({
+        id: 'cluster-count',
+        type: 'symbol',
+        source: 'poi-source',
+        filter: ['has', 'point_count'],
+        layout: {
+          'text-field': ['get', 'point_count_abbreviated'],
+          'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+          'text-size': 14,
+          'text-allow-overlap': true,
+        },
+        paint: {
+          'text-color': '#ffffff',
+        },
+      });
+
+      // Add symbol layer for unclustered POI icons
       const loadImagePromise = (
         url: string,
         imageName: string
@@ -775,12 +812,13 @@ export default function MapComponent({
       };
 
       Promise.all([
-        loadImagePromise(difficultyImage, 'highlightNew'),
-        loadImagePromise(difficultyImage, 'hotelNew'),
-        loadImagePromise(difficultyImage, 'lodgingNew'),
-        loadImagePromise(difficultyImage, 'restaurantNew'),
-        loadImagePromise(difficultyImage, 'mountainNew'),
-        loadImagePromise(difficultyImage, 'starNew'),
+        loadImagePromise(HighlightImage, 'highlightNew'),
+        loadImagePromise(HotelImage, 'hotelNew'),
+        loadImagePromise(RestaurantImage, 'lodgingNew'),
+        loadImagePromise(RestaurantImage, 'restaurantNew'),
+        loadImagePromise(RestaurantImage, 'restaurantNew'),
+        loadImagePromise(SummitImage, 'mountainNew'),
+        loadImagePromise(HighlightImage, 'starNew'),
       ])
         .then(() => {
           // Only add the layer after all images are loaded
@@ -789,10 +827,10 @@ export default function MapComponent({
               id: 'poi-labels',
               type: 'symbol',
               source: 'poi-source',
+              filter: ['!', ['has', 'point_count']], // Only show unclustered points
               layout: {
                 'icon-image': ['get', 'makiIcon'],
-                'icon-size': 0.06,
-                'icon-rotate': 0,
+                'icon-size': 0.03,
                 'icon-allow-overlap': true,
                 'icon-ignore-placement': true,
               },
@@ -806,7 +844,31 @@ export default function MapComponent({
           console.error('Error loading POI images:', error);
         });
 
-      // Handle POI click events
+      // Handle cluster click - zoom in to expand cluster
+      map.current.on('click', 'cluster-circles', e => {
+        const features = map.current!.queryRenderedFeatures(e.point, {
+          layers: ['cluster-circles'],
+        });
+        if (!features.length) return;
+
+        const clusterId = features[0].properties?.cluster_id;
+        const source = map.current!.getSource(
+          'poi-source'
+        ) as mapboxgl.GeoJSONSource;
+
+        source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+          if (err || zoom === null || zoom === undefined) return;
+
+          const geometry = features[0].geometry as GeoJSON.Point;
+          map.current!.easeTo({
+            center: geometry.coordinates as [number, number],
+            zoom: zoom,
+            duration: 500,
+          });
+        });
+      });
+
+      // Handle POI click events (unclustered points)
       map.current.on('click', 'poi-labels', e => {
         if (e.features && e.features.length > 0) {
           const feature = e.features[0];
@@ -814,6 +876,19 @@ export default function MapComponent({
           if (poiIndex !== undefined && route.pois[poiIndex]) {
             onPoiClickRef.current?.(route.pois[poiIndex]);
           }
+        }
+      });
+
+      // Change cursor on cluster hover
+      map.current.on('mouseenter', 'cluster-circles', () => {
+        if (map.current) {
+          map.current.getCanvas().style.cursor = 'pointer';
+        }
+      });
+
+      map.current.on('mouseleave', 'cluster-circles', () => {
+        if (map.current) {
+          map.current.getCanvas().style.cursor = '';
         }
       });
 

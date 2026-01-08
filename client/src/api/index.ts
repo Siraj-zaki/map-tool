@@ -372,6 +372,28 @@ export function formatDuration(seconds: number): string {
   return `${hours}h ${minutes}m`;
 }
 
+// Calculate realistic hiking/cycling duration based on distance and elevation
+// Uses average speed of 10.5 km/h for gravel/mountain biking
+// Adjusts for elevation gain (adds 1 hour per 500m of ascent)
+export function calculateHikingDuration(
+  distanceKm: number,
+  totalAscentM: number = 0
+): number {
+  const averageSpeedKmH = 10.5; // Average gravel/MTB speed in km/h
+  const ascentPenaltyHoursPerM = 1 / 500; // 1 hour per 500m elevation gain
+
+  // Base time from distance
+  const baseTimeHours = distanceKm / averageSpeedKmH;
+
+  // Additional time for elevation gain
+  const ascentTimeHours = totalAscentM * ascentPenaltyHoursPerM;
+
+  // Total time in seconds
+  const totalTimeSeconds = (baseTimeHours + ascentTimeHours) * 3600;
+
+  return Math.round(totalTimeSeconds);
+}
+
 // Settings API for route and stage colors
 export interface RouteSettings {
   mainColor: string;

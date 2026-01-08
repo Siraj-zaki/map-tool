@@ -1,3 +1,5 @@
+import mapboxgl from 'mapbox-gl';
+
 export interface ElevationResult {
   elevations: number[];
   highestPoint: number;
@@ -107,48 +109,104 @@ function waitForTerrain(map: mapboxgl.Map): Promise<void> {
 /**
  * Gets elevation data for route coordinates using Mapbox's queryTerrainElevation
  * This is a client-side method that uses the loaded terrain tiles
+ *
+ * IMPORTANT: Queries ALL coordinates without sampling for accurate elevation data
  */
 export async function getMapboxElevation(
   map: mapboxgl.Map,
   coordinates: [number, number][]
 ): Promise<ElevationResult> {
   console.log(
-    `[Mapbox Elevation] Querying elevations for ${coordinates.length} points...`
+    `[Mapbox Elevation] Querying elevations for ${coordinates.length} points (NO SAMPLING)...`
   );
 
-  // Wait for terrain to be ready
+  // CRITICAL: Fit map to route bounds to ensure terrain tiles are loaded for ALL coordinates
+  // queryTerrainElevation returns null for off-screen points
+  console.log(
+    '[Mapbox Elevation] Fitting map to route bounds to load terrain tiles...'
+  );
+  const bounds = new mapboxgl.LngLatBounds();
+  coordinates.forEach(coord => bounds.extend(coord));
+
+  map.fitBounds(bounds, {
+    padding: 50,
+    duration: 0, // Instant, no animation
+    animate: false,
+  });
+
+  // Wait for terrain to be ready AFTER fitting bounds
   await waitForTerrain(map);
 
-  // Sample coordinates to reduce queries
-  const { sampled, indices } = sampleCoordinates(coordinates, 200);
-  console.log(`[Mapbox Elevation] Sampled to ${sampled.length} points`);
+  // Additional wait for terrain tiles to load after bounds change
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  console.log('[Mapbox Elevation] Terrain should be loaded for route area');
 
-  // Query elevation for each sampled point
-  const sampledElevations: number[] = [];
-  for (const coord of sampled) {
-    const elevation = map.queryTerrainElevation(coord, {
-      exaggerated: false, // Get true elevation, not exaggerated for display
-    });
+  // Query elevation for EVERY coordinate - no sampling!
+  const allElevations: number[] = [];
+  let nullCount = 0;
+  let validCount = 0;
 
-    // If elevation is null (terrain not loaded at this point), use a default
-    // This shouldn't happen after waitForTerrain, but handle it gracefully
-    sampledElevations.push(elevation ?? 500);
+  // Process in batches to avoid UI blocking
+  const BATCH_SIZE = 500;
+  const numBatches = Math.ceil(coordinates.length / BATCH_SIZE);
+
+  console.log(
+    `[Mapbox Elevation] Processing ${numBatches} batches of ${BATCH_SIZE} points each`
+  );
+
+  for (let batch = 0; batch < numBatches; batch++) {
+    const startIdx = batch * BATCH_SIZE;
+    const endIdx = Math.min(startIdx + BATCH_SIZE, coordinates.length);
+
+    for (let i = startIdx; i < endIdx; i++) {
+      const coord = coordinates[i]!;
+      const elevation = map.queryTerrainElevation(coord, {
+        exaggerated: false,
+      });
+
+      if (elevation !== null && elevation !== undefined) {
+        allElevations.push(elevation);
+        validCount++;
+        // Log every 100th coordinate for debugging
+        if (i % 100 === 0) {
+          console.log(
+            `[Elev ${i}] coord: [${coord[0].toFixed(4)}, ${coord[1].toFixed(
+              4
+            )}] => ${elevation.toFixed(1)}m`
+          );
+        }
+      } else {
+        nullCount++;
+        // Use interpolation from last valid value or 0
+        if (allElevations.length > 0) {
+          allElevations.push(allElevations[allElevations.length - 1]!);
+        } else {
+          allElevations.push(0);
+        }
+        // Log null values for debugging
+        if (nullCount <= 10) {
+          console.warn(
+            `[Elev ${i}] coord: [${coord[0].toFixed(4)}, ${coord[1].toFixed(
+              4
+            )}] => NULL (using fallback)`
+          );
+        }
+      }
+    }
+
+    // Yield to UI every batch
+    if (batch < numBatches - 1) {
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
   }
 
   console.log(
-    `[Mapbox Elevation] Queried ${sampledElevations.length} elevations`
-  );
-
-  // Interpolate to get elevations for all coordinates
-  const allElevations = interpolateElevations(
-    coordinates.length,
-    indices,
-    sampledElevations
+    `[Mapbox Elevation] Results: ${validCount} valid, ${nullCount} null out of ${allElevations.length} total`
   );
 
   // Calculate stats
-  let highestPoint = allElevations[0];
-  let lowestPoint = allElevations[0];
+  let highestPoint = allElevations[0] ?? 0;
+  let lowestPoint = allElevations[0] ?? 0;
   let totalAscent = 0;
   let totalDescent = 0;
 

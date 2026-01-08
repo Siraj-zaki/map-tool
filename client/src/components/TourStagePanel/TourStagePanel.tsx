@@ -32,6 +32,7 @@ export default function TourStagePanel({
   const { getStageColor } = useColorSettings();
   const [activeStage, setActiveStage] = useState<number>(1);
   const [hasManuallySelected, setHasManuallySelected] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const numStages = stageConfig[tourType];
 
@@ -93,123 +94,174 @@ export default function TourStagePanel({
 
   return (
     <div className="tour-stage-panel">
-      {/* Difficulty Section */}
-      <div style={{ padding: '0 4px', marginBottom: '12px' }}>
-        <div
+      {/* Header with toggle button */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: isCollapsed ? 0 : '8px',
+          padding: '0 4px',
+        }}
+      >
+        <span
           style={{
-            fontSize: '10px',
+            fontSize: '11px',
             textTransform: 'uppercase',
-            color: '#6b7280', // gray-500
+            color: '#088d95',
             fontWeight: 600,
-            marginBottom: '6px',
             letterSpacing: '0.5px',
           }}
         >
-          {t('difficultyLevel') || 'Difficulty Level'}
-        </div>
-        <div className="tour-type-row">
-          {(['gold', 'silver', 'bronze'] as const).map(type => (
-            <button
-              key={type}
-              onClick={() => handleTourClick(type)}
-              className={`tour-type-btn ${tourType === type ? 'active' : ''}`}
-              data-type={type}
-            >
-              <span className="tour-label">
-                {type.charAt(0).toUpperCase() + type.slice(1)}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Days Section */}
-      <div style={{ padding: '0 4px', marginBottom: '4px' }}>
-        <div
+          {t('tourStages') || 'Tour Stages'}
+        </span>
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
           style={{
-            fontSize: '10px',
-            textTransform: 'uppercase',
-            color: '#6b7280', // gray-500
-            fontWeight: 600,
-            marginBottom: '6px',
-            letterSpacing: '0.5px',
+            background: 'transparent',
+            border: 'none',
+            color: '#6b7280',
+            cursor: 'pointer',
+            padding: '2px 6px',
+            fontSize: '12px',
+            borderRadius: '4px',
+            transition: 'all 0.2s ease',
           }}
+          onMouseEnter={e => (e.currentTarget.style.color = '#088d95')}
+          onMouseLeave={e => (e.currentTarget.style.color = '#6b7280')}
+          title={isCollapsed ? 'Show' : 'Hide'}
         >
-          {t('days') || 'Days'}
-        </div>
-        <div className="stage-tabs-row">
-          {Array.from({ length: numStages }, (_, i) => i + 1).map(stage => (
-            <button
-              key={stage}
-              onClick={() => handleStageClick(stage)}
-              className={`stage-tab ${activeStage === stage ? 'active' : ''}`}
-              style={
-                {
-                  '--stage-color': getStageColor(tourType, stage - 1),
-                } as React.CSSProperties
-              }
-            >
-              {stage}
-            </button>
-          ))}
-        </div>
+          <i className={`fas fa-chevron-${isCollapsed ? 'down' : 'up'}`}></i>
+        </button>
       </div>
 
-      {/* Stage Details - Show all stages or only selected based on user action */}
-      {route && (
-        <div className="all-stages-container">
-          {Array.from({ length: numStages }, (_, i) => i + 1)
-            .filter(stage => !hasManuallySelected || stage === activeStage)
-            .map(stage => {
-              const stageStats = getStageStatsForStage(stage);
-              if (!stageStats) return null;
-              const isActive = activeStage === stage;
-
-              return (
-                <div
-                  key={stage}
-                  className={`stage-details-content ${
-                    isActive ? 'active' : ''
+      {/* Collapsible content */}
+      {!isCollapsed && (
+        <>
+          {/* Difficulty Section */}
+          <div style={{ padding: '0 4px', marginBottom: '12px' }}>
+            <div
+              style={{
+                fontSize: '10px',
+                textTransform: 'uppercase',
+                color: '#6b7280', // gray-500
+                fontWeight: 600,
+                marginBottom: '6px',
+                letterSpacing: '0.5px',
+              }}
+            >
+              {t('difficultyLevel') || 'Difficulty Level'}
+            </div>
+            <div className="tour-type-row">
+              {(['gold', 'silver', 'bronze'] as const).map(type => (
+                <button
+                  key={type}
+                  onClick={() => handleTourClick(type)}
+                  className={`tour-type-btn ${
+                    tourType === type ? 'active' : ''
                   }`}
-                  onClick={() => handleStageClick(stage)}
-                  style={{ cursor: 'pointer' }}
+                  data-type={type}
                 >
-                  <div
-                    className="stage-indicator"
-                    style={{ backgroundColor: stageStats.color }}
-                  />
-                  <div className="stage-info">
+                  <span className="tour-label">
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Days Section */}
+          <div style={{ padding: '0 4px', marginBottom: '4px' }}>
+            <div
+              style={{
+                fontSize: '10px',
+                textTransform: 'uppercase',
+                color: '#6b7280', // gray-500
+                fontWeight: 600,
+                marginBottom: '6px',
+                letterSpacing: '0.5px',
+              }}
+            >
+              {t('days') || 'Days'}
+            </div>
+            <div className="stage-tabs-row">
+              {Array.from({ length: numStages }, (_, i) => i + 1).map(stage => (
+                <button
+                  key={stage}
+                  onClick={() => handleStageClick(stage)}
+                  className={`stage-tab ${
+                    activeStage === stage ? 'active' : ''
+                  }`}
+                  style={
+                    {
+                      '--stage-color': getStageColor(tourType, stage - 1),
+                    } as React.CSSProperties
+                  }
+                >
+                  {stage}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Stage Details - Show all stages or only selected based on user action */}
+          {route && (
+            <div className="all-stages-container">
+              {Array.from({ length: numStages }, (_, i) => i + 1)
+                .filter(stage => !hasManuallySelected || stage === activeStage)
+                .map(stage => {
+                  const stageStats = getStageStatsForStage(stage);
+                  if (!stageStats) return null;
+                  const isActive = activeStage === stage;
+
+                  return (
                     <div
-                      className="stage-title"
-                      style={{ color: stageStats.color }}
+                      key={stage}
+                      className={`stage-details-content ${
+                        isActive ? 'active' : ''
+                      }`}
+                      onClick={() => handleStageClick(stage)}
+                      style={{ cursor: 'pointer' }}
                     >
-                      {t('stage')} {stage}
+                      <div
+                        className="stage-indicator"
+                        style={{ backgroundColor: stageStats.color }}
+                      />
+                      <div className="stage-info">
+                        <div
+                          className="stage-title"
+                          style={{ color: stageStats.color }}
+                        >
+                          {t('stage')} {stage}
+                        </div>
+                        <div className="stage-stats-grid">
+                          <div className="stat-item">
+                            <i className="fas fa-route" />
+                            <span>{stageStats.distance.toFixed(1)} km</span>
+                          </div>
+                          <div className="stat-item ascent">
+                            <i className="fas fa-arrow-up" />
+                            <span>{stageStats.ascent}m</span>
+                          </div>
+                          <div className="stat-item descent">
+                            <i className="fas fa-arrow-down" />
+                            <span>{stageStats.descent}m</span>
+                          </div>
+                          <div className="stat-item elevation">
+                            <i className="fas fa-mountain" />
+                            <span>
+                              {stageStats.lowestPoint}m -{' '}
+                              {stageStats.highestPoint}m
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="stage-stats-grid">
-                      <div className="stat-item">
-                        <i className="fas fa-route" />
-                        <span>{stageStats.distance.toFixed(1)} km</span>
-                      </div>
-                      <div className="stat-item ascent">
-                        <i className="fas fa-arrow-up" />
-                        <span>{stageStats.ascent}m</span>
-                      </div>
-                      <div className="stat-item descent">
-                        <i className="fas fa-arrow-down" />
-                        <span>{stageStats.descent}m</span>
-                      </div>
-                      <div className="stat-item elevation">
-                        <i className="fas fa-mountain" />
-                        <span>
-                          {stageStats.lowestPoint}m - {stageStats.highestPoint}m
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-        </div>
+                  );
+                })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

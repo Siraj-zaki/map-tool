@@ -27,6 +27,7 @@ export default function WeatherForecast({
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Detect screen size
   useEffect(() => {
@@ -97,7 +98,7 @@ export default function WeatherForecast({
         minWidth: isMobile ? '100px' : isTablet ? '110px' : '130px',
       }}
     >
-      {/* Header */}
+      {/* Header with toggle */}
       <div
         style={{
           fontSize: isMobile ? '8px' : isTablet ? '9px' : '10px',
@@ -105,93 +106,129 @@ export default function WeatherForecast({
           color: '#088d95',
           textTransform: 'uppercase',
           letterSpacing: isMobile ? '0.5px' : '1px',
-          marginBottom: isMobile ? '4px' : isTablet ? '6px' : '10px',
-          textAlign: 'center',
+          marginBottom: isCollapsed
+            ? 0
+            : isMobile
+            ? '4px'
+            : isTablet
+            ? '6px'
+            : '10px',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
+          justifyContent: 'space-between',
           gap: isMobile ? '3px' : '6px',
         }}
       >
-        <span
-          style={{ fontSize: isMobile ? '9px' : isTablet ? '10px' : '12px' }}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: isMobile ? '3px' : '6px',
+          }}
         >
-          ☁️
-        </span>
-        {displayDays}-Day
+          <span
+            style={{ fontSize: isMobile ? '9px' : isTablet ? '10px' : '12px' }}
+          >
+            ☁️
+          </span>
+          {displayDays}-Day
+        </div>
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: '#6b7280',
+            cursor: 'pointer',
+            padding: '2px',
+            fontSize: isMobile ? '8px' : '10px',
+            transition: 'color 0.2s ease',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.color = '#088d95')}
+          onMouseLeave={e => (e.currentTarget.style.color = '#6b7280')}
+          title={isCollapsed ? 'Show' : 'Hide'}
+        >
+          <i className={`fas fa-chevron-${isCollapsed ? 'down' : 'up'}`}></i>
+        </button>
       </div>
 
-      {/* Forecast Items */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: isMobile ? '2px' : '4px',
-        }}
-      >
-        {displayForecast.map((day, index) => (
-          <div
-            key={day.date}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: isMobile ? '4px' : isTablet ? '6px' : '10px',
-              padding: isMobile ? '4px 5px' : isTablet ? '5px 7px' : '8px 10px',
-              borderRadius: isMobile ? '4px' : '8px',
-              background:
-                index === 0
-                  ? 'rgba(8, 141, 149, 0.2)'
-                  : 'rgba(30, 42, 51, 0.5)',
-              border:
-                index === 0 ? '1px solid #088d95' : '1px solid transparent',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            {/* Weather Icon */}
+      {/* Collapsible Forecast Items */}
+      {!isCollapsed && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: isMobile ? '2px' : '4px',
+          }}
+        >
+          {displayForecast.map((day, index) => (
             <div
+              key={day.date}
               style={{
-                fontSize: isMobile ? '12px' : isTablet ? '14px' : '20px',
-                width: isMobile ? '16px' : isTablet ? '20px' : '28px',
-                height: isMobile ? '16px' : isTablet ? '20px' : '28px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
+                gap: isMobile ? '4px' : isTablet ? '6px' : '10px',
+                padding: isMobile
+                  ? '4px 5px'
+                  : isTablet
+                  ? '5px 7px'
+                  : '8px 10px',
+                borderRadius: isMobile ? '4px' : '8px',
+                background:
+                  index === 0
+                    ? 'rgba(8, 141, 149, 0.2)'
+                    : 'rgba(30, 42, 51, 0.5)',
+                border:
+                  index === 0 ? '1px solid #088d95' : '1px solid transparent',
+                transition: 'all 0.2s ease',
               }}
             >
-              {day.icon}
-            </div>
+              {/* Weather Icon */}
+              <div
+                style={{
+                  fontSize: isMobile ? '12px' : isTablet ? '14px' : '20px',
+                  width: isMobile ? '16px' : isTablet ? '20px' : '28px',
+                  height: isMobile ? '16px' : isTablet ? '20px' : '28px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {day.icon}
+              </div>
 
-            {/* Day Name */}
-            <div
-              style={{
-                fontSize: isMobile ? '9px' : isTablet ? '10px' : '12px',
-                fontWeight: '600',
-                color: index === 0 ? '#088d95' : 'rgba(255, 255, 255, 0.7)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                flex: 1,
-                textAlign: 'left',
-              }}
-            >
-              {day.dayName.slice(0, 3)}
-            </div>
+              {/* Day Name */}
+              <div
+                style={{
+                  fontSize: isMobile ? '9px' : isTablet ? '10px' : '12px',
+                  fontWeight: '600',
+                  color: index === 0 ? '#088d95' : 'rgba(255, 255, 255, 0.7)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  flex: 1,
+                  textAlign: 'left',
+                }}
+              >
+                {day.dayName.slice(0, 3)}
+              </div>
 
-            {/* Temperature */}
-            <div
-              style={{
-                fontSize: isMobile ? '10px' : isTablet ? '11px' : '14px',
-                fontWeight: '700',
-                color: '#fff',
-                minWidth: isMobile ? '24px' : isTablet ? '30px' : '40px',
-                textAlign: 'right',
-                fontFamily: 'system-ui, -apple-system, sans-serif',
-              }}
-            >
-              {day.tempMax}°
+              {/* Temperature */}
+              <div
+                style={{
+                  fontSize: isMobile ? '10px' : isTablet ? '11px' : '14px',
+                  fontWeight: '700',
+                  color: '#fff',
+                  minWidth: isMobile ? '24px' : isTablet ? '30px' : '40px',
+                  textAlign: 'right',
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                }}
+              >
+                {day.tempMax}°
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

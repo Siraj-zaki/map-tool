@@ -62,9 +62,21 @@ function calculateDistance(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// POI icon image path
-const POI_ICON_IMAGE = '/images/gipfel_profil1.png';
-const POI_ICON_SIZE = 24; // Size in pixels
+// POI icon images by type
+const POI_ICONS: Record<string, string> = {
+  highlight: '/images/highlight-ico.png',
+  gipfel: '/images/mountsin-ico.png', // Note: typo in filename
+  restaurant: '/images/resturant-ico.png', // Note: typo in filename
+  hotel: '/images/hotel-ico.png',
+};
+const POI_ICON_FALLBACK = '/images/highlight-ico.png';
+const POI_ICON_SIZE = 34; // Size in pixels
+
+// Helper to get POI icon based on type
+function getPoiIcon(poiType: string | undefined): string {
+  if (!poiType) return POI_ICON_FALLBACK;
+  return POI_ICONS[poiType.toLowerCase()] || POI_ICON_FALLBACK;
+}
 
 // Margins for chart - reduced bottom margin since brush is removed
 const margin = { top: 15, right: 20, bottom: 35, left: 50 };
@@ -270,12 +282,15 @@ function ElevationChart({
 
         setCurrentGrade(grade);
 
-        // Calculate cumulative elevation (sum of all elevations from start to current point)
-        let totalElevation = 0;
-        for (let i = 0; i <= idx; i++) {
-          totalElevation += allData[i].elevation;
+        // Calculate cumulative elevation GAIN (sum of positive elevation changes from start to current point)
+        let totalAscent = 0;
+        for (let i = 1; i <= idx; i++) {
+          const elevChange = allData[i].elevation - allData[i - 1].elevation;
+          if (elevChange > 0) {
+            totalAscent += elevChange;
+          }
         }
-        setCumulativeAscent(totalElevation);
+        setCumulativeAscent(totalAscent);
 
         showTooltip({
           tooltipData: closestPoint,
@@ -489,7 +504,7 @@ function ElevationChart({
                   />
                 )}
                 <image
-                  href={POI_ICON_IMAGE}
+                  href={getPoiIcon(poiData.poi.type)}
                   x={-POI_ICON_SIZE / 2}
                   y={-POI_ICON_SIZE / 2}
                   width={POI_ICON_SIZE}
@@ -587,7 +602,7 @@ function ElevationChart({
                   />
                 )}
                 <image
-                  href={POI_ICON_IMAGE}
+                  href={getPoiIcon(poiData.poi.type)}
                   x={-POI_ICON_SIZE / 2}
                   y={-POI_ICON_SIZE / 2}
                   width={POI_ICON_SIZE}
@@ -642,19 +657,28 @@ function ElevationChart({
           left={tooltipLeft}
           style={tooltipStyles}
         >
-          <div>
-            <strong>{t('distance')}:</strong> {tooltipData.distance.toFixed(1)}{' '}
-            km
+          {/* Nach: distance (time, ↗ cumulative ascent) */}
+          <div style={{ marginBottom: '4px' }}>
+            <strong>{t('to', 'Nach')}:</strong>{' '}
+            <span style={{ color: '#088d95' }}>
+              {tooltipData.distance.toFixed(1)} km
+            </span>
+            <span style={{ color: '#9ca3af', marginLeft: '6px' }}>
+              (↗ {Math.round(cumulativeAscent).toLocaleString()} m)
+            </span>
           </div>
+          {/* Höhenmeter (current elevation) */}
           <div>
-            <strong>{t('elevation')}:</strong> {tooltipData.elevation} m
+            <strong>{t('elevation', 'Höhenmeter')}:</strong>{' '}
+            <span>{Math.round(tooltipData.elevation).toLocaleString()} m</span>
           </div>
+          {/* Steigung (grade) */}
           <div>
-            <strong>{t('grade', 'Grade')}:</strong> {currentGrade.toFixed(1)}%
-          </div>
-          <div>
-            <strong>{t('totalAscent', 'Total Elevation')}:</strong>{' '}
-            {Math.round(cumulativeAscent).toLocaleString()} m
+            <strong>{t('grade', 'Steigung')}:</strong>{' '}
+            <span style={{ color: currentGrade >= 0 ? '#22c55e' : '#ef4444' }}>
+              {currentGrade >= 0 ? '↗' : '↘'}{' '}
+              {Math.abs(currentGrade).toFixed(1)}%
+            </span>
           </div>
         </TooltipWithBounds>
       )}
@@ -671,7 +695,7 @@ function ElevationChart({
           }}
         >
           <img
-            src={POI_ICON_IMAGE}
+            src={getPoiIcon(hoveredPoi?.type)}
             alt=""
             className="poi-tooltip-icon"
             style={{ width: '18px', height: '18px' }}

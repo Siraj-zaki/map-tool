@@ -6,41 +6,59 @@ import './POISidebar.css';
 interface POISidebarProps {
   poi: POI | null;
   routeStartPoint?: [number, number];
+  routeGeometry?: [number, number][]; // Full route coordinates
   onClose: () => void;
 }
 
-// Haversine formula to calculate distance between two points
-function calculateDistance(
-  point1: [number, number],
-  point2: [number, number]
+// Haversine formula to calculate distance between two points in km
+function haversineDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
 ): number {
   const R = 6371; // Earth's radius in km
-  const [lng1, lat1] = point1;
-  const [lng2, lat2] = point2;
-
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
       Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+// Calculate minimum distance from POI to route (in meters)
+function calculateDistanceToRoute(
+  poiLngLat: [number, number],
+  routeGeometry: [number, number][]
+): number {
+  if (!routeGeometry || routeGeometry.length === 0) return -1;
+
+  let minDistance = Infinity;
+  const poiLat = poiLngLat[1];
+  const poiLng = poiLngLat[0];
+
+  for (const point of routeGeometry) {
+    const distance = haversineDistance(poiLat, poiLng, point[1], point[0]);
+    if (distance < minDistance) {
+      minDistance = distance;
+    }
+  }
+
+  return Math.round(minDistance * 1000); // Return in meters
 }
 
 export default function POISidebar({
   poi,
-  routeStartPoint,
+  routeStartPoint: _routeStartPoint,
+  routeGeometry,
   onClose,
 }: POISidebarProps) {
   const { t } = useTranslation();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [activeCategory, setActiveCategory] = useState<
-    'overview' | 'facilities' | 'location'
+    'overview' | 'facilities'
   >('overview');
 
   if (!poi) return null;
@@ -199,16 +217,6 @@ export default function POISidebar({
               <i className="fas fa-wrench"></i>
               <span>{t('facilitiesAndService')}</span>
             </button>
-            <button
-              className={`category-btn ${
-                activeCategory === 'location' ? 'active' : ''
-              }`}
-              data-category="location"
-              onClick={() => setActiveCategory('location')}
-            >
-              <i className="fas fa-map-pin"></i>
-              <span>{t('location')}</span>
-            </button>
           </div>
 
           <div className="category-content">
@@ -222,6 +230,43 @@ export default function POISidebar({
               <p className="poi-description">
                 {poi.description || t('noDescriptionAvailable')}
               </p>
+
+              {/* Distance to Route */}
+              {routeGeometry && routeGeometry.length > 0 && poi.lngLat && (
+                <div
+                  className="poi-info-item"
+                  style={{
+                    marginTop: '12px',
+                    padding: '8px 12px',
+                    // background: 'rgba(8, 141, 149, 0.1)',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(8, 141, 149, 0.3)',
+                  }}
+                >
+                  <i
+                    className="fas fa-route"
+                    style={{ color: '#088d95', marginRight: '8px' }}
+                  ></i>
+                  <span>{t('distanceToRoute')}:</span>
+                  <span
+                    style={{
+                      color: '#088d95',
+                      fontWeight: 600,
+                      marginLeft: '6px',
+                    }}
+                  >
+                    {(() => {
+                      const distanceMeters = calculateDistanceToRoute(
+                        poi.lngLat,
+                        routeGeometry
+                      );
+                      if (distanceMeters < 0) return t('unknown');
+                      if (distanceMeters < 1000) return `${distanceMeters} m`;
+                      return `${(distanceMeters / 1000).toFixed(1)} km`;
+                    })()}
+                  </span>
+                </div>
+              )}
 
               {poi.best_time && (
                 <div className="poi-additional-info">
@@ -254,36 +299,6 @@ export default function POISidebar({
               ) : (
                 <p className="no-facilities">{t('noFacilitiesAvailable')}</p>
               )}
-            </div>
-
-            {/* Location Panel */}
-            <div
-              className={`category-panel ${
-                activeCategory === 'location' ? 'active' : ''
-              }`}
-              id="location-panel"
-            >
-              <div className="location-coordinates">
-                <i className="fas fa-map-marker-alt"></i>
-                <span>
-                  {t('coordinates')}:{' '}
-                  {parseFloat(String(poi.lngLat[0])).toFixed(2)},{' '}
-                  {parseFloat(String(poi.lngLat[1])).toFixed(2)}
-                </span>
-              </div>
-
-              <div className="route-distance-info">
-                <p>
-                  <i className="fas fa-route"></i>
-                  {t('distanceToRoute')}:{' '}
-                  {routeStartPoint
-                    ? parseFloat(
-                        String(calculateDistance(routeStartPoint, poi.lngLat))
-                      ).toFixed(1)
-                    : '0.0'}{' '}
-                  km
-                </p>
-              </div>
             </div>
           </div>
         </div>

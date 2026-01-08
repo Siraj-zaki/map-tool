@@ -12,6 +12,7 @@ import {
   getGPXRouteName,
   parseGPX,
   processGPXToRoute,
+  processGPXWithAccurateStats,
 } from '../utils/gpxParser';
 
 mapboxgl.accessToken =
@@ -261,77 +262,196 @@ export default function Editor() {
           // No waypoints yet and no end point - add as first waypoint
           setWaypoints([coord]);
         } else {
-          // Find the best position to insert the new waypoint
-          // Build the full path: start -> waypoints -> end (if exists)
-          const fullPath: [number, number][] = [startPoint];
-          waypoints.forEach(wp => fullPath.push(wp));
-          if (endPoint) fullPath.push(endPoint);
+          // For GPX routes: check if click is ON the route or OFF the route
+          if (isGpxRoute && routeGeometry && routeGeometry.length > 0) {
+            // Find the closest point on the GPX route to the clicked location
+            let minDist = Infinity;
+            let closestPointOnRoute = coord;
+            let closestIndex = 0;
 
-          // Function to calculate perpendicular distance from point to line segment
-          const pointToSegmentDistance = (
-            point: [number, number],
-            segStart: [number, number],
-            segEnd: [number, number]
-          ): number => {
-            const dx = segEnd[0] - segStart[0];
-            const dy = segEnd[1] - segStart[1];
-            const lengthSq = dx * dx + dy * dy;
+            for (let i = 0; i < routeGeometry.length; i++) {
+              const rc = routeGeometry[i];
+              const d = Math.sqrt(
+                Math.pow(coord[0] - rc[0], 2) + Math.pow(coord[1] - rc[1], 2)
+              );
+              if (d < minDist) {
+                minDist = d;
+                closestPointOnRoute = rc;
+                closestIndex = i;
+              }
+            }
 
-            if (lengthSq === 0) {
-              // Segment is a point
-              return Math.sqrt(
-                Math.pow(point[0] - segStart[0], 2) +
-                  Math.pow(point[1] - segStart[1], 2)
+            // Distance threshold: ~0.001 degrees ≈ 100 meters
+            // If click is within threshold, add waypoint ON the existing route
+            // If click is farther, recalculate route through the new waypoint
+            const DISTANCE_THRESHOLD = 0.001; // ~100 meters
+
+            if (minDist <= DISTANCE_THRESHOLD) {
+              // ON THE ROUTE: Add waypoint at closest point, preserve GPX data
+              console.log(
+                `[Editor] Click is ON route (${(minDist * 111000).toFixed(
+                  0
+                )}m from route), adding marker`
+              );
+
+              // Find the correct position in waypoints array based on route order
+              const waypointIndices = waypoints.map(wp => {
+                let bestIdx = 0;
+                let bestDist = Infinity;
+                for (let i = 0; i < routeGeometry.length; i++) {
+                  const d = Math.sqrt(
+                    Math.pow(wp[0] - routeGeometry[i][0], 2) +
+                      Math.pow(wp[1] - routeGeometry[i][1], 2)
+                  );
+                  if (d < bestDist) {
+                    bestDist = d;
+                    bestIdx = i;
+                  }
+                }
+                return bestIdx;
+              });
+
+              // Find insert position based on route order
+              let insertIndex = 0;
+              for (let i = 0; i < waypointIndices.length; i++) {
+                if (closestIndex > waypointIndices[i]) {
+                  insertIndex = i + 1;
+                }
+              }
+
+              // Add waypoint at closest point on the route (preserving GPX geometry)
+              setWaypoints(prev => {
+                const newWaypoints = [...prev];
+                newWaypoints.splice(insertIndex, 0, closestPointOnRoute);
+                return newWaypoints;
+              });
+
+              console.log(
+                `[Editor] GPX mode: Added waypoint at closest route point, waypoint #${
+                  insertIndex + 1
+                }`
+              );
+              // GPX geometry and elevation data are PRESERVED
+            } else {
+              // OFF THE ROUTE (new road): Recalculate entire route through this waypoint
+              console.log(
+                `[Editor] Click is OFF route (${(minDist * 111000).toFixed(
+                  0
+                )}m from route), recalculating via Directions API`
+              );
+
+              // Find insert position based on route order
+              const waypointIndices = waypoints.map(wp => {
+                let bestIdx = 0;
+                let bestDist = Infinity;
+                for (let i = 0; i < routeGeometry.length; i++) {
+                  const d = Math.sqrt(
+                    Math.pow(wp[0] - routeGeometry[i][0], 2) +
+                      Math.pow(wp[1] - routeGeometry[i][1], 2)
+                  );
+                  if (d < bestDist) {
+                    bestDist = d;
+                    bestIdx = i;
+                  }
+                }
+                return bestIdx;
+              });
+
+              let insertIndex = 0;
+              for (let i = 0; i < waypointIndices.length; i++) {
+                if (closestIndex > waypointIndices[i]) {
+                  insertIndex = i + 1;
+                }
+              }
+
+              // Clear GPX mode and trigger recalculation
+              setIsGpxRoute(false);
+              setRouteGeometry(null);
+              setElevationData(null);
+              setWaypoints(prev => {
+                const newWaypoints = [...prev];
+                newWaypoints.splice(insertIndex, 0, coord);
+                return newWaypoints;
+              });
+
+              console.log(
+                `[Editor] Route will be recalculated through new waypoint at position ${
+                  insertIndex + 1
+                }`
               );
             }
+          } else {
+            // Non-GPX route: use the original smart insertion logic
+            // Build the full path: start -> waypoints -> end (if exists)
+            const fullPath: [number, number][] = [startPoint];
+            waypoints.forEach(wp => fullPath.push(wp));
+            if (endPoint) fullPath.push(endPoint);
 
-            // Project point onto the line segment
-            let t =
-              ((point[0] - segStart[0]) * dx + (point[1] - segStart[1]) * dy) /
-              lengthSq;
-            t = Math.max(0, Math.min(1, t)); // Clamp to segment
+            // Function to calculate perpendicular distance from point to line segment
+            const pointToSegmentDistance = (
+              point: [number, number],
+              segStart: [number, number],
+              segEnd: [number, number]
+            ): number => {
+              const dx = segEnd[0] - segStart[0];
+              const dy = segEnd[1] - segStart[1];
+              const lengthSq = dx * dx + dy * dy;
 
-            const projX = segStart[0] + t * dx;
-            const projY = segStart[1] + t * dy;
+              if (lengthSq === 0) {
+                // Segment is a point
+                return Math.sqrt(
+                  Math.pow(point[0] - segStart[0], 2) +
+                    Math.pow(point[1] - segStart[1], 2)
+                );
+              }
 
-            return Math.sqrt(
-              Math.pow(point[0] - projX, 2) + Math.pow(point[1] - projY, 2)
-            );
-          };
+              // Project point onto the line segment
+              let t =
+                ((point[0] - segStart[0]) * dx +
+                  (point[1] - segStart[1]) * dy) /
+                lengthSq;
+              t = Math.max(0, Math.min(1, t)); // Clamp to segment
 
-          // Find the closest segment
-          let minDist = Infinity;
-          let insertIndex = waypoints.length; // Default to end
+              const projX = segStart[0] + t * dx;
+              const projY = segStart[1] + t * dy;
 
-          for (let i = 0; i < fullPath.length - 1; i++) {
-            const dist = pointToSegmentDistance(
-              coord,
-              fullPath[i],
-              fullPath[i + 1]
-            );
-            if (dist < minDist) {
-              minDist = dist;
-              // i=0 means between start and first waypoint (or end if no waypoints)
-              // So insertIndex should be i (insert at position i in waypoints array)
-              insertIndex = i;
+              return Math.sqrt(
+                Math.pow(point[0] - projX, 2) + Math.pow(point[1] - projY, 2)
+              );
+            };
+
+            // Find the closest segment
+            let minDist = Infinity;
+            let insertIndex = waypoints.length; // Default to end
+
+            for (let i = 0; i < fullPath.length - 1; i++) {
+              const dist = pointToSegmentDistance(
+                coord,
+                fullPath[i],
+                fullPath[i + 1]
+              );
+              if (dist < minDist) {
+                minDist = dist;
+                insertIndex = i;
+              }
             }
+
+            // Insert the waypoint at the correct position
+            // Clear GPX mode since we're modifying a non-GPX route
+            setIsGpxRoute(false);
+            setRouteGeometry(null);
+            setWaypoints(prev => {
+              const newWaypoints = [...prev];
+              newWaypoints.splice(insertIndex, 0, coord);
+              return newWaypoints;
+            });
+
+            console.log(
+              `[Editor] Inserted waypoint at index ${insertIndex} (will be waypoint #${
+                insertIndex + 1
+              })`
+            );
           }
-
-          // Insert the waypoint at the correct position
-          // Also clear GPX mode since we're modifying the route
-          setIsGpxRoute(false);
-          setRouteGeometry(null);
-          setWaypoints(prev => {
-            const newWaypoints = [...prev];
-            newWaypoints.splice(insertIndex, 0, coord);
-            return newWaypoints;
-          });
-
-          console.log(
-            `[Editor] Inserted waypoint at index ${insertIndex} (will be waypoint #${
-              insertIndex + 1
-            })`
-          );
         }
       }
     };
@@ -360,17 +480,23 @@ export default function Editor() {
         const el = document.createElement('div');
         el.innerHTML =
           '<i class="fa-solid fa-play" style="color: white; font-size: 12px;"></i>';
-        el.className =
-          'w-8 h-8 bg-green-500 rounded-full flex items-center justify-center border-2 border-white cursor-move pl-0.5';
-        const marker = new mapboxgl.Marker({ element: el, draggable: true })
+        el.className = isGpxRoute
+          ? 'w-8 h-8 bg-green-500 rounded-full flex items-center justify-center border-2 border-white pl-0.5'
+          : 'w-8 h-8 bg-green-500 rounded-full flex items-center justify-center border-2 border-white cursor-move pl-0.5';
+        // Only allow dragging in non-GPX mode
+        const marker = new mapboxgl.Marker({
+          element: el,
+          draggable: !isGpxRoute,
+        })
           .setLngLat(startPoint)
           .addTo(map.current);
-        marker.on('dragend', () => {
-          // Clear GPX mode to recalculate route via Directions API
-          setIsGpxRoute(false);
-          setRouteGeometry(null);
-          setStartPoint([marker.getLngLat().lng, marker.getLngLat().lat]);
-        });
+        if (!isGpxRoute) {
+          marker.on('dragend', () => {
+            setIsGpxRoute(false);
+            setRouteGeometry(null);
+            setStartPoint([marker.getLngLat().lng, marker.getLngLat().lat]);
+          });
+        }
         markersRef.current.push(marker);
       }
 
@@ -422,14 +548,70 @@ export default function Editor() {
         });
 
         marker.on('dragend', () => {
-          // Clear GPX mode to recalculate route via Directions API
-          setIsGpxRoute(false);
-          setRouteGeometry(null);
-          setWaypoints(prev => {
-            const newWp = [...prev];
-            newWp[index] = [marker.getLngLat().lng, marker.getLngLat().lat];
-            return newWp;
-          });
+          const draggedLngLat = [
+            marker.getLngLat().lng,
+            marker.getLngLat().lat,
+          ] as [number, number];
+
+          // In GPX mode: check if dragged ON route or OFF route
+          if (isGpxRoute && routeGeometry && routeGeometry.length > 0) {
+            let minDist = Infinity;
+            let closestPoint = draggedLngLat;
+
+            for (const rc of routeGeometry) {
+              const d = Math.sqrt(
+                Math.pow(draggedLngLat[0] - rc[0], 2) +
+                  Math.pow(draggedLngLat[1] - rc[1], 2)
+              );
+              if (d < minDist) {
+                minDist = d;
+                closestPoint = rc;
+              }
+            }
+
+            // Distance threshold: ~0.001 degrees ≈ 100 meters
+            const DISTANCE_THRESHOLD = 0.001;
+
+            if (minDist <= DISTANCE_THRESHOLD) {
+              // ON THE ROUTE: Snap to closest point, preserve GPX data
+              console.log(
+                `[Editor] Waypoint dragged ON route (${(
+                  minDist * 111000
+                ).toFixed(0)}m), snapping`
+              );
+              marker.setLngLat(closestPoint);
+              setWaypoints(prev => {
+                const newWp = [...prev];
+                newWp[index] = closestPoint;
+                return newWp;
+              });
+              // GPX geometry preserved!
+            } else {
+              // OFF THE ROUTE: Recalculate route through new location
+              console.log(
+                `[Editor] Waypoint dragged OFF route (${(
+                  minDist * 111000
+                ).toFixed(0)}m), recalculating via Directions API`
+              );
+              setIsGpxRoute(false);
+              setRouteGeometry(null);
+              setElevationData(null);
+              setWaypoints(prev => {
+                const newWp = [...prev];
+                newWp[index] = draggedLngLat;
+                return newWp;
+              });
+            }
+          } else {
+            // Non-GPX mode: recalculate route via Directions API
+            setIsGpxRoute(false);
+            setRouteGeometry(null);
+            setWaypoints(prev => {
+              const newWp = [...prev];
+              newWp[index] = draggedLngLat;
+              return newWp;
+            });
+          }
         });
         markersRef.current.push(marker);
       });
@@ -439,17 +621,23 @@ export default function Editor() {
         const el = document.createElement('div');
         el.innerHTML =
           '<i class="fa-solid fa-flag-checkered" style="color: white; font-size: 12px;"></i>';
-        el.className =
-          'w-8 h-8 bg-red-500 rounded-full flex items-center justify-center border-2 border-white cursor-move';
-        const marker = new mapboxgl.Marker({ element: el, draggable: true })
+        el.className = isGpxRoute
+          ? 'w-8 h-8 bg-red-500 rounded-full flex items-center justify-center border-2 border-white'
+          : 'w-8 h-8 bg-red-500 rounded-full flex items-center justify-center border-2 border-white cursor-move';
+        // Only allow dragging in non-GPX mode
+        const marker = new mapboxgl.Marker({
+          element: el,
+          draggable: !isGpxRoute,
+        })
           .setLngLat(endPoint)
           .addTo(map.current!);
-        marker.on('dragend', () => {
-          // Clear GPX mode to recalculate route via Directions API
-          setIsGpxRoute(false);
-          setRouteGeometry(null);
-          setEndPoint([marker.getLngLat().lng, marker.getLngLat().lat]);
-        });
+        if (!isGpxRoute) {
+          marker.on('dragend', () => {
+            setIsGpxRoute(false);
+            setRouteGeometry(null);
+            setEndPoint([marker.getLngLat().lng, marker.getLngLat().lat]);
+          });
+        }
         markersRef.current.push(marker);
       }
 
@@ -661,6 +849,11 @@ export default function Editor() {
             ...prev,
             distance: Number((totalDistance / 1000).toFixed(2)),
             duration: Math.round(totalDuration / 60),
+            // Reset elevation stats since route changed - will be recalculated
+            highestPoint: 0,
+            lowestPoint: 0,
+            totalAscent: 0,
+            totalDescent: 0,
           }));
 
           // Clear elevation data since route changed - user needs to recalculate
@@ -828,6 +1021,52 @@ export default function Editor() {
     }
   }, [highlightPosition, mapLoaded]);
 
+  // Auto-calculate elevation when route geometry changes (for non-GPX routes)
+  useEffect(() => {
+    // Skip if no route or in GPX mode (GPX has its own elevation data)
+    if (!routeGeometry || routeGeometry.length === 0 || isGpxRoute) return;
+    // Skip if we already have elevation data
+    if (elevationData && elevationData.length > 0) return;
+    // Skip if already calculating
+    if (calculatingElevation) return;
+    // Skip if map not ready
+    if (!map.current || !mapLoaded) return;
+
+    console.log('[Editor] Auto-calculating elevation for non-GPX route...');
+
+    // Use a timer to debounce rapid changes
+    const timer = setTimeout(async () => {
+      setCalculatingElevation(true);
+      try {
+        const elevData = await getMapboxElevation(map.current!, routeGeometry);
+        console.log('[Editor] Auto-elevation result:', elevData);
+
+        // Create elevation data array
+        const distanceKm = routeStats.distance;
+        const elevationDataArray = elevData.elevations.map((elev, i) => ({
+          elevation: elev,
+          distance:
+            i === 0 ? 0 : (distanceKm * i) / (elevData.elevations.length - 1),
+        }));
+        setElevationData(elevationDataArray);
+
+        setRouteStats(prev => ({
+          ...prev,
+          highestPoint: elevData.highestPoint,
+          lowestPoint: elevData.lowestPoint,
+          totalAscent: elevData.totalAscent,
+          totalDescent: elevData.totalDescent,
+        }));
+      } catch (error) {
+        console.error('[Editor] Auto-elevation calculation failed:', error);
+      } finally {
+        setCalculatingElevation(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [routeGeometry, isGpxRoute, mapLoaded]);
+
   // Handler for elevation profile hover - updates map marker
   const handleElevationPositionChange = (
     pos: {
@@ -888,6 +1127,17 @@ export default function Editor() {
 
   // Calculate elevation data manually (called from button or before save)
   const calculateElevation = async () => {
+    // If we already have accurate elevation data from GPX, don't overwrite it
+    if (elevationData && elevationData.length > 0 && isGpxRoute) {
+      console.log(
+        '[Editor] Using existing GPX elevation data, skipping Mapbox calculation'
+      );
+      alert(
+        'Elevation data already available from GPX file. No recalculation needed.'
+      );
+      return;
+    }
+
     if (!routeGeometry || routeGeometry.length === 0) {
       alert('Please create a route first');
       return;
@@ -975,13 +1225,30 @@ export default function Editor() {
             i === 0 ? 0 : (distanceKm * i) / (elevData.elevations.length - 1),
         }));
 
+        // PRESERVE user-edited stats - only use calculated values if user hasn't edited them
+        // A value of 0 indicates it hasn't been edited (or user explicitly set to 0)
         finalRouteStats = {
           ...routeStats,
-          highestPoint: elevData.highestPoint,
-          lowestPoint: elevData.lowestPoint,
-          totalAscent: elevData.totalAscent,
-          totalDescent: elevData.totalDescent,
+          // Use user-edited values if they exist, otherwise use calculated
+          highestPoint:
+            routeStats.highestPoint > 0
+              ? routeStats.highestPoint
+              : elevData.highestPoint,
+          lowestPoint:
+            routeStats.lowestPoint > 0
+              ? routeStats.lowestPoint
+              : elevData.lowestPoint,
+          totalAscent:
+            routeStats.totalAscent > 0
+              ? routeStats.totalAscent
+              : elevData.totalAscent,
+          totalDescent:
+            routeStats.totalDescent > 0
+              ? routeStats.totalDescent
+              : elevData.totalDescent,
         };
+
+        console.log('[Editor] Saving with stats:', finalRouteStats);
 
         // Update state for future reference
         setElevationData(finalElevationData);
@@ -1063,6 +1330,11 @@ export default function Editor() {
 
     try {
       const text = await file.text();
+
+      // Use accurate stats processing for statistics
+      const accurateStats = processGPXWithAccurateStats(text);
+
+      // Use original processing for waypoints (needed for route editing)
       const points = parseGPX(text);
       const routeData = processGPXToRoute(points);
       const routeName = getGPXRouteName(text);
@@ -1074,27 +1346,54 @@ export default function Editor() {
       if (map.current?.getLayer('route')) map.current.removeLayer('route');
       if (map.current?.getSource('route')) map.current.removeSource('route');
 
-      // Set all the route data
-      setStartPoint(routeData.startPoint);
-      setEndPoint(routeData.endPoint);
+      // Set all the route data using accurate coordinates
+      setStartPoint([
+        accurateStats.coordinates[0][0],
+        accurateStats.coordinates[0][1],
+      ]);
+      setEndPoint([
+        accurateStats.coordinates[accurateStats.coordinates.length - 1][0],
+        accurateStats.coordinates[accurateStats.coordinates.length - 1][1],
+      ]);
       setWaypoints(routeData.waypoints);
-      setRouteGeometry(routeData.routeGeometry);
+      setRouteGeometry(accurateStats.coordinates);
       setPois([]);
+
+      // Use accurate elevation data
+      setElevationData(accurateStats.elevationData);
 
       console.log(
         '[Editor] GPX geometry saved:',
-        routeData.routeGeometry.length,
+        accurateStats.coordinates.length,
         'coordinates'
+      );
+      console.log(
+        '[Editor] GPX accurate stats:',
+        'Distance:',
+        accurateStats.distanceKm,
+        'km,',
+        'Duration:',
+        accurateStats.durationFormatted,
+        ',',
+        'Ascent:',
+        accurateStats.totalAscentM,
+        'm,',
+        'Descent:',
+        accurateStats.totalDescentM,
+        'm'
       );
 
       if (routeName && !name) setName(routeName);
+
+      // Set accurate route statistics
       setRouteStats(prev => ({
         ...prev,
-        distance: Number(routeData.totalDistance.toFixed(2)),
-        highestPoint: Math.round(routeData.highestPoint),
-        lowestPoint: Math.round(routeData.lowestPoint),
-        totalAscent: Math.round(routeData.elevationGain),
-        totalDescent: Math.round(routeData.elevationLoss),
+        distance: accurateStats.distanceKm,
+        duration: accurateStats.durationMinutes,
+        highestPoint: accurateStats.highestPointM,
+        lowestPoint: accurateStats.lowestPointM,
+        totalAscent: accurateStats.totalAscentM,
+        totalDescent: accurateStats.totalDescentM,
       }));
 
       // Draw the route immediately on the map (don't wait for useEffect)
@@ -1111,7 +1410,7 @@ export default function Editor() {
             properties: {},
             geometry: {
               type: 'LineString',
-              coordinates: routeData.routeGeometry,
+              coordinates: accurateStats.coordinates,
             },
           },
         });
@@ -1126,6 +1425,17 @@ export default function Editor() {
           },
         });
         console.log('[Editor] GPX route drawn immediately on map');
+
+        // Auto-zoom to fit the entire route using fitBounds
+        const bounds = new mapboxgl.LngLatBounds();
+        accurateStats.coordinates.forEach(coord => {
+          bounds.extend(coord);
+        });
+        map.current.fitBounds(bounds, {
+          padding: { top: 100, bottom: 150, left: 350, right: 50 },
+          duration: 1000,
+        });
+        console.log('[Editor] Map zoomed to fit route bounds');
 
         // Draw markers immediately (don't wait for useEffect)
         // Clear existing markers first
@@ -1216,10 +1526,21 @@ export default function Editor() {
     if (gpxInputRef.current) gpxInputRef.current.value = '';
   };
 
+  // Calculate duration based on fixed 10.5 km/h average speed
+  const calculateRealisticDuration = () => {
+    const distanceKm = routeStats.distance;
+    const AVERAGE_SPEED_KMH = 10.5;
+    const totalTimeHours = distanceKm / AVERAGE_SPEED_KMH;
+    return Math.round(totalTimeHours * 60);
+  };
+
   const formatDuration = (minutes: number) => {
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
-    return `${h}h ${m}m`;
+    const s = 0;
+    return `${h.toString().padStart(2, '0')}:${m
+      .toString()
+      .padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -1600,47 +1921,127 @@ export default function Editor() {
             </div>
           </div>
 
-          {/* Stats */}
+          {/* Stats - Editable */}
           <div className="bg-[#0b1215] border border-[#1e2a33] rounded-lg p-3">
-            <h4 className="text-[#088d95] text-xs uppercase mb-2 font-semibold">
+            <h4 className="text-[#088d95] text-xs uppercase mb-2 font-semibold flex justify-between items-center">
               {t('routeStatistics')}
+              <span className="text-gray-500 text-[10px] normal-case font-normal">
+                (click to edit)
+              </span>
             </h4>
             <div className="space-y-1 text-sm">
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-gray-400">{t('distance')}</span>
-                <span className="text-[#088d95] font-semibold">
-                  {routeStats.distance} km
-                </span>
+                <div className="flex items-center">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={routeStats.distance}
+                    onChange={e =>
+                      setRouteStats(prev => ({
+                        ...prev,
+                        distance: parseFloat(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-20 bg-transparent text-[#088d95] font-semibold text-right border-b border-transparent hover:border-[#088d95] focus:border-[#088d95] focus:outline-none px-1"
+                  />
+                  <span className="text-[#088d95] font-semibold ml-1">km</span>
+                </div>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-gray-400">{t('duration')}</span>
-                <span className="text-[#088d95] font-semibold">
-                  {formatDuration(routeStats.duration)}
-                </span>
+                <div className="flex items-center">
+                  <input
+                    type="text"
+                    value={formatDuration(
+                      routeStats.duration || calculateRealisticDuration()
+                    )}
+                    onChange={e => {
+                      // Parse HH:MM:SS format to minutes
+                      const parts = e.target.value.split(':');
+                      if (parts.length >= 2) {
+                        const hours = parseInt(parts[0] || '0');
+                        const mins = parseInt(parts[1] || '0');
+                        setRouteStats(prev => ({
+                          ...prev,
+                          duration: hours * 60 + mins,
+                        }));
+                      }
+                    }}
+                    className="w-20 bg-transparent text-[#088d95] font-semibold text-right border-b border-transparent hover:border-[#088d95] focus:border-[#088d95] focus:outline-none px-1"
+                    placeholder="HH:MM"
+                  />
+                </div>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-gray-400">{t('highestPoint')}</span>
-                <span className="text-[#088d95] font-semibold">
-                  {routeStats.highestPoint} m
-                </span>
+                <div className="flex items-center">
+                  <input
+                    type="number"
+                    value={routeStats.highestPoint}
+                    onChange={e =>
+                      setRouteStats(prev => ({
+                        ...prev,
+                        highestPoint: parseInt(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-16 bg-transparent text-[#088d95] font-semibold text-right border-b border-transparent hover:border-[#088d95] focus:border-[#088d95] focus:outline-none px-1"
+                  />
+                  <span className="text-[#088d95] font-semibold ml-1">m</span>
+                </div>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-gray-400">{t('lowestPoint')}</span>
-                <span className="text-[#088d95] font-semibold">
-                  {routeStats.lowestPoint} m
-                </span>
+                <div className="flex items-center">
+                  <input
+                    type="number"
+                    value={routeStats.lowestPoint}
+                    onChange={e =>
+                      setRouteStats(prev => ({
+                        ...prev,
+                        lowestPoint: parseInt(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-16 bg-transparent text-[#088d95] font-semibold text-right border-b border-transparent hover:border-[#088d95] focus:border-[#088d95] focus:outline-none px-1"
+                  />
+                  <span className="text-[#088d95] font-semibold ml-1">m</span>
+                </div>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-gray-400">{t('totalAscent')}</span>
-                <span className="text-green-500 font-semibold">
-                  ↑ {routeStats.totalAscent} m
-                </span>
+                <div className="flex items-center">
+                  <span className="text-green-500">↑</span>
+                  <input
+                    type="number"
+                    value={routeStats.totalAscent}
+                    onChange={e =>
+                      setRouteStats(prev => ({
+                        ...prev,
+                        totalAscent: parseInt(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-16 bg-transparent text-green-500 font-semibold text-right border-b border-transparent hover:border-green-500 focus:border-green-500 focus:outline-none px-1"
+                  />
+                  <span className="text-green-500 font-semibold ml-1">m</span>
+                </div>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-gray-400">{t('totalDescent')}</span>
-                <span className="text-red-400 font-semibold">
-                  ↓ {routeStats.totalDescent} m
-                </span>
+                <div className="flex items-center">
+                  <span className="text-red-400">↓</span>
+                  <input
+                    type="number"
+                    value={routeStats.totalDescent}
+                    onChange={e =>
+                      setRouteStats(prev => ({
+                        ...prev,
+                        totalDescent: parseInt(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-16 bg-transparent text-red-400 font-semibold text-right border-b border-transparent hover:border-red-400 focus:border-red-400 focus:outline-none px-1"
+                  />
+                  <span className="text-red-400 font-semibold ml-1">m</span>
+                </div>
               </div>
             </div>
           </div>

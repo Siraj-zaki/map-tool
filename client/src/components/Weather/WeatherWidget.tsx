@@ -25,6 +25,7 @@ export default function WeatherWidget({
   const { i18n } = useTranslation();
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     const fetchWeather = async () => {
@@ -85,26 +86,45 @@ export default function WeatherWidget({
   }
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 bg-[#080e11] border border-[#1e2a33] rounded-lg">
-      <div className="text-2xl text-[#088d95]">
-        <i className={`fas fa-${weather.icon}`}></i>
+    <div className="bg-[#080e11] border border-[#1e2a33] rounded-lg">
+      {/* Header with toggle */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[#1e2a33]">
+        <span className="text-[#088d95] text-xs uppercase font-semibold tracking-wide">
+          Weather
+        </span>
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="bg-transparent border-none text-gray-500 hover:text-[#088d95] cursor-pointer p-1 text-xs transition-colors"
+          title={isCollapsed ? 'Show' : 'Hide'}
+        >
+          <i className={`fas fa-chevron-${isCollapsed ? 'down' : 'up'}`}></i>
+        </button>
       </div>
-      <div className="text-2xl font-semibold text-white">
-        {weather.temperature}°C
-      </div>
-      <div className="flex flex-col gap-0.5">
-        <div className="text-sm text-gray-400">{weather.condition}</div>
-        <div className="flex gap-3 text-xs text-gray-500">
-          <span>
-            <i className="fas fa-droplet text-[#088d95] mr-1"></i>
-            {weather.humidity}%
-          </span>
-          <span>
-            <i className="fas fa-wind text-[#088d95] mr-1"></i>
-            {weather.wind} km/h
-          </span>
+
+      {/* Collapsible content */}
+      {!isCollapsed && (
+        <div className="flex items-center gap-3 px-4 py-3">
+          <div className="text-2xl text-[#088d95]">
+            <i className={`fas fa-${weather.icon}`}></i>
+          </div>
+          <div className="text-2xl font-semibold text-white">
+            {weather.temperature}°C
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <div className="text-sm text-gray-400">{weather.condition}</div>
+            <div className="flex gap-3 text-xs text-gray-500">
+              <span>
+                <i className="fas fa-droplet text-[#088d95] mr-1"></i>
+                {weather.humidity}%
+              </span>
+              <span>
+                <i className="fas fa-wind text-[#088d95] mr-1"></i>
+                {weather.wind} km/h
+              </span>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
