@@ -57,124 +57,141 @@ export async function getMapboxElevation(
     `[Mapbox Elevation] Querying elevations for ${coordinates.length} points (NO SAMPLING)...`
   );
 
-  // CRITICAL: Fit map to route bounds to ensure terrain tiles are loaded for ALL coordinates
-  // queryTerrainElevation returns null for off-screen points
-  console.log(
-    '[Mapbox Elevation] Fitting map to route bounds to load terrain tiles...'
-  );
-  const bounds = new mapboxgl.LngLatBounds();
-  coordinates.forEach(coord => bounds.extend(coord));
+  // Save current map state to restore later
+  const currentCenter = map.getCenter();
+  const currentZoom = map.getZoom();
+  const currentPitch = map.getPitch();
+  const currentBearing = map.getBearing();
 
-  map.fitBounds(bounds, {
-    padding: 50,
-    duration: 0, // Instant, no animation
-    animate: false,
-  });
+  try {
+    // CRITICAL: Fit map to route bounds to ensure terrain tiles are loaded for ALL coordinates
+    // queryTerrainElevation returns null for off-screen points
+    console.log(
+      '[Mapbox Elevation] Fitting map to route bounds to load terrain tiles...'
+    );
+    const bounds = new mapboxgl.LngLatBounds();
+    coordinates.forEach(coord => bounds.extend(coord));
 
-  // Wait for terrain to be ready AFTER fitting bounds
-  await waitForTerrain(map);
+    map.fitBounds(bounds, {
+      padding: 50,
+      duration: 0, // Instant, no animation
+      animate: false,
+    });
 
-  // Additional wait for terrain tiles to load after bounds change
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  console.log('[Mapbox Elevation] Terrain should be loaded for route area');
+    // Wait for terrain to be ready AFTER fitting bounds
+    await waitForTerrain(map);
 
-  // Query elevation for EVERY coordinate - no sampling!
-  const allElevations: number[] = [];
-  let nullCount = 0;
-  let validCount = 0;
+    // Additional wait for terrain tiles to load after bounds change
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log('[Mapbox Elevation] Terrain should be loaded for route area');
 
-  // Process in batches to avoid UI blocking
-  const BATCH_SIZE = 500;
-  const numBatches = Math.ceil(coordinates.length / BATCH_SIZE);
+    // Query elevation for EVERY coordinate - no sampling!
+    const allElevations: number[] = [];
+    let nullCount = 0;
+    let validCount = 0;
 
-  console.log(
-    `[Mapbox Elevation] Processing ${numBatches} batches of ${BATCH_SIZE} points each`
-  );
+    // Process in batches to avoid UI blocking
+    const BATCH_SIZE = 500;
+    const numBatches = Math.ceil(coordinates.length / BATCH_SIZE);
 
-  for (let batch = 0; batch < numBatches; batch++) {
-    const startIdx = batch * BATCH_SIZE;
-    const endIdx = Math.min(startIdx + BATCH_SIZE, coordinates.length);
+    console.log(
+      `[Mapbox Elevation] Processing ${numBatches} batches of ${BATCH_SIZE} points each`
+    );
 
-    for (let i = startIdx; i < endIdx; i++) {
-      const coord = coordinates[i]!;
-      const elevation = map.queryTerrainElevation(coord, {
-        exaggerated: false,
-      });
+    for (let batch = 0; batch < numBatches; batch++) {
+      const startIdx = batch * BATCH_SIZE;
+      const endIdx = Math.min(startIdx + BATCH_SIZE, coordinates.length);
 
-      if (elevation !== null && elevation !== undefined) {
-        allElevations.push(elevation);
-        validCount++;
-        // Log every 100th coordinate for debugging
-        if (i % 100 === 0) {
-          console.log(
-            `[Elev ${i}] coord: [${coord[0].toFixed(4)}, ${coord[1].toFixed(
-              4
-            )}] => ${elevation.toFixed(1)}m`
-          );
-        }
-      } else {
-        nullCount++;
-        // Use interpolation from last valid value or 0
-        if (allElevations.length > 0) {
-          allElevations.push(allElevations[allElevations.length - 1]!);
+      for (let i = startIdx; i < endIdx; i++) {
+        const coord = coordinates[i]!;
+        const elevation = map.queryTerrainElevation(coord, {
+          exaggerated: false,
+        });
+
+        if (elevation !== null && elevation !== undefined) {
+          allElevations.push(elevation);
+          validCount++;
+          // Log every 100th coordinate for debugging
+          if (i % 100 === 0) {
+            console.log(
+              `[Elev ${i}] coord: [${coord[0].toFixed(4)}, ${coord[1].toFixed(
+                4
+              )}] => ${elevation.toFixed(1)}m`
+            );
+          }
         } else {
-          allElevations.push(0);
+          nullCount++;
+          // Use interpolation from last valid value or 0
+          if (allElevations.length > 0) {
+            allElevations.push(allElevations[allElevations.length - 1]!);
+          } else {
+            allElevations.push(0);
+          }
+          // Log null values for debugging
+          if (nullCount <= 10) {
+            console.warn(
+              `[Elev ${i}] coord: [${coord[0].toFixed(4)}, ${coord[1].toFixed(
+                4
+              )}] => NULL (using fallback)`
+            );
+          }
         }
-        // Log null values for debugging
-        if (nullCount <= 10) {
-          console.warn(
-            `[Elev ${i}] coord: [${coord[0].toFixed(4)}, ${coord[1].toFixed(
-              4
-            )}] => NULL (using fallback)`
-          );
-        }
+      }
+
+      // Yield to UI every batch
+      if (batch < numBatches - 1) {
+        await new Promise(resolve => setTimeout(resolve, 10));
       }
     }
 
-    // Yield to UI every batch
-    if (batch < numBatches - 1) {
-      await new Promise(resolve => setTimeout(resolve, 10));
+    console.log(
+      `[Mapbox Elevation] Results: ${validCount} valid, ${nullCount} null out of ${allElevations.length} total`
+    );
+
+    // Calculate stats
+    let highestPoint = allElevations[0] ?? 0;
+    let lowestPoint = allElevations[0] ?? 0;
+    let totalAscent = 0;
+    let totalDescent = 0;
+
+    for (let i = 1; i < allElevations.length; i++) {
+      const diff = allElevations[i] - allElevations[i - 1];
+      if (diff > 0) {
+        totalAscent += diff;
+      } else {
+        totalDescent += Math.abs(diff);
+      }
+
+      if (allElevations[i] > highestPoint) {
+        highestPoint = allElevations[i];
+      }
+      if (allElevations[i] < lowestPoint) {
+        lowestPoint = allElevations[i];
+      }
     }
+
+    console.log('[Mapbox Elevation] Stats calculated:', {
+      highest: Math.round(highestPoint),
+      lowest: Math.round(lowestPoint),
+      ascent: Math.round(totalAscent),
+      descent: Math.round(totalDescent),
+    });
+
+    return {
+      elevations: allElevations,
+      highestPoint: Math.round(highestPoint),
+      lowestPoint: Math.round(lowestPoint),
+      totalAscent: Math.round(totalAscent),
+      totalDescent: Math.round(totalDescent),
+    };
+  } finally {
+    // Restore map state
+    console.log('[Mapbox Elevation] Restoring map camera state...');
+    map.jumpTo({
+      center: currentCenter,
+      zoom: currentZoom,
+      pitch: currentPitch,
+      bearing: currentBearing,
+    });
   }
-
-  console.log(
-    `[Mapbox Elevation] Results: ${validCount} valid, ${nullCount} null out of ${allElevations.length} total`
-  );
-
-  // Calculate stats
-  let highestPoint = allElevations[0] ?? 0;
-  let lowestPoint = allElevations[0] ?? 0;
-  let totalAscent = 0;
-  let totalDescent = 0;
-
-  for (let i = 1; i < allElevations.length; i++) {
-    const diff = allElevations[i] - allElevations[i - 1];
-    if (diff > 0) {
-      totalAscent += diff;
-    } else {
-      totalDescent += Math.abs(diff);
-    }
-
-    if (allElevations[i] > highestPoint) {
-      highestPoint = allElevations[i];
-    }
-    if (allElevations[i] < lowestPoint) {
-      lowestPoint = allElevations[i];
-    }
-  }
-
-  console.log('[Mapbox Elevation] Stats calculated:', {
-    highest: Math.round(highestPoint),
-    lowest: Math.round(lowestPoint),
-    ascent: Math.round(totalAscent),
-    descent: Math.round(totalDescent),
-  });
-
-  return {
-    elevations: allElevations,
-    highestPoint: Math.round(highestPoint),
-    lowestPoint: Math.round(lowestPoint),
-    totalAscent: Math.round(totalAscent),
-    totalDescent: Math.round(totalDescent),
-  };
 }

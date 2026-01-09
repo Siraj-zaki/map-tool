@@ -249,7 +249,7 @@ export default function PublicView() {
         {/* Fullscreen Button */}
         <button
           onClick={toggleFullscreen}
-          className="absolute bottom-3 left-3 z-50 w-9 h-9 flex items-center justify-center bg-[#080e11] border border-[#1e2a33] rounded-lg text-gray-400 hover:text-white hover:bg-[#088d95] hover:border-[#088d95] transition-all hidden md:flex"
+          className="absolute top-3 left-3 z-50 w-9 h-9 flex items-center justify-center bg-[#080e11] border border-[#1e2a33] rounded-lg text-gray-400 hover:text-white hover:bg-[#088d95] hover:border-[#088d95] transition-all hidden md:flex"
         >
           <i
             className={`fas fa-${isFullscreen ? 'compress' : 'expand'} text-sm`}

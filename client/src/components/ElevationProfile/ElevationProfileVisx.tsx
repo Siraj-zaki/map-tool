@@ -1,4 +1,5 @@
 import { AxisBottom, AxisLeft } from '@visx/axis';
+import { Brush } from '@visx/brush';
 import { curveMonotoneX } from '@visx/curve';
 import { localPoint } from '@visx/event';
 import { LinearGradient } from '@visx/gradient';
@@ -9,6 +10,7 @@ import { AreaClosed } from '@visx/shape';
 import { TooltipWithBounds, defaultStyles, useTooltip } from '@visx/tooltip';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FiMaximize2, FiZoomIn } from 'react-icons/fi';
 import type { POI, Route } from '../../api';
 import { useColorSettings } from '../../contexts/ColorSettingsContext';
 import './ElevationProfileVisx.css';
@@ -119,6 +121,10 @@ function ElevationChart({
   t,
 }: ChartProps) {
   const [hoveredPoi, setHoveredPoi] = useState<POI | null>(null);
+  const [filteredDomain, setFilteredDomain] = useState<[number, number] | null>(
+    null
+  );
+  const [isZoomMode, setIsZoomMode] = useState(false);
   const [hoveredPoiPosition, setHoveredPoiPosition] = useState<{
     x: number;
     y: number;
@@ -140,8 +146,16 @@ function ElevationChart({
   const chartHeight = height;
   const innerHeight = chartHeight - margin.top - margin.bottom;
 
-  // Always use full data since brush is removed
-  const displayData = data;
+  // Filter data based on zoom domain
+  const displayData = useMemo(() => {
+    if (!filteredDomain) return data;
+    const [minDist, maxDist] = filteredDomain;
+    const filtered = data.filter(
+      d => d.distance >= minDist && d.distance <= maxDist
+    );
+    // Ensure we have at least 2 points to avoid errors
+    return filtered.length > 1 ? filtered : data;
+  }, [data, filteredDomain]);
 
   // Scales
   const xScale = useMemo(
@@ -280,8 +294,10 @@ function ElevationChart({
       xScale,
       yScale,
       showTooltip,
+      showTooltip,
       onPositionChange,
       hoveredPoi,
+      isZoomMode,
     ]
   );
 
@@ -294,6 +310,33 @@ function ElevationChart({
 
   return (
     <div className="elevation-chart-visx">
+      {/* Zoom Controls */}
+      <div className="zoom-controls">
+        {filteredDomain && (
+          <button
+            className="zoom-btn"
+            onClick={() => setFilteredDomain(null)}
+            title={t('resetZoom', 'Zoom zurücksetzen')}
+          >
+            <FiMaximize2 size={16} />
+          </button>
+        )}
+        <button
+          className={`zoom-btn ${isZoomMode ? 'active' : ''}`}
+          onClick={() => {
+            setIsZoomMode(!isZoomMode);
+            // Hide tooltip when entering zoom mode
+            if (!isZoomMode) {
+              hideTooltip();
+              onPositionChange?.(null);
+            }
+          }}
+          title={t('enableZoom', 'Zoom aktivieren')}
+        >
+          <FiZoomIn size={16} />
+        </button>
+      </div>
+
       <svg width={width} height={chartHeight}>
         {/* Gradients */}
         {stageColors.map((color, i) => (
@@ -502,8 +545,46 @@ function ElevationChart({
             </>
           )}
 
+          {/* Zoom Brush - Only visible in zoom mode */}
+          {isZoomMode && (
+            <Brush
+              xScale={xScale}
+              yScale={yScale}
+              width={innerWidth}
+              height={innerHeight}
+              handleSize={8}
+              resizeTriggerAreas={['left', 'right']}
+              brushDirection="horizontal"
+              onChange={() => {
+                // Optional: updates while dragging
+              }}
+              onBrushEnd={selection => {
+                if (selection) {
+                  const { x0, x1 } = selection;
+                  if (typeof x0 === 'number' && typeof x1 === 'number') {
+                    const min = Math.min(x0, x1);
+                    const max = Math.max(x0, x1);
+                    // Ensure valid range
+                    if (max - min > 0.1) {
+                      setFilteredDomain([min, max]);
+                      setIsZoomMode(false);
+                    }
+                  }
+                }
+              }}
+              selectedBoxStyle={{
+                fill: '#088d95',
+                fillOpacity: 0.3,
+                stroke: '#088d95',
+                strokeWidth: 1,
+              }}
+              useWindowMoveEvents
+            />
+          )}
+
           {/* Invisible overlay for mouse events - rendered AFTER POIs so POIs are on top */}
           <rect
+            pointerEvents={isZoomMode ? 'none' : 'all'}
             x={0}
             y={0}
             width={innerWidth}

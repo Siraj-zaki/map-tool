@@ -2,7 +2,14 @@ import mapboxgl from 'mapbox-gl';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
-import { authApi, getDirections, routesApi, type Route } from '../api';
+import {
+  authApi,
+  getDirections,
+  routesApi,
+  splitPointsApi,
+  type Route,
+  type SplitPoint,
+} from '../api';
 import ElevationProfile from '../components/ElevationProfile/ElevationProfileVisx';
 import POIModal, { type POIData } from '../components/POI/POIModal';
 import SplitPointEditor from '../components/SplitPointEditor/SplitPointEditor';
@@ -84,6 +91,15 @@ export default function Editor() {
     lowestPoint: 0,
     totalAscent: 0,
     totalDescent: 0,
+  });
+
+  // Split points state
+  const [splitPoints, setSplitPoints] = useState<{
+    silver: SplitPoint[];
+    bronze: SplitPoint[];
+  }>({
+    silver: [],
+    bronze: [],
   });
 
   // Bi-directional sync between map and elevation profile
@@ -937,6 +953,16 @@ export default function Editor() {
             totalDescent: result.route.totalDescent || 0,
           });
           setEditMode('waypoint');
+
+          // Fetch split points
+          try {
+            const spResult = await splitPointsApi.getByRoute(Number(id));
+            if (spResult.success) {
+              setSplitPoints(spResult.splitPoints);
+            }
+          } catch (spError) {
+            console.error('Failed to load split points:', spError);
+          }
         }
       } catch (error) {
         console.error('[Editor] Failed to load route:', error);
@@ -1768,6 +1794,8 @@ export default function Editor() {
                   splitPointCallbackRef.current = null;
                 }
               }}
+              splitPoints={splitPoints}
+              onSplitPointChange={setSplitPoints}
             />
           )}
 

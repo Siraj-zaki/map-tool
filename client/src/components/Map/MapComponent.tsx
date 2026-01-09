@@ -5,7 +5,8 @@ import HighlightImage from '../../../public/images/highlight-marker.png';
 import HotelImage from '../../../public/images/hotel-marker.png';
 import SummitImage from '../../../public/images/mountain-marker.png';
 import RestaurantImage from '../../../public/images/resturant-marker.png';
-import type { POI, Route } from '../../api';
+import type { POI, Route, SplitPoint } from '../../api';
+import { splitPointsApi } from '../../api';
 import { POI_ICON_FALLBACK, ROUTE_STYLES } from '../../constants/routeStyles';
 import { useColorSettings } from '../../contexts/ColorSettingsContext';
 
@@ -93,6 +94,10 @@ export default function MapComponent({
   const routeCoordinatesRef = useRef<[number, number][]>([]);
   const onPoiClickRef = useRef(onPoiClick);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [splitPoints, setSplitPoints] = useState<{
+    silver: SplitPoint[];
+    bronze: SplitPoint[];
+  } | null>(null);
 
   // Keep ref updated with latest callback
   useEffect(() => {
@@ -143,6 +148,27 @@ export default function MapComponent({
     },
     []
   );
+
+  // Fetch split points when route changes
+  useEffect(() => {
+    if (!route?.id) {
+      setSplitPoints(null);
+      return;
+    }
+
+    const fetchSplitPoints = async () => {
+      try {
+        const result = await splitPointsApi.getByRoute(route.id);
+        if (result.success) {
+          setSplitPoints(result.splitPoints);
+        }
+      } catch (err) {
+        console.error('Failed to fetch split points:', err);
+      }
+    };
+
+    fetchSplitPoints();
+  }, [route?.id]);
 
   // Create arrow SVG for route direction indicators - matching original main.js
   const createArrowImage = useCallback(() => {
@@ -298,19 +324,88 @@ export default function MapComponent({
 
   // Split route into stages based on tour type
   const getStageSegments = useCallback(
-    (coordinates: [number, number][], numStages: number) => {
+    (
+      coordinates: [number, number][],
+      numStages: number,
+      tourType: TourType
+    ) => {
+      // Default even split if no custom points or Gold tour
+      if (
+        tourType === 'gold' ||
+        !splitPoints ||
+        (tourType === 'silver' && splitPoints.silver.length === 0) ||
+        (tourType === 'bronze' && splitPoints.bronze.length === 0)
+      ) {
+        const segments: [number, number][][] = [];
+        const pointsPerStage = Math.ceil(coordinates.length / numStages);
+
+        for (let i = 0; i < numStages; i++) {
+          const start = i * pointsPerStage;
+          const end = Math.min(
+            (i + 1) * pointsPerStage + 1,
+            coordinates.length
+          );
+          segments.push(coordinates.slice(start, end));
+        }
+        return segments;
+      }
+
+      // Use custom split points
+      const relevantSplitPoints = splitPoints[tourType as 'silver' | 'bronze'];
+      // Sort points by stage number just in case
+      const sortedSplitPoints = [...relevantSplitPoints].sort(
+        (a, b) => a.stageNumber - b.stageNumber
+      );
+
+      // Map split points to closest coordinate indices
+      const splitIndices: number[] = sortedSplitPoints.map(sp => {
+        // Find index of coordinate closest to split point
+        let minD = Infinity;
+        let closestIdx = 0;
+
+        // Optimization: Search only within reasonable bounds if needed,
+        // but for < 10k points, simple iteration is fine.
+        // We can also use distanceKm to estimate index if we had cumulative distances pre-calculated.
+        coordinates.forEach((coord, idx) => {
+          const d = haversineDistance(sp.lat, sp.lng, coord[1], coord[0]);
+          if (d < minD) {
+            minD = d;
+            closestIdx = idx;
+          }
+        });
+        return closestIdx;
+      });
+
+      // Construct segments: [0...split1], [split1...split2], [split2...end]
       const segments: [number, number][][] = [];
-      const pointsPerStage = Math.ceil(coordinates.length / numStages);
+      let currentStart = 0;
 
       for (let i = 0; i < numStages; i++) {
-        const start = i * pointsPerStage;
-        const end = Math.min((i + 1) * pointsPerStage + 1, coordinates.length);
-        segments.push(coordinates.slice(start, end));
+        // Last stage goes to end
+        if (i === numStages - 1) {
+          segments.push(coordinates.slice(currentStart));
+        } else {
+          // Get split index for this stage end
+          // stage 1 ends at splitIndices[0]
+          const splitIdx = splitIndices[i]; // splitIndices has length numStages - 1
+          if (splitIdx !== undefined && splitIdx > currentStart) {
+            segments.push(coordinates.slice(currentStart, splitIdx + 1));
+            currentStart = splitIdx;
+          } else {
+            // Fallback if bad index
+            const end = Math.min(
+              currentStart + Math.ceil(coordinates.length / numStages),
+              coordinates.length
+            );
+            segments.push(coordinates.slice(currentStart, end));
+            currentStart = end;
+          }
+        }
       }
 
       return segments;
     },
-    []
+    [splitPoints]
   );
 
   // Handle route display
@@ -375,7 +470,11 @@ export default function MapComponent({
     }
     routeCoordinatesRef.current = coordinates;
 
-    const stageSegments = getStageSegments(coordinates, config.stages);
+    const stageSegments = getStageSegments(
+      coordinates,
+      config.stages,
+      tourType
+    );
 
     // Add each stage as a separate layer
     stageSegments.forEach((segment, index) => {
@@ -1024,7 +1123,11 @@ export default function MapComponent({
     }
 
     // Calculate stage segment
-    const stageSegments = getStageSegments(coordinates, config.stages);
+    const stageSegments = getStageSegments(
+      coordinates,
+      config.stages,
+      tourType
+    );
     const stageIndex = selectedStage - 1; // Convert to 0-indexed
 
     if (!stageSegments[stageIndex] || stageSegments[stageIndex].length === 0)

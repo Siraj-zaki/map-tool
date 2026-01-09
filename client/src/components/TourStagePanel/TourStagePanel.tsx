@@ -31,7 +31,6 @@ export default function TourStagePanel({
   const { t } = useTranslation();
   const { getStageColor } = useColorSettings();
   const [activeStage, setActiveStage] = useState<number>(1);
-  const [hasManuallySelected, setHasManuallySelected] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const numStages = stageConfig[tourType];
@@ -39,7 +38,6 @@ export default function TourStagePanel({
   // Reset to stage 1 and show all stages when tour type changes
   useEffect(() => {
     setActiveStage(1);
-    setHasManuallySelected(false); // Reset to show all stages
     if (onStageSelect) {
       onStageSelect(1);
     }
@@ -58,7 +56,6 @@ export default function TourStagePanel({
 
   const handleStageClick = (stage: number) => {
     setActiveStage(stage);
-    setHasManuallySelected(true); // User manually selected, show only this stage
     if (onStageSelect) {
       onStageSelect(stage);
     }
@@ -204,23 +201,19 @@ export default function TourStagePanel({
             </div>
           </div>
 
-          {/* Stage Details - Show all stages or only selected based on user action */}
+          {/* Stage Details - Show only active stage */}
           {route && (
             <div className="all-stages-container">
-              {Array.from({ length: numStages }, (_, i) => i + 1)
-                .filter(stage => !hasManuallySelected || stage === activeStage)
-                .map(stage => {
-                  const stageStats = getStageStatsForStage(stage);
-                  if (!stageStats) return null;
-                  const isActive = activeStage === stage;
+              {(() => {
+                const stageStats = getStageStatsForStage(activeStage);
+                if (!stageStats) return null;
 
-                  return (
+                return (
+                  <>
                     <div
-                      key={stage}
-                      className={`stage-details-content ${
-                        isActive ? 'active' : ''
-                      }`}
-                      onClick={() => handleStageClick(stage)}
+                      key={activeStage}
+                      className="stage-details-content active"
+                      onClick={() => handleStageClick(activeStage)}
                       style={{ cursor: 'pointer' }}
                     >
                       <div
@@ -232,7 +225,7 @@ export default function TourStagePanel({
                           className="stage-title"
                           style={{ color: stageStats.color }}
                         >
-                          {t('stage')} {stage}
+                          {t('stage')} {activeStage}
                         </div>
                         <div className="stage-stats-grid">
                           <div className="stat-item">
@@ -257,8 +250,22 @@ export default function TourStagePanel({
                         </div>
                       </div>
                     </div>
-                  );
-                })}
+                    {/* Next Stage Button */}
+                    {activeStage < numStages && (
+                      <button
+                        className="stage-nav-btn"
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleStageClick(activeStage + 1);
+                        }}
+                        title={t('nextStage', 'Next Stage')}
+                      >
+                        <i className="fas fa-chevron-down" />
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
         </>

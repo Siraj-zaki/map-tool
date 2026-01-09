@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { splitPointsApi, type SplitPoint } from '../../api';
 import { useColorSettings } from '../../contexts/ColorSettingsContext';
@@ -10,7 +10,8 @@ interface SplitPointEditorProps {
   routeId: number | null;
   routeGeometry: [number, number][] | null;
   totalDistance: number;
-  onSplitPointChange?: (splitPoints: Record<TourType, SplitPoint[]>) => void;
+  splitPoints: Record<TourType, SplitPoint[]>;
+  onSplitPointChange: (splitPoints: Record<TourType, SplitPoint[]>) => void;
   onSetSplitPointMode?: (
     active: boolean,
     tourType: TourType,
@@ -46,45 +47,21 @@ export default function SplitPointEditor({
   routeId,
   routeGeometry,
   totalDistance: _totalDistance,
+  splitPoints,
   onSplitPointChange,
   onSetSplitPointMode,
 }: SplitPointEditorProps) {
   const { t } = useTranslation();
   const { getStageColor } = useColorSettings();
   const [selectedTourType, setSelectedTourType] = useState<TourType>('silver');
-  const [splitPoints, setSplitPoints] = useState<
-    Record<TourType, SplitPoint[]>
-  >({
-    silver: [],
-    bronze: [],
-  });
   const [saving, setSaving] = useState(false);
   const [editingStage, setEditingStage] = useState<number | null>(null);
-
-  // Load existing split points
-  useEffect(() => {
-    if (!routeId) return;
-
-    const loadSplitPoints = async () => {
-      try {
-        const result = await splitPointsApi.getByRoute(routeId);
-        if (result.success) {
-          setSplitPoints(result.splitPoints);
-          onSplitPointChange?.(result.splitPoints);
-        }
-      } catch (error) {
-        console.error('Failed to load split points:', error);
-      }
-    };
-
-    loadSplitPoints();
-  }, [routeId, onSplitPointChange]);
 
   const handleSave = async () => {
     if (!routeId) return;
     setSaving(true);
     try {
-      // Save both tour types
+      // Save both tour types based on current props state
       await splitPointsApi.save(routeId, 'silver', splitPoints.silver);
       await splitPointsApi.save(routeId, 'bronze', splitPoints.bronze);
     } catch (error) {
@@ -99,45 +76,39 @@ export default function SplitPointEditor({
     stageNumber: number,
     updates: Partial<SplitPoint>
   ) => {
-    setSplitPoints(prev => {
-      const existing = prev[tourType].find(
-        sp => sp.stageNumber === stageNumber
+    const prev = splitPoints;
+    const existing = prev[tourType].find(sp => sp.stageNumber === stageNumber);
+    let newPoints: SplitPoint[];
+
+    if (existing) {
+      newPoints = prev[tourType].map(sp =>
+        sp.stageNumber === stageNumber ? { ...sp, ...updates } : sp
       );
-      let newPoints: SplitPoint[];
+    } else {
+      const newPoint: SplitPoint = {
+        stageNumber,
+        locationName: '',
+        lng: 0,
+        lat: 0,
+        distanceKm: 0,
+        ...updates,
+      };
+      newPoints = [...prev[tourType], newPoint].sort(
+        (a, b) => a.stageNumber - b.stageNumber
+      );
+    }
 
-      if (existing) {
-        newPoints = prev[tourType].map(sp =>
-          sp.stageNumber === stageNumber ? { ...sp, ...updates } : sp
-        );
-      } else {
-        const newPoint: SplitPoint = {
-          stageNumber,
-          locationName: '',
-          lng: 0,
-          lat: 0,
-          distanceKm: 0,
-          ...updates,
-        };
-        newPoints = [...prev[tourType], newPoint].sort(
-          (a, b) => a.stageNumber - b.stageNumber
-        );
-      }
-
-      const newSplitPoints = { ...prev, [tourType]: newPoints };
-      onSplitPointChange?.(newSplitPoints);
-      return newSplitPoints;
-    });
+    const newSplitPoints = { ...prev, [tourType]: newPoints };
+    onSplitPointChange(newSplitPoints);
   };
 
   const removeSplitPoint = (tourType: TourType, stageNumber: number) => {
-    setSplitPoints(prev => {
-      const newPoints = prev[tourType].filter(
-        sp => sp.stageNumber !== stageNumber
-      );
-      const newSplitPoints = { ...prev, [tourType]: newPoints };
-      onSplitPointChange?.(newSplitPoints);
-      return newSplitPoints;
-    });
+    const prev = splitPoints;
+    const newPoints = prev[tourType].filter(
+      sp => sp.stageNumber !== stageNumber
+    );
+    const newSplitPoints = { ...prev, [tourType]: newPoints };
+    onSplitPointChange(newSplitPoints);
   };
 
   // Called when user clicks on map to set split point

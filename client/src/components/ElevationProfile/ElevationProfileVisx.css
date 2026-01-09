@@ -9,6 +9,39 @@
   overflow: hidden;
 }
 
+.zoom-controls {
+  position: absolute;
+  top: 10px;
+  left: 60px;
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+
+.zoom-btn {
+  position: fixed;
+  background: rgba(11, 18, 21, 0.8);
+  border: 1px solid #088d95;
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.zoom-btn:hover {
+  background: rgba(8, 141, 149, 0.2);
+}
+
+.zoom-btn.active {
+  background: #088d95;
+  color: #fff;
+}
+
 /* Responsive height adjustments */
 @media (max-width: 1024px) {
   .elevation-profile-visx-container {
