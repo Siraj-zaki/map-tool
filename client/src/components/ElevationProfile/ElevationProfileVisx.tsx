@@ -124,6 +124,17 @@ function ElevationChart({
     x: number;
     y: number;
   } | null>(null);
+
+  // Zoom and Pan State
+  const [viewDomain, setViewDomain] = useState<[number, number] | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Use ref for drag state to ensure smooth updates without state lag
+  const dragStartRef = useRef<{
+    x: number;
+    initialDomain: [number, number];
+  } | null>(null);
+
   // const [currentGrade, setCurrentGrade] = useState<number>(0);
   // const [cumulativeAscent, setCumulativeAscent] = useState<number>(0);
 
@@ -142,20 +153,39 @@ function ElevationChart({
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = chartHeight - margin.top - margin.bottom;
 
-  // Filter data based on zoom domain - using full data now
-  const displayData = data;
+  // Filter data based on zoom domain
+  const displayData = useMemo(() => {
+    if (!viewDomain) return data;
+    const [minDist, maxDist] = viewDomain;
+    // Add a small buffer to ensure we don't cut off lines abruptly
+    const buffer = (maxDist - minDist) * 0.05;
+    const filtered = data.filter(
+      d => d.distance >= minDist - buffer && d.distance <= maxDist + buffer
+    );
+    // Ensure we have at least 2 points to avoid errors
+    return filtered.length > 1 ? filtered : data;
+  }, [data, viewDomain]);
+
+  // Full data bounds
+  const fullDomainByDistance = useMemo(() => {
+    if (data.length === 0) return [0, 1];
+    return [
+      Math.min(...data.map(d => d.distance)),
+      Math.max(...data.map(d => d.distance)),
+    ];
+  }, [data]);
 
   // Main Chart Scales
   const xScale = useMemo(
     () =>
       scaleLinear<number>({
-        domain: [
-          Math.min(...displayData.map(d => d.distance)),
-          Math.max(...displayData.map(d => d.distance)),
+        domain: viewDomain || [
+          Math.min(...data.map(d => d.distance)),
+          Math.max(...data.map(d => d.distance)),
         ],
         range: [0, innerWidth],
       }),
-    [displayData, innerWidth]
+    [displayData, innerWidth, viewDomain, data]
   );
 
   const yScale = useMemo(
@@ -170,6 +200,192 @@ function ElevationChart({
       }),
     [displayData, innerHeight]
   );
+
+  // Handle Zoom (Wheel)
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+
+      if (data.length === 0) return;
+
+      const [minDist, maxDist] = viewDomain || fullDomainByDistance;
+      const currentRange = maxDist - minDist;
+
+      // Determine zoom direction and factor
+      const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
+      const newRange = currentRange * zoomFactor;
+
+      // Limit zoom
+      const maxRange = fullDomainByDistance[1] - fullDomainByDistance[0];
+      const minRange = 1; // Minimum 1km visible
+
+      if (newRange > maxRange && zoomFactor > 1) {
+        setViewDomain(null); // Reset to full view
+        return;
+      }
+      if (newRange < minRange && zoomFactor < 1) return;
+
+      // Calculate focus point (mouse position)
+      const point = localPoint(e);
+      const mouseX = point ? point.x - margin.left : innerWidth / 2;
+
+      // Calculate cursor ratio within the current view
+      const domainX = xScale.invert(mouseX);
+      const ratio = (domainX - minDist) / currentRange;
+
+      // Calculate new domain preserving the ratio at mouse position
+      let newMin = domainX - ratio * newRange;
+      let newMax = newMin + newRange;
+
+      // Clamp to bounds
+      if (newMin < fullDomainByDistance[0]) {
+        newMin = fullDomainByDistance[0];
+        newMax = newMin + newRange;
+      }
+      if (newMax > fullDomainByDistance[1]) {
+        newMax = fullDomainByDistance[1];
+        newMin = newMax - newRange;
+        if (newMin < fullDomainByDistance[0]) newMin = fullDomainByDistance[0];
+      }
+
+      setViewDomain([newMin, newMax]);
+    },
+    [viewDomain, fullDomainByDistance, xScale, innerWidth, data.length]
+  );
+
+  // Handle Pan (Drag)
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (data.length === 0) return;
+
+      const point = localPoint(e);
+      if (!point) return;
+
+      // Use current viewDomain or fullDomain if null
+      const currentDomain = viewDomain || fullDomainByDistance;
+
+      setIsDragging(true);
+      dragStartRef.current = {
+        x: point.x,
+        initialDomain: currentDomain as [number, number],
+      };
+    },
+    [data.length, viewDomain, fullDomainByDistance]
+  );
+
+  // We'll implement panning logic inside the React mouse move for the container
+  // or use a ref-based approach for global events if user drags outside.
+  // For simplicity, let's keep it on the SVG for now, or attach window listeners
+  // in useEffect when dragging starts.
+
+  const handlePan = useCallback(
+    (currentX: number) => {
+      if (!dragStartRef.current) return;
+
+      const { x: startX, initialDomain } = dragStartRef.current;
+      const dx = currentX - startX;
+
+      if (dx === 0) return;
+
+      const [minDist, maxDist] = initialDomain;
+      const currentRange = maxDist - minDist;
+
+      // Convert pixel delta to distance delta
+      // dx > 0 means mouse moved right, so we want to move view LEFT (pan left) -> decreasing domain?
+      // No, if I drag chart to the right, I expect to see data from the left.
+      // So domain should shift negatively.
+      const scaleFactor = currentRange / innerWidth;
+      const deltaDistance = dx * scaleFactor;
+
+      let newMin = minDist - deltaDistance;
+      let newMax = maxDist - deltaDistance;
+
+      // Clamp
+      if (newMin < fullDomainByDistance[0]) {
+        newMin = fullDomainByDistance[0];
+        newMax = newMin + currentRange;
+      }
+      if (newMax > fullDomainByDistance[1]) {
+        newMax = fullDomainByDistance[1];
+        newMin = newMax - currentRange;
+        if (newMin < fullDomainByDistance[0]) newMin = fullDomainByDistance[0];
+      }
+
+      setViewDomain([newMin, newMax]);
+    },
+    [fullDomainByDistance, innerWidth]
+  );
+
+  // Combine mouse move for tooltip and pan
+  const handleMouseMoveCombined = useCallback(
+    (event: React.MouseEvent<SVGRectElement>) => {
+      const point = localPoint(event);
+      if (!point) return;
+
+      if (isDragging) {
+        handlePan(point.x);
+        return;
+      }
+
+      // Tooltip logic
+      if (hoveredPoi) return;
+
+      const x0 = xScale.invert(point.x - margin.left);
+
+      // Find closest data point
+      let closestPoint = displayData[0];
+      // Note: we search in displayData which might be filtered.
+      // Ideally we search in full data but scoped to view?
+      // Actually searching displayData is faster and correct for what's visible.
+      // But if displayData is sparse, we might miss points?
+      // It's filtered by range, so it's fine.
+
+      if (!closestPoint && data.length > 0) closestPoint = data[0];
+      if (!closestPoint) return;
+
+      let minDiff = Math.abs(x0 - closestPoint.distance);
+
+      for (const d of displayData) {
+        const diff = Math.abs(x0 - d.distance);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestPoint = d;
+        }
+      }
+
+      if (closestPoint) {
+        showTooltip({
+          tooltipData: closestPoint,
+          tooltipLeft: xScale(closestPoint.distance) + margin.left,
+          tooltipTop: yScale(closestPoint.elevation) + margin.top,
+        });
+
+        onPositionChange?.({
+          lng: closestPoint.coordinates[0],
+          lat: closestPoint.coordinates[1],
+          distance: closestPoint.distance,
+          elevation: closestPoint.elevation,
+          grade: 0,
+        });
+      }
+    },
+    [
+      displayData,
+      data,
+      xScale,
+      yScale,
+      onPositionChange,
+      hoveredPoi,
+      isDragging,
+      handlePan,
+    ]
+  );
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+    dragStartRef.current = null;
+  }, []);
 
   // Get stage segments
   const stageSegments = useMemo(() => {
@@ -213,49 +429,7 @@ function ElevationChart({
     return boundaries;
   }, [displayData, tourType]);
 
-  // Handle mouse move on chart
-  const handleMouseMove = useCallback(
-    (event: React.MouseEvent<SVGRectElement>) => {
-      if (hoveredPoi) return; // Don't show tooltip if hovering POI
-
-      const point = localPoint(event);
-      if (!point) return;
-
-      const x0 = xScale.invert(point.x - margin.left);
-
-      // Find closest data point
-      let closestPoint = displayData[0];
-      let minDiff = Math.abs(x0 - closestPoint.distance);
-
-      for (const d of displayData) {
-        const diff = Math.abs(x0 - d.distance);
-        if (diff < minDiff) {
-          minDiff = diff;
-          closestPoint = d;
-        }
-      }
-
-      if (closestPoint) {
-        if (closestPoint) {
-          showTooltip({
-            tooltipData: closestPoint,
-            tooltipLeft: xScale(closestPoint.distance) + margin.left,
-            tooltipTop: yScale(closestPoint.elevation) + margin.top,
-          });
-
-          onPositionChange?.({
-            lng: closestPoint.coordinates[0],
-            lat: closestPoint.coordinates[1],
-            distance: closestPoint.distance,
-            elevation: closestPoint.elevation,
-            grade: 0, // Simplified or remove if not needed
-          });
-        }
-      }
-    },
-    [displayData, data, xScale, yScale, onPositionChange, hoveredPoi]
-  );
-
+  // Mouse leave handler
   const handleMouseLeave = useCallback(() => {
     onPositionChange?.(null);
   }, [onPositionChange]);
@@ -481,9 +655,15 @@ function ElevationChart({
             width={innerWidth}
             height={innerHeight}
             fill="transparent"
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
-            style={{ cursor: 'crosshair' }}
+            onWheel={handleWheel}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMoveCombined}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={() => {
+              handleMouseLeave();
+              handleMouseUp();
+            }}
+            style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
           />
 
           {/* Re-render POIs on top of the rect for proper event handling */}
@@ -856,53 +1036,23 @@ export default function ElevationProfileVisx({
     );
   }
 
-  // Calculate minimum chart width based on distance (40 pixels per km for readability)
-  const minChartWidth = useMemo(() => {
-    if (!route) return 800;
-    const maxDistance =
-      elevationData.length > 0
-        ? Math.max(...elevationData.map(d => d.distance))
-        : route.distance || 0;
-    // Minimum 40 pixels per km, but at least 50rem and max 500rem
-    return Math.max(800, Math.min(8000, maxDistance * 40));
-  }, [route, elevationData]);
-
   return (
     <div ref={containerRef} className="elevation-profile-visx-container">
       <ParentSize>
-        {({ width: containerWidth, height }) => {
-          // Use the larger of container width or calculated minimum
-          const chartWidth = Math.max(containerWidth, minChartWidth);
-          const needsScroll = chartWidth > containerWidth;
-
-          return (
-            <div
-              className="elevation-chart-scroll-container"
-              style={{
-                width: `${containerWidth}px`,
-                maxWidth: `${containerWidth}px`,
-                height: '100%',
-                overflowX: needsScroll ? 'auto' : 'hidden',
-                overflowY: 'hidden',
-              }}
-            >
-              <div style={{ width: chartWidth, height: '100%' }}>
-                <ElevationChart
-                  width={chartWidth}
-                  height={height}
-                  data={elevationData}
-                  pois={poiDataPoints}
-                  stageColors={stageColors}
-                  tourType={tourType}
-                  onPositionChange={onPositionChange}
-                  onPoiClick={onPoiClick}
-                  highlightDistance={highlightDistance}
-                  t={t}
-                />
-              </div>
-            </div>
-          );
-        }}
+        {({ width: containerWidth, height }) => (
+          <ElevationChart
+            width={containerWidth}
+            height={height}
+            data={elevationData}
+            pois={poiDataPoints}
+            stageColors={stageColors}
+            tourType={tourType}
+            onPositionChange={onPositionChange}
+            onPoiClick={onPoiClick}
+            highlightDistance={highlightDistance}
+            t={t}
+          />
+        )}
       </ParentSize>
     </div>
   );
