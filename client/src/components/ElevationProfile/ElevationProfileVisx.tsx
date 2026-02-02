@@ -1,5 +1,5 @@
 import { AxisBottom, AxisLeft } from '@visx/axis';
-import { Brush } from '@visx/brush';
+
 import { curveMonotoneX } from '@visx/curve';
 import { localPoint } from '@visx/event';
 import { LinearGradient } from '@visx/gradient';
@@ -120,9 +120,6 @@ function ElevationChart({
   // t,
 }: ChartProps) {
   const [hoveredPoi, setHoveredPoi] = useState<POI | null>(null);
-  const [filteredDomain, setFilteredDomain] = useState<[number, number] | null>(
-    null
-  );
   const [hoveredPoiPosition, setHoveredPoiPosition] = useState<{
     x: number;
     y: number;
@@ -140,28 +137,13 @@ function ElevationChart({
   } = useTooltip<ElevationPoint>();
 
   // Inner dimensions
-  // Reserve space for brush if we have data (3.125rem height + 0.625rem margin)
-  const BRUSH_HEIGHT = 50;
-  const BRUSH_MARGIN = 10;
-  const hasBrush = data.length > 0;
-
-  const chartHeight = hasBrush
-    ? Math.max(100, height - BRUSH_HEIGHT - BRUSH_MARGIN)
-    : height;
+  const chartHeight = height;
 
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = chartHeight - margin.top - margin.bottom;
 
-  // Filter data based on zoom domain
-  const displayData = useMemo(() => {
-    if (!filteredDomain) return data;
-    const [minDist, maxDist] = filteredDomain;
-    const filtered = data.filter(
-      d => d.distance >= minDist && d.distance <= maxDist
-    );
-    // Ensure we have at least 2 points to avoid errors
-    return filtered.length > 1 ? filtered : data;
-  }, [data, filteredDomain]);
+  // Filter data based on zoom domain - using full data now
+  const displayData = data;
 
   // Main Chart Scales
   const xScale = useMemo(
@@ -187,32 +169,6 @@ function ElevationChart({
         nice: true,
       }),
     [displayData, innerHeight]
-  );
-
-  // Brush / Mini Map Scales (Static, based on full data)
-  const brushXScale = useMemo(
-    () =>
-      scaleLinear<number>({
-        domain: [
-          Math.min(...data.map(d => d.distance)),
-          Math.max(...data.map(d => d.distance)),
-        ],
-        range: [0, innerWidth],
-      }),
-    [data, innerWidth]
-  );
-
-  const brushYScale = useMemo(
-    () =>
-      scaleLinear<number>({
-        domain: [
-          Math.min(...data.map(d => d.elevation)) - 50,
-          Math.max(...data.map(d => d.elevation)) + 50,
-        ],
-        range: [50, 0], // Fixed height for brush area
-        nice: true,
-      }),
-    [data]
   );
 
   // Get stage segments
@@ -483,7 +439,9 @@ function ElevationChart({
                   style={{
                     pointerEvents: 'none',
                     opacity: isHovered ? 1 : 0.85,
-                    filter: isHovered ? 'drop-shadow(0 0 0.25rem #088d95)' : 'none',
+                    filter: isHovered
+                      ? 'drop-shadow(0 0 0.25rem #088d95)'
+                      : 'none',
                     transition: 'opacity 0.15s ease, filter 0.15s ease',
                   }}
                 />
@@ -581,7 +539,9 @@ function ElevationChart({
                   style={{
                     pointerEvents: 'none',
                     opacity: isHovered ? 1 : 0.85,
-                    filter: isHovered ? 'drop-shadow(0 0 0.25rem #088d95)' : 'none',
+                    filter: isHovered
+                      ? 'drop-shadow(0 0 0.25rem #088d95)'
+                      : 'none',
                     transition: 'opacity 0.15s ease, filter 0.15s ease',
                   }}
                 />
@@ -622,82 +582,7 @@ function ElevationChart({
         </Group>
       </svg>
 
-      {/* Zoom Brush Chart (Mini Map) - Only visible when we have data */}
-      {data.length > 0 && (
-        <div style={{ height: '3.125rem', marginTop: '0.625rem' }}>
-          <svg width={width} height={50}>
-            <LinearGradient
-              id="brush-gradient"
-              from="#088d95"
-              to="#088d95"
-              fromOpacity={0.4}
-              toOpacity={0.1}
-            />
-            <AreaClosed<ElevationPoint>
-              data={data}
-              x={d => brushXScale(d.distance)}
-              y={d => brushYScale(d.elevation)}
-              yScale={brushYScale}
-              curve={curveMonotoneX}
-              fill="url(#brush-gradient)"
-              stroke="#088d95"
-              strokeWidth={1}
-            />
-            <Brush
-              xScale={brushXScale}
-              yScale={brushYScale}
-              width={innerWidth}
-              height={50}
-              margin={{
-                top: 0,
-                bottom: 0,
-                left: margin.left,
-                right: margin.right,
-              }}
-              handleSize={8}
-              resizeTriggerAreas={['left', 'right']}
-              brushDirection="horizontal"
-              initialBrushPosition={(() => {
-                // Default to first 30% of the route if simpler view is preferred
-                const start = brushXScale.domain()[0];
-                const end = brushXScale.domain()[1];
-                const range = end - start;
-                // Only zoom in if route is long (>10km)
-                if (range > 10) {
-                  return {
-                    start: { x: brushXScale(start) },
-                    end: { x: brushXScale(start + range * 0.4) },
-                  };
-                }
-                return undefined;
-              })()}
-              onChange={domain => {
-                if (domain) {
-                  const { x0, x1 } = domain;
-                  const newDomain = [
-                    Math.max(brushXScale.domain()[0], x0),
-                    Math.min(brushXScale.domain()[1], x1),
-                  ] as [number, number];
-
-                  // Avoid collapsing to 0
-                  if (newDomain[1] - newDomain[0] > 0.5) {
-                    setFilteredDomain(newDomain);
-                  }
-                } else {
-                  setFilteredDomain(null);
-                }
-              }}
-              selectedBoxStyle={{
-                fill: '#088d95',
-                fillOpacity: 0.3,
-                stroke: '#088d95',
-                strokeWidth: 1,
-              }}
-              useWindowMoveEvents
-            />
-          </svg>
-        </div>
-      )}
+      <div id="poi-tooltip-portal-root"></div>
       {/* POI info tooltip - positioned above the POI */}
       {hoveredPoi && hoveredPoiPosition && (
         <div
