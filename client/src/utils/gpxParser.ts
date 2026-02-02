@@ -85,9 +85,9 @@ export function processGPXToRoute(points: GPXPoint[]): {
   }
 
   // Calculate optimal number of waypoints
-  const MAX_WAYPOINTS = 800;
-  const MIN_WAYPOINTS = 10;
-  const POINTS_PER_KM = 50; // Increased density for better trail adherence
+  const MAX_WAYPOINTS = 200;
+  const MIN_WAYPOINTS = 5;
+  const POINTS_PER_KM = 10;
 
   let optimalWaypoints = Math.ceil(totalDistance * POINTS_PER_KM);
   optimalWaypoints = Math.max(

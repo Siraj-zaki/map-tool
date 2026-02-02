@@ -63,7 +63,6 @@ interface MapComponentProps {
   route?: Route | null;
   tourType?: TourType;
   selectedStage?: number | null;
-  startPoi?: POI | null; // New prop for loop logic
   onPositionChange?: (position: {
     lng: number;
     lat: number;
@@ -75,70 +74,10 @@ interface MapComponentProps {
   flyToLocation?: { lng: number; lat: number } | null;
 }
 
-// Reorder coordinates to start from a specific point (for closed loops)
-function reorderCoordinates(
-  coordinates: [number, number][],
-  startPoint: [number, number]
-): [number, number][] {
-  if (!coordinates || coordinates.length < 2) return coordinates;
-
-  // Find index of closest point to startPoint
-  let minDist = Infinity;
-  let closestIndex = 0;
-
-  for (let i = 0; i < coordinates.length; i++) {
-    const dist = haversineDistance(
-      startPoint[1],
-      startPoint[0],
-      coordinates[i][1],
-      coordinates[i][0]
-    );
-    if (dist < minDist) {
-      minDist = dist;
-      closestIndex = i;
-    }
-  }
-
-  // If closest point is within reasonable distance (e.g. 500m), reorder
-  // Otherwise assume it's not on the track and don't reorder
-  if (minDist > 500) {
-    console.warn('Start point is too far from route geometry', minDist);
-    return coordinates;
-  }
-
-  // Rotate array: [C, D, E, A, B] -> [C...B]
-  // Ideally, if it's a closed loop, first and last points are same.
-  // We should remove the last point (which duplicates start), rotate, then add it back?
-  // Let's assume standard GPX where first ~= last.
-
-  const isClosed =
-    haversineDistance(
-      coordinates[0][1],
-      coordinates[0][0],
-      coordinates[coordinates.length - 1][1],
-      coordinates[coordinates.length - 1][0]
-    ) < 50; // 50m tolerance
-
-  let uniqueCoords = isClosed ? coordinates.slice(0, -1) : coordinates;
-
-  const reordered = [
-    ...uniqueCoords.slice(closestIndex),
-    ...uniqueCoords.slice(0, closestIndex),
-  ];
-
-  // Close the loop again if it was closed
-  if (isClosed) {
-    reordered.push(reordered[0]);
-  }
-
-  return reordered;
-}
-
 export default function MapComponent({
   route,
   tourType = 'gold',
   selectedStage,
-  startPoi,
   onPositionChange,
   onPoiClick,
   highlightPosition,
@@ -168,11 +107,15 @@ export default function MapComponent({
 
   // Calculate distance to point along route
   const getDistanceAlongRoute = useCallback(
-    (point: [number, number]): { distance: number; index: number } => {
-      // Use current (potentially reordered) coordinates
-      const coords = routeCoordinatesRef.current;
-      if (!coords || coords.length === 0) return { distance: 0, index: 0 };
-
+    (
+      point: [number, number],
+      routeData: Route
+    ): { distance: number; index: number } => {
+      const coords = [
+        routeData.startPoint,
+        ...routeData.waypoints,
+        routeData.endPoint,
+      ];
       let minDist = Infinity;
       let closestSegmentIndex = 0;
 
@@ -407,30 +350,8 @@ export default function MapComponent({
 
       // Use custom split points
       const relevantSplitPoints = splitPoints[tourType as 'silver' | 'bronze'];
-
-      // Filter split points for current start city if needed
-      // Logic: If startPoi is set, filter splitPoints where startPoiId matches?
-      // Or we assume parent filtered them.
-      // Current implementation of getByRoute returns grouped by tourType.
-      // We should probably rely on the fact that if startPoiId logic is active,
-      // the splitPoints we have ARE for this start city.
-      // But we receive all splitPoints for the route potentially?
-
-      // Let's iterate and find relevant ones.
-      // NOTE: We need to filter relevantSplitPoints by startPoi.id if available
-      const filteredSplitPoints = startPoi
-        ? relevantSplitPoints.filter(sp => sp.startPoiId === startPoi.poi_id)
-        : relevantSplitPoints.filter(sp => !sp.startPoiId);
-      // If no startPoi, use legacy splits (null ID) or all?
-      // Logic: if startPoi is provided, we MUST only use its splits.
-
-      // Fallback: If no specific splits found, try generic ones?
-      const finalSplitPoints =
-        filteredSplitPoints.length > 0
-          ? filteredSplitPoints
-          : relevantSplitPoints; // Fallback to all if strict match fails (legacy behavior compatibility)
-
-      const sortedSplitPoints = [...finalSplitPoints].sort(
+      // Sort points by stage number just in case
+      const sortedSplitPoints = [...relevantSplitPoints].sort(
         (a, b) => a.stageNumber - b.stageNumber
       );
 
@@ -440,6 +361,9 @@ export default function MapComponent({
         let minD = Infinity;
         let closestIdx = 0;
 
+        // Optimization: Search only within reasonable bounds if needed,
+        // but for < 10k points, simple iteration is fine.
+        // We can also use distanceKm to estimate index if we had cumulative distances pre-calculated.
         coordinates.forEach((coord, idx) => {
           const d = haversineDistance(sp.lat, sp.lng, coord[1], coord[0]);
           if (d < minD) {
@@ -479,7 +403,7 @@ export default function MapComponent({
 
       return segments;
     },
-    [splitPoints, startPoi]
+    [splitPoints]
   );
 
   // Handle route display
@@ -525,20 +449,23 @@ export default function MapComponent({
     if (route.routeGeometry && route.routeGeometry.length > 0) {
       // Use the complete stored geometry from DB (from Directions API or GPX)
       coordinates = route.routeGeometry;
+      console.log(
+        '[Map] Using stored routeGeometry:',
+        coordinates.length,
+        'points'
+      );
     } else {
       // Fallback: construct from start/waypoints/end (less accurate, just control points)
       coordinates = [route.startPoint, ...route.waypoints, route.endPoint] as [
         number,
         number,
       ][];
+      console.log(
+        '[Map] No routeGeometry, using waypoints:',
+        coordinates.length,
+        'points'
+      );
     }
-
-    // REORDER COORDINATES if startPoi is set
-    if (startPoi) {
-      coordinates = reorderCoordinates(coordinates, startPoi.lngLat);
-      console.log('[Map] Reordered coordinates for start city:', startPoi.name);
-    }
-
     routeCoordinatesRef.current = coordinates;
 
     const stageSegments = getStageSegments(
@@ -672,7 +599,7 @@ export default function MapComponent({
       if (!route || !onPositionChange) return;
 
       const point: [number, number] = [e.lngLat.lng, e.lngLat.lat];
-      const { distance, index } = getDistanceAlongRoute(point);
+      const { distance, index } = getDistanceAlongRoute(point, route);
 
       // Show hover marker
       if (hoverMarkerRef.current) {
@@ -798,15 +725,72 @@ export default function MapComponent({
     //   }
     // }
 
-    // Start marker - removed as per request (Loop logic)
-    // const startEl = document.createElement('div');
-    // ... start marker code ...
-    // markersRef.current.push(startMarker);
+    // Start marker - matching original design
+    const startEl = document.createElement('div');
+    startEl.className = 'marker start-marker';
+    startEl.style.cssText = `
+      width: 36px;
+      height: 36px;
+      will-change: transform;
+    `;
+    startEl.innerHTML = `
+      <div style="
+        background: #0b1215;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #e0e0e0;
+        box-shadow: 0 2px 8px rgba(8, 141, 149, 0.2);
+        cursor: pointer;
+        padding-left: 2px;
+      ">
+        <i class="fa-solid fa-play" style="font-size: 14px; color: #fff;"></i>
+      </div>
+    `;
+    const startMarker = new mapboxgl.Marker({
+      element: startEl,
+      anchor: 'center',
+      offset: [0, 0],
+    })
+      .setLngLat(route.startPoint)
+      .addTo(map.current);
+    markersRef.current.push(startMarker);
 
-    // End marker - removed as per request
-    // const endEl = document.createElement('div');
-    // ... end marker code ...
-    // markersRef.current.push(endMarker);
+    // End marker
+    const endEl = document.createElement('div');
+    endEl.className = 'marker end-marker';
+    endEl.style.cssText = `
+      width: 36px;
+      height: 36px;
+      will-change: transform;
+    `;
+    endEl.innerHTML = `
+      <div style="
+        background: #0b1215;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #e0e0e0;
+        box-shadow: 0 2px 8px rgba(8, 141, 149, 0.2);
+        cursor: pointer;
+      ">
+        <i class="fa-solid fa-flag-checkered" style="font-size: 14px; color: #fff;"></i>
+      </div>
+    `;
+    const endMarker = new mapboxgl.Marker({
+      element: endEl,
+      anchor: 'center',
+      offset: [0, 0],
+    })
+      .setLngLat(route.endPoint)
+      .addTo(map.current);
+    markersRef.current.push(endMarker);
 
     // POI markers - using native Mapbox layers with clustering
     if (route.pois && route.pois.length > 0) {
@@ -946,7 +930,6 @@ export default function MapComponent({
                 'icon-size': 0.03,
                 'icon-allow-overlap': true,
                 'icon-ignore-placement': true,
-                'icon-anchor': 'bottom',
               },
               paint: {
                 'icon-color': '#ffffff',

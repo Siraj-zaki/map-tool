@@ -22,7 +22,7 @@ export default function WeatherForecast({
   lng,
   locationName: _locationName = 'Wernigerode',
 }: WeatherForecastProps) {
-  const { i18n, t } = useTranslation();
+  const { i18n } = useTranslation();
   const [forecast, setForecast] = useState<DailyForecast[]>([]);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -131,7 +131,7 @@ export default function WeatherForecast({
           >
             ☁️
           </span>
-          {displayDays} {t('days')}
+          {displayDays}-Day
         </div>
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}

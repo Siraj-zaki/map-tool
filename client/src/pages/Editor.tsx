@@ -7,7 +7,6 @@ import {
   getDirections,
   routesApi,
   splitPointsApi,
-  type POI,
   type Route,
   type SplitPoint,
 } from '../api';
@@ -71,9 +70,8 @@ export default function Editor() {
   >('start');
 
   // Routing profile state (Fix for picking up trails)
-  // Use Cycling to snap to trails/gravel roads that Walking might miss
   const [routingProfile, setRoutingProfile] = useState<'walking' | 'cycling'>(
-    'cycling'
+    'walking'
   );
 
   // Split point selection state
@@ -1851,7 +1849,6 @@ export default function Editor() {
             <SplitPointEditor
               routeId={id ? Number(id) : null}
               routeGeometry={routeGeometry}
-              elevationData={elevationData}
               totalDistance={routeStats.distance}
               onSetSplitPointMode={(
                 active,
@@ -1870,7 +1867,6 @@ export default function Editor() {
                 }
               }}
               splitPoints={splitPoints}
-              pois={pois as POI[]}
               onSplitPointChange={setSplitPoints}
             />
           )}

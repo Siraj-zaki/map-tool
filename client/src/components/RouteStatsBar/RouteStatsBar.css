@@ -178,15 +178,9 @@
   .stats-center {
     order: 2;
     width: 100%;
-    /* Use Grid for vertical stacking (2 columns) */
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.25rem;
-    padding: 0.25rem 0;
-  }
-
-  .stat-item {
-    justify-content: center; /* Center content in grid cells */
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    justify-content: center;
   }
 
   .stats-right {
@@ -194,18 +188,18 @@
     width: 100%;
     justify-content: center;
     gap: 0.3rem;
-    margin-top: 0.25rem;
   }
 }
 
 @media (max-width: 600px) {
   .stat-item {
-    font-size: 0.75rem; /* Slightly larger for readability in grid */
-    padding: 0.25rem 0.35rem;
+    font-size: 0.65rem;
+    padding: 0.2rem 0.35rem;
+    gap: 0.2rem;
   }
 
   .stat-item i {
-    font-size: 0.7rem;
+    font-size: 0.6rem;
   }
 
   .download-text {
@@ -222,63 +216,6 @@
   }
 
   .route-title {
-    font-size: 0.85rem;
-  }
-}
-
-/* Embedded View Styles */
-.embedded-view .route-stats-bar {
-  padding: 4px 8px;
-  min-height: 40px;
-  gap: 6px;
-  /* Prevent wrapping if possible, or handle gracefully */
-  flex-wrap: nowrap;
-}
-
-.embedded-view .route-title {
-  font-size: 0.9rem;
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.embedded-view .stat-item {
-  font-size: 0.7rem;
-  padding: 2px 5px;
-  border: none;
-  background: transparent;
-}
-
-.embedded-view .stat-item i {
-  font-size: 0.65rem;
-}
-
-.embedded-view .download-btn {
-  padding: 3px 8px;
-  font-size: 0.7rem;
-}
-
-.embedded-view .ms-logo {
-  height: 18px;
-}
-
-/* Embedded Mobile adjustment */
-@media (max-width: 600px) {
-  .embedded-view .route-stats-bar {
-    flex-wrap: wrap;
-    padding: 4px;
-  }
-
-  .embedded-view .stats-center {
-    display: flex; /* Revert to flex for tiny embed to save vertical space */
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 4px;
-  }
-
-  .embedded-view .stat-item {
-    font-size: 0.65rem;
-    background: rgba(30, 42, 51, 0.3);
-    border-radius: 4px;
+    font-size: 0.8rem;
   }
 }

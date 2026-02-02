@@ -9,14 +9,12 @@ type TourType = 'gold' | 'silver' | 'bronze';
 interface LocationFilterProps {
   routeId: number;
   tourType: TourType;
-  startPoiId?: number | null;
   onFilterChange?: (selectedLocation: string | null) => void;
 }
 
 export default function LocationFilter({
   routeId,
   tourType,
-  startPoiId,
   onFilterChange,
 }: LocationFilterProps) {
   const { t } = useTranslation();
@@ -35,18 +33,9 @@ export default function LocationFilter({
       try {
         const result = await splitPointsApi.getByRoute(routeId);
         if (result.success) {
-          const allPoints =
+          const points =
             result.splitPoints[tourType as 'silver' | 'bronze'] || [];
-
-          // Filter by startPoiId
-          // If startPoiId is provided, filter for matched points
-          // If not provided (null/undefined), filter for points with no startPoiId (original start)
-          const filteredPoints = allPoints.filter(sp => {
-            if (startPoiId) return sp.startPoiId === startPoiId;
-            return !sp.startPoiId; // Original start has null/undefined startPoiId
-          });
-
-          setSplitPoints(filteredPoints);
+          setSplitPoints(points);
         }
       } catch (error) {
         console.error('Failed to load split points:', error);
@@ -56,7 +45,7 @@ export default function LocationFilter({
     };
 
     loadSplitPoints();
-  }, [routeId, tourType, startPoiId]);
+  }, [routeId, tourType]);
 
   const handleLocationClick = (locationName: string) => {
     const newSelection =

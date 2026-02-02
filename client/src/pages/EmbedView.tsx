@@ -177,7 +177,7 @@ export default function EmbedView() {
   }
 
   return (
-    <div className="wrapper embedded-view">
+    <div className="wrapper">
       {/* Route Stats Bar */}
       <RouteStatsBar
         route={route}
