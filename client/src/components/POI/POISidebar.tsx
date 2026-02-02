@@ -266,7 +266,7 @@ export default function POISidebar({
                     className="fas fa-route"
                     style={{ color: '#088d95', marginRight: '8px' }}
                   ></i>
-                  <span>{t('distanceToRoute')}:</span>
+                  <span>{t('distanceFromStart')}:</span>
                   <span
                     style={{
                       color: '#088d95',

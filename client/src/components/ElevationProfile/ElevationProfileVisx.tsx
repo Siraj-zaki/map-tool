@@ -7,10 +7,9 @@ import { Group } from '@visx/group';
 import { ParentSize } from '@visx/responsive';
 import { scaleLinear } from '@visx/scale';
 import { AreaClosed } from '@visx/shape';
-import { TooltipWithBounds, defaultStyles, useTooltip } from '@visx/tooltip';
+import { useTooltip } from '@visx/tooltip';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiMaximize2, FiZoomIn } from 'react-icons/fi';
 import type { POI, Route } from '../../api';
 import { useColorSettings } from '../../contexts/ColorSettingsContext';
 import './ElevationProfileVisx.css';
@@ -84,15 +83,15 @@ function getPoiIcon(poiType: string | undefined): string {
 const margin = { top: 15, right: 20, bottom: 35, left: 50 };
 
 // Tooltip styles
-const tooltipStyles = {
-  ...defaultStyles,
-  background: 'rgba(11, 18, 21, 0.95)',
-  border: '1px solid #088d95',
-  color: '#fff',
-  padding: '8px 12px',
-  borderRadius: '6px',
-  fontSize: '12px',
-};
+// const tooltipStyles = {
+//   ...defaultStyles,
+//   background: 'rgba(11, 18, 21, 0.95)',
+//   border: '1px solid #088d95',
+//   color: '#fff',
+//   padding: '8px 12px',
+//   borderRadius: '6px',
+//   fontSize: '12px',
+// };
 
 interface ChartProps {
   width: number;
@@ -118,32 +117,39 @@ function ElevationChart({
   onPositionChange,
   onPoiClick,
   highlightDistance,
-  t,
+  // t,
 }: ChartProps) {
   const [hoveredPoi, setHoveredPoi] = useState<POI | null>(null);
   const [filteredDomain, setFilteredDomain] = useState<[number, number] | null>(
     null
   );
-  const [isZoomMode, setIsZoomMode] = useState(false);
   const [hoveredPoiPosition, setHoveredPoiPosition] = useState<{
     x: number;
     y: number;
   } | null>(null);
-  const [currentGrade, setCurrentGrade] = useState<number>(0);
-  const [cumulativeAscent, setCumulativeAscent] = useState<number>(0);
+  // const [currentGrade, setCurrentGrade] = useState<number>(0);
+  // const [cumulativeAscent, setCumulativeAscent] = useState<number>(0);
 
   const {
     showTooltip,
     hideTooltip,
     tooltipOpen,
     tooltipData,
-    tooltipLeft,
-    tooltipTop,
+    // tooltipLeft,
+    // tooltipTop,
   } = useTooltip<ElevationPoint>();
 
-  // Inner dimensions - use full height since brush is removed
+  // Inner dimensions
+  // Reserve space for brush if we have data (50px height + 10px margin)
+  const BRUSH_HEIGHT = 50;
+  const BRUSH_MARGIN = 10;
+  const hasBrush = data.length > 0;
+
+  const chartHeight = hasBrush
+    ? Math.max(100, height - BRUSH_HEIGHT - BRUSH_MARGIN)
+    : height;
+
   const innerWidth = width - margin.left - margin.right;
-  const chartHeight = height;
   const innerHeight = chartHeight - margin.top - margin.bottom;
 
   // Filter data based on zoom domain
@@ -157,7 +163,7 @@ function ElevationChart({
     return filtered.length > 1 ? filtered : data;
   }, [data, filteredDomain]);
 
-  // Scales
+  // Main Chart Scales
   const xScale = useMemo(
     () =>
       scaleLinear<number>({
@@ -181,6 +187,32 @@ function ElevationChart({
         nice: true,
       }),
     [displayData, innerHeight]
+  );
+
+  // Brush / Mini Map Scales (Static, based on full data)
+  const brushXScale = useMemo(
+    () =>
+      scaleLinear<number>({
+        domain: [
+          Math.min(...data.map(d => d.distance)),
+          Math.max(...data.map(d => d.distance)),
+        ],
+        range: [0, innerWidth],
+      }),
+    [data, innerWidth]
+  );
+
+  const brushYScale = useMemo(
+    () =>
+      scaleLinear<number>({
+        domain: [
+          Math.min(...data.map(d => d.elevation)) - 50,
+          Math.max(...data.map(d => d.elevation)) + 50,
+        ],
+        range: [50, 0], // Fixed height for brush area
+        nice: true,
+      }),
+    [data]
   );
 
   // Get stage segments
@@ -248,95 +280,34 @@ function ElevationChart({
       }
 
       if (closestPoint) {
-        // Calculate grade
-        let grade = 0;
-        const idx = closestPoint.index;
-        const allData = data;
-        if (idx > 0 && allData[idx - 1]) {
-          const prev = allData[idx - 1];
-          const elevChange = closestPoint.elevation - prev.elevation;
-          const distChange = (closestPoint.distance - prev.distance) * 1000;
-          if (distChange > 0) {
-            grade = (elevChange / distChange) * 100;
-          }
+        if (closestPoint) {
+          showTooltip({
+            tooltipData: closestPoint,
+            tooltipLeft: xScale(closestPoint.distance) + margin.left,
+            tooltipTop: yScale(closestPoint.elevation) + margin.top,
+          });
+
+          onPositionChange?.({
+            lng: closestPoint.coordinates[0],
+            lat: closestPoint.coordinates[1],
+            distance: closestPoint.distance,
+            elevation: closestPoint.elevation,
+            grade: 0, // Simplified or remove if not needed
+          });
         }
-
-        setCurrentGrade(grade);
-
-        // Calculate cumulative elevation GAIN (sum of positive elevation changes from start to current point)
-        let totalAscent = 0;
-        for (let i = 1; i <= idx; i++) {
-          const elevChange = allData[i].elevation - allData[i - 1].elevation;
-          if (elevChange > 0) {
-            totalAscent += elevChange;
-          }
-        }
-        setCumulativeAscent(totalAscent);
-
-        showTooltip({
-          tooltipData: closestPoint,
-          tooltipLeft: xScale(closestPoint.distance) + margin.left,
-          tooltipTop: yScale(closestPoint.elevation) + margin.top,
-        });
-
-        onPositionChange?.({
-          lng: closestPoint.coordinates[0],
-          lat: closestPoint.coordinates[1],
-          distance: closestPoint.distance,
-          elevation: closestPoint.elevation,
-          grade,
-        });
       }
     },
-    [
-      displayData,
-      data,
-      xScale,
-      yScale,
-      showTooltip,
-      showTooltip,
-      onPositionChange,
-      hoveredPoi,
-      isZoomMode,
-    ]
+    [displayData, data, xScale, yScale, onPositionChange, hoveredPoi]
   );
 
   const handleMouseLeave = useCallback(() => {
-    hideTooltip();
     onPositionChange?.(null);
-  }, [hideTooltip, onPositionChange]);
+  }, [onPositionChange]);
 
   if (width < 100 || data.length === 0) return null;
 
   return (
     <div className="elevation-chart-visx">
-      {/* Zoom Controls */}
-      <div className="zoom-controls">
-        {filteredDomain && (
-          <button
-            className="zoom-btn"
-            onClick={() => setFilteredDomain(null)}
-            title={t('resetZoom', 'Zoom zurücksetzen')}
-          >
-            <FiMaximize2 size={16} />
-          </button>
-        )}
-        <button
-          className={`zoom-btn ${isZoomMode ? 'active' : ''}`}
-          onClick={() => {
-            setIsZoomMode(!isZoomMode);
-            // Hide tooltip when entering zoom mode
-            if (!isZoomMode) {
-              hideTooltip();
-              onPositionChange?.(null);
-            }
-          }}
-          title={t('enableZoom', 'Zoom aktivieren')}
-        >
-          <FiZoomIn size={16} />
-        </button>
-      </div>
-
       <svg width={width} height={chartHeight}>
         {/* Gradients */}
         {stageColors.map((color, i) => (
@@ -545,47 +516,9 @@ function ElevationChart({
             </>
           )}
 
-          {/* Zoom Brush - Only visible in zoom mode */}
-          {isZoomMode && (
-            <Brush
-              xScale={xScale}
-              yScale={yScale}
-              width={innerWidth}
-              height={innerHeight}
-              handleSize={8}
-              resizeTriggerAreas={['left', 'right']}
-              brushDirection="horizontal"
-              onChange={() => {
-                // Optional: updates while dragging
-              }}
-              onBrushEnd={selection => {
-                if (selection) {
-                  const { x0, x1 } = selection;
-                  if (typeof x0 === 'number' && typeof x1 === 'number') {
-                    const min = Math.min(x0, x1);
-                    const max = Math.max(x0, x1);
-                    // Ensure valid range
-                    if (max - min > 0.1) {
-                      setFilteredDomain([min, max]);
-                      setIsZoomMode(false);
-                    }
-                  }
-                }
-              }}
-              selectedBoxStyle={{
-                fill: '#088d95',
-                fillOpacity: 0.3,
-                stroke: '#088d95',
-                strokeWidth: 1,
-              }}
-              useWindowMoveEvents
-            />
-          )}
-
           {/* Invisible overlay for mouse events - rendered AFTER POIs so POIs are on top */}
           <rect
-            pointerEvents={isZoomMode ? 'none' : 'all'}
-            x={0}
+            pointerEvents="all"
             y={0}
             width={innerWidth}
             height={innerHeight}
@@ -688,39 +621,83 @@ function ElevationChart({
           />
         </Group>
       </svg>
-      {/* Tooltip - rendered outside SVG */}
-      {tooltipOpen && tooltipData && !hoveredPoi && (
-        <TooltipWithBounds
-          top={tooltipTop}
-          left={tooltipLeft}
-          style={tooltipStyles}
-        >
-          {/* Nach: distance (time, ↗ cumulative ascent) */}
-          <div style={{ marginBottom: '4px' }}>
-            <strong>{t('to', 'Nach')}:</strong>{' '}
-            <span style={{ color: '#088d95' }}>
-              {tooltipData.distance.toFixed(1)} km
-            </span>
-            <span style={{ color: '#9ca3af', marginLeft: '6px' }}>
-              (↗ {Math.round(cumulativeAscent).toLocaleString()} m)
-            </span>
-          </div>
-          {/* Höhenmeter (current elevation) */}
-          <div>
-            <strong>{t('elevation', 'Höhenmeter')}:</strong>{' '}
-            <span>{Math.round(tooltipData.elevation).toLocaleString()} m</span>
-          </div>
-          {/* Steigung (grade) */}
-          <div>
-            <strong>{t('grade', 'Steigung')}:</strong>{' '}
-            <span style={{ color: currentGrade >= 0 ? '#22c55e' : '#ef4444' }}>
-              {currentGrade >= 0 ? '↗' : '↘'}{' '}
-              {Math.abs(currentGrade).toFixed(1)}%
-            </span>
-          </div>
-        </TooltipWithBounds>
-      )}
 
+      {/* Zoom Brush Chart (Mini Map) - Only visible when we have data */}
+      {data.length > 0 && (
+        <div style={{ height: '50px', marginTop: '10px' }}>
+          <svg width={width} height={50}>
+            <LinearGradient
+              id="brush-gradient"
+              from="#088d95"
+              to="#088d95"
+              fromOpacity={0.4}
+              toOpacity={0.1}
+            />
+            <AreaClosed<ElevationPoint>
+              data={data}
+              x={d => brushXScale(d.distance)}
+              y={d => brushYScale(d.elevation)}
+              yScale={brushYScale}
+              curve={curveMonotoneX}
+              fill="url(#brush-gradient)"
+              stroke="#088d95"
+              strokeWidth={1}
+            />
+            <Brush
+              xScale={brushXScale}
+              yScale={brushYScale}
+              width={innerWidth}
+              height={50}
+              margin={{
+                top: 0,
+                bottom: 0,
+                left: margin.left,
+                right: margin.right,
+              }}
+              handleSize={8}
+              resizeTriggerAreas={['left', 'right']}
+              brushDirection="horizontal"
+              initialBrushPosition={(() => {
+                // Default to first 30% of the route if simpler view is preferred
+                const start = brushXScale.domain()[0];
+                const end = brushXScale.domain()[1];
+                const range = end - start;
+                // Only zoom in if route is long (>10km)
+                if (range > 10) {
+                  return {
+                    start: { x: brushXScale(start) },
+                    end: { x: brushXScale(start + range * 0.4) },
+                  };
+                }
+                return undefined;
+              })()}
+              onChange={domain => {
+                if (domain) {
+                  const { x0, x1 } = domain;
+                  const newDomain = [
+                    Math.max(brushXScale.domain()[0], x0),
+                    Math.min(brushXScale.domain()[1], x1),
+                  ] as [number, number];
+
+                  // Avoid collapsing to 0
+                  if (newDomain[1] - newDomain[0] > 0.5) {
+                    setFilteredDomain(newDomain);
+                  }
+                } else {
+                  setFilteredDomain(null);
+                }
+              }}
+              selectedBoxStyle={{
+                fill: '#088d95',
+                fillOpacity: 0.3,
+                stroke: '#088d95',
+                strokeWidth: 1,
+              }}
+              useWindowMoveEvents
+            />
+          </svg>
+        </div>
+      )}
       {/* POI info tooltip - positioned above the POI */}
       {hoveredPoi && hoveredPoiPosition && (
         <div
@@ -774,7 +751,7 @@ export default function ElevationProfileVisx({
     } else {
       coords = [route.startPoint, ...route.waypoints, route.endPoint] as [
         number,
-        number
+        number,
       ][];
     }
 

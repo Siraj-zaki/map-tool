@@ -256,15 +256,43 @@ export async function initializeDatabase() {
       route_id INT NOT NULL,
       tour_type ENUM('bronze', 'silver') NOT NULL,
       stage_number INT NOT NULL,
+      start_poi_id INT,
       location_name VARCHAR(255) NOT NULL,
       lng DECIMAL(11,8) NOT NULL,
       lat DECIMAL(10,8) NOT NULL,
       distance_km DECIMAL(8,3) NOT NULL,
+      elevation_gain DECIMAL(10,2) DEFAULT 0,
+      elevation_loss DECIMAL(10,2) DEFAULT 0,
+      duration_minutes INT DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (route_id) REFERENCES routes(route_id) ON DELETE CASCADE,
-      UNIQUE KEY unique_route_tour_stage (route_id, tour_type, stage_number)
+      FOREIGN KEY (start_poi_id) REFERENCES pois(poi_id) ON DELETE CASCADE,
+      UNIQUE KEY unique_route_tour_stage (route_id, tour_type, stage_number, start_poi_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
+
+  // Add new columns if they don't exist (for existing databases)
+  try {
+    const alterations = [
+      'ADD COLUMN IF NOT EXISTS start_poi_id INT',
+      'ADD COLUMN IF NOT EXISTS elevation_gain DECIMAL(10,2) DEFAULT 0',
+      'ADD COLUMN IF NOT EXISTS elevation_loss DECIMAL(10,2) DEFAULT 0',
+      'ADD COLUMN IF NOT EXISTS duration_minutes INT DEFAULT 0',
+      'ADD FOREIGN KEY IF NOT EXISTS (start_poi_id) REFERENCES pois(poi_id) ON DELETE CASCADE',
+      'DROP INDEX unique_route_tour_stage',
+      'ADD UNIQUE KEY unique_route_tour_stage (route_id, tour_type, stage_number, start_poi_id)',
+    ];
+
+    for (const alter of alterations) {
+      try {
+        await pool.execute(`ALTER TABLE stage_split_points ${alter}`);
+      } catch (e) {
+        // Ignore specific errors like index not found or duplicate key
+      }
+    }
+  } catch (e) {
+    console.log('Error updating stage_split_points schema:', e);
+  }
 
   // Create default admin user if not exists
   const [adminRows] = await pool.execute(

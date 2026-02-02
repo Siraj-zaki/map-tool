@@ -28,6 +28,12 @@ const resources = {
       goldLabel: '1 Day - Complete Route',
       silverLabel: '2 Days - 2 Stages',
       bronzeLabel: '3 Days - 3 Stages',
+      goldSimple: 'Gold',
+      silverSimple: 'Silver',
+      bronzeSimple: 'Bronze',
+      tourStages: 'Tour Stages',
+      days: 'Days',
+      difficultyLevel: 'Difficulty Level',
 
       // Actions
       download: 'Download',
@@ -124,6 +130,7 @@ const resources = {
       noDescriptionAvailable: 'No description available.',
       noFacilitiesAvailable: 'No facilities information available.',
       distanceToRoute: 'Distance to route',
+      distanceFromStart: 'Distance from Start',
 
       // Messages
       loading: 'Loading...',
@@ -230,6 +237,12 @@ const resources = {
       goldLabel: '1 Tag - Komplette Route',
       silverLabel: '2 Tage - 2 Etappen',
       bronzeLabel: '3 Tage - 3 Etappen',
+      goldSimple: 'Gold',
+      silverSimple: 'Silber',
+      bronzeSimple: 'Bronze',
+      tourStages: 'Etappen-Planer',
+      days: 'Tage',
+      difficultyLevel: 'Schwierigkeitsgrad',
 
       // Actions
       download: 'Herunterladen',
@@ -326,6 +339,7 @@ const resources = {
       noDescriptionAvailable: 'Keine Beschreibung verfügbar.',
       noFacilitiesAvailable: 'Keine Ausstattungsinformationen verfügbar.',
       distanceToRoute: 'Entfernung zur Route',
+      distanceFromStart: 'Entfernung vom Start',
 
       // Messages
       loading: 'Lädt...',

@@ -22,7 +22,7 @@ export default function WeatherForecast({
   lng,
   locationName: _locationName = 'Wernigerode',
 }: WeatherForecastProps) {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const [forecast, setForecast] = useState<DailyForecast[]>([]);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -109,10 +109,10 @@ export default function WeatherForecast({
           marginBottom: isCollapsed
             ? 0
             : isMobile
-            ? '4px'
-            : isTablet
-            ? '6px'
-            : '10px',
+              ? '4px'
+              : isTablet
+                ? '6px'
+                : '10px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -131,7 +131,7 @@ export default function WeatherForecast({
           >
             ☁️
           </span>
-          {displayDays}-Day
+          {displayDays} {t('days')}
         </div>
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
@@ -171,8 +171,8 @@ export default function WeatherForecast({
                 padding: isMobile
                   ? '4px 5px'
                   : isTablet
-                  ? '5px 7px'
-                  : '8px 10px',
+                    ? '5px 7px'
+                    : '8px 10px',
                 borderRadius: isMobile ? '4px' : '8px',
                 background:
                   index === 0
@@ -209,7 +209,7 @@ export default function WeatherForecast({
                   textAlign: 'left',
                 }}
               >
-                {day.dayName.slice(0, 3)}
+                {day.dayName}
               </div>
 
               {/* Temperature */}
@@ -234,30 +234,24 @@ export default function WeatherForecast({
 }
 
 function getDayName(dateString: string, index: number, lang: string): string {
-  if (index === 0) return lang === 'de' ? 'HEUTE' : 'TODAY';
-  if (index === 1) return lang === 'de' ? 'MORGEN' : 'TOMORROW';
+  const isGerman = lang.startsWith('de');
+  if (index === 0) return isGerman ? 'HEUTE' : 'TODAY';
+  if (index === 1) return isGerman ? 'MORGEN' : 'TOMORROW';
 
   const date = new Date(dateString);
   const daysDE = [
-    'SONNTAG',
-    'MONTAG',
-    'DIENSTAG',
-    'MITTWOCH',
-    'DONNERSTAG',
-    'FREITAG',
-    'SAMSTAG',
+    'SON', // Sonntag
+    'MON', // Montag
+    'DIE', // Dienstag
+    'MIT', // Mittwoch
+    'DON', // Donnerstag
+    'FRE', // Freitag
+    'SAM', // Samstag
   ];
-  const daysEN = [
-    'SUNDAY',
-    'MONDAY',
-    'TUESDAY',
-    'WEDNESDAY',
-    'THURSDAY',
-    'FRIDAY',
-    'SATURDAY',
-  ];
+  const daysEN = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
-  return lang === 'de' ? daysDE[date.getDay()] : daysEN[date.getDay()];
+  const dayIndex = date.getDay();
+  return isGerman ? daysDE[dayIndex] : daysEN[dayIndex];
 }
 
 function getWeatherIcon(code: number): string {

@@ -150,10 +150,14 @@ export const routesApi = {
 // Split Point Types
 export interface SplitPoint {
   stageNumber: number;
+  startPoiId?: number;
   locationName: string;
   lng: number;
   lat: number;
   distanceKm: number;
+  elevationGain?: number;
+  elevationLoss?: number;
+  durationMinutes?: number;
 }
 
 export interface SplitPointsResponse {

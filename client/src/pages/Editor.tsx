@@ -7,6 +7,7 @@ import {
   getDirections,
   routesApi,
   splitPointsApi,
+  type POI,
   type Route,
   type SplitPoint,
 } from '../api';
@@ -31,6 +32,7 @@ const poiIcons: Record<string, { icon: string; color: string }> = {
   restaurant: { icon: 'fa-utensils', color: '#f97316' },
   gipfel: { icon: 'fa-mountain', color: '#22c55e' },
   highlight: { icon: 'fa-star', color: '#eab308' },
+  city: { icon: 'fa-city', color: '#6366f1' },
 };
 
 export default function Editor() {
@@ -68,6 +70,12 @@ export default function Editor() {
     'start' | 'end' | 'waypoint' | 'poi' | 'splitpoint'
   >('start');
 
+  // Routing profile state (Fix for picking up trails)
+  // Use Cycling to snap to trails/gravel roads that Walking might miss
+  const [routingProfile, setRoutingProfile] = useState<'walking' | 'cycling'>(
+    'cycling'
+  );
+
   // Split point selection state
   const [_splitPointTourType, setSplitPointTourType] = useState<
     'silver' | 'bronze'
@@ -83,6 +91,7 @@ export default function Editor() {
   const [poiModalLngLat, setPoiModalLngLat] = useState<[number, number]>([
     0, 0,
   ]);
+  const [editingPoiIndex, setEditingPoiIndex] = useState<number | null>(null);
 
   const [routeStats, setRouteStats] = useState({
     distance: 0,
@@ -267,7 +276,8 @@ export default function Editor() {
         setEndPoint(coord);
         setEditMode('waypoint');
       } else if (editMode === 'poi') {
-        // Open POI Modal
+        // Open POI Modal (Add new)
+        setEditingPoiIndex(null);
         setPoiModalLngLat(coord);
         setPoiModalOpen(true);
       } else {
@@ -670,6 +680,13 @@ export default function Editor() {
           </div>
         `;
         el.style.cursor = 'pointer';
+
+        // Add click listener for editing
+        el.addEventListener('click', e => {
+          e.stopPropagation(); // Prevent map click
+          handlePoiEdit(pois.indexOf(poi));
+        });
+
         const marker = new mapboxgl.Marker({ element: el, offset: [0, -24] })
           .setLngLat(poi.lngLat)
           .addTo(map.current!);
@@ -756,12 +773,12 @@ export default function Editor() {
             startPoint,
             effectiveWaypoints,
             effectiveEnd,
-            'walking'
+            routingProfile
           );
           if (result.routes?.[0]) {
             fullGeometry = result.routes[0].geometry.coordinates as [
               number,
-              number
+              number,
             ][];
             totalDistance = result.routes[0].distance;
             totalDuration = result.routes[0].duration;
@@ -825,13 +842,13 @@ export default function Editor() {
               batch.start,
               batch.waypoints,
               batch.end,
-              'walking'
+              routingProfile
             );
 
             if (result.routes?.[0]) {
               const batchGeometry = result.routes[0].geometry.coordinates as [
                 number,
-                number
+                number,
               ][];
 
               // Skip first coordinate of subsequent batches to avoid duplicates
@@ -908,10 +925,17 @@ export default function Editor() {
       }
     };
 
-    // Small delay to ensure map is ready
     const timer = setTimeout(drawRoute, 100);
     return () => clearTimeout(timer);
-  }, [startPoint, waypoints, endPoint, isGpxRoute, mapLoaded, routeSettings]);
+  }, [
+    startPoint,
+    waypoints,
+    endPoint,
+    isGpxRoute,
+    mapLoaded,
+    routeSettings,
+    routingProfile,
+  ]);
 
   // Load existing route
   useEffect(() => {
@@ -1343,9 +1367,26 @@ export default function Editor() {
     setPois(prev => prev.filter((_, i) => i !== index));
 
   const handlePOISave = (poiData: POIData) => {
-    setPois(prev => [...prev, { ...poiData, id: Date.now() } as any]);
+    if (editingPoiIndex !== null) {
+      // Edit existing
+      setPois(prev => {
+        const newPois = [...prev];
+        newPois[editingPoiIndex] = { ...poiData, id: prev[editingPoiIndex].id };
+        return newPois;
+      });
+    } else {
+      // Create new
+      setPois(prev => [...prev, { ...poiData, id: Date.now() } as any]);
+    }
     setPoiModalOpen(false);
     setEditMode('waypoint');
+    setEditingPoiIndex(null);
+  };
+
+  const handlePoiEdit = (index: number) => {
+    setEditingPoiIndex(index);
+    setPoiModalLngLat(pois[index].lngLat);
+    setPoiModalOpen(true);
   };
 
   const handleGPXUpload = async (
@@ -1707,6 +1748,39 @@ export default function Editor() {
             </button>
           </div>
 
+          {/* Routing Profile Selector */}
+          <div className="bg-[#0b1215] border border-[#1e2a33] rounded-lg p-3">
+            <h4 className="text-[#088d95] text-xs uppercase mb-2 font-semibold">
+              {t('routingProfile') || 'Routing Profile'}
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setRoutingProfile('walking')}
+                className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm transition-all ${
+                  routingProfile === 'walking'
+                    ? 'bg-[#088d95] text-white'
+                    : 'bg-[#0b1215] border border-[#1e2a33] text-gray-400 hover:border-[#088d95]'
+                }`}
+              >
+                <i className="fas fa-hiking"></i> {t('walking') || 'Walking'}
+              </button>
+              <button
+                onClick={() => setRoutingProfile('cycling')}
+                className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm transition-all ${
+                  routingProfile === 'cycling'
+                    ? 'bg-[#088d95] text-white'
+                    : 'bg-[#0b1215] border border-[#1e2a33] text-gray-400 hover:border-[#088d95]'
+                }`}
+              >
+                <i className="fas fa-bicycle"></i> {t('cycling') || 'Cycling'}
+              </button>
+            </div>
+            <p className="text-[10px] text-gray-500 mt-2">
+              {t('routingProfileHint') ||
+                'Use Cycling to snap to trails/gravel roads that Walking might miss.'}
+            </p>
+          </div>
+
           {/* Action Buttons */}
           <button
             onClick={handleSave}
@@ -1751,8 +1825,8 @@ export default function Editor() {
             {calculatingElevation
               ? 'Calculating...'
               : elevationData && elevationData.length > 0
-              ? 'Elevation Calculated'
-              : 'Calculate Elevation'}
+                ? 'Elevation Calculated'
+                : 'Calculate Elevation'}
           </button>
 
           {/* GPX Upload */}
@@ -1777,6 +1851,7 @@ export default function Editor() {
             <SplitPointEditor
               routeId={id ? Number(id) : null}
               routeGeometry={routeGeometry}
+              elevationData={elevationData}
               totalDistance={routeStats.distance}
               onSetSplitPointMode={(
                 active,
@@ -1795,6 +1870,7 @@ export default function Editor() {
                 }
               }}
               splitPoints={splitPoints}
+              pois={pois as POI[]}
               onSplitPointChange={setSplitPoints}
             />
           )}
@@ -1823,12 +1899,21 @@ export default function Editor() {
                       ></i>
                       {poi.name}
                     </span>
-                    <button
-                      onClick={() => removePoi(idx)}
-                      className="text-red-400 hover:text-red-300 text-lg px-1"
-                    >
-                      ×
-                    </button>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handlePoiEdit(idx)}
+                        className="text-gray-400 hover:text-white px-1"
+                        title={t('edit') || 'Edit'}
+                      >
+                        <i className="fas fa-edit"></i>
+                      </button>
+                      <button
+                        onClick={() => removePoi(idx)}
+                        className="text-red-400 hover:text-red-300 px-1"
+                      >
+                        ×
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -2088,11 +2173,15 @@ export default function Editor() {
       <POIModal
         isOpen={poiModalOpen}
         lngLat={poiModalLngLat}
-        editingPoi={pois.find(
-          p =>
-            p.lngLat[0] === poiModalLngLat[0] &&
-            p.lngLat[1] === poiModalLngLat[1]
-        )}
+        editingPoi={
+          editingPoiIndex !== null
+            ? pois[editingPoiIndex]
+            : pois.find(
+                p =>
+                  p.lngLat[0] === poiModalLngLat[0] &&
+                  p.lngLat[1] === poiModalLngLat[1]
+              )
+        }
         onSave={handlePOISave}
         onClose={() => {
           setPoiModalOpen(false);

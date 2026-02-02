@@ -27,6 +27,7 @@ export default function PublicView() {
     'gold'
   );
   const [selectedStage, setSelectedStage] = useState<number | null>(null);
+  const [startPoi, setStartPoi] = useState<POI | null>(null);
   const [flyToLocation, setFlyToLocation] = useState<{
     lng: number;
     lat: number;
@@ -57,6 +58,15 @@ export default function PublicView() {
         const result = await routesApi.getById(Number(routeId));
         if (result.success) {
           setRoute(result.route);
+          // Default start POI: First POI with type 'city' or 'start_city'
+          const cities = result.route.pois.filter(
+            p =>
+              p.type?.toLowerCase() === 'city' ||
+              p.type?.toLowerCase() === 'start_city'
+          );
+          if (cities.length > 0) {
+            setStartPoi(cities[0]);
+          }
         } else {
           setError('Route not found');
         }
@@ -122,13 +132,26 @@ export default function PublicView() {
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-      setIsFullscreen(true);
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error('Error attempting to enable fullscreen:', err);
+      });
     } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
+      document.exitFullscreen().catch(err => {
+        console.error('Error attempting to exit fullscreen:', err);
+      });
     }
   };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -151,6 +174,12 @@ export default function PublicView() {
   // Get center coordinates for weather
   const centerLat = (route.startPoint[1] + route.endPoint[1]) / 2;
   const centerLng = (route.startPoint[0] + route.endPoint[0]) / 2;
+
+  // Get available start cities
+  const startCities = route.pois.filter(
+    p =>
+      p.type?.toLowerCase() === 'city' || p.type?.toLowerCase() === 'start_city'
+  );
 
   return (
     <div className="h-screen flex flex-col bg-[#0b1215]">
@@ -197,7 +226,7 @@ export default function PublicView() {
           </button>
         </div>
 
-        {/* Tour Selector - Top Left (Hidden on mobile unless toggled) */}
+        {/* Tour Selector & Start Location - Top Left */}
         <div
           className={`absolute top-2 left-2 md:top-3 md:left-[60px] z-40 flex flex-col gap-3 items-start transition-opacity duration-300 ${
             showMobileRouteStats
@@ -205,6 +234,33 @@ export default function PublicView() {
               : 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto'
           }`}
         >
+          {startCities.length > 0 && (
+            <div className="bg-[#0b1215]/90 backdrop-blur-md border border-[#1e2a33] text-white p-2 rounded-lg shadow-lg w-full md:w-auto">
+              <label className="block text-xs text-gray-400 mb-1 ml-1">
+                {t('startLocation') || 'Start Location'}
+              </label>
+              <select
+                className="bg-[#080e11] border border-[#1e2a33] rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-[#088d95] w-full"
+                value={startPoi?.poi_id || ''}
+                onChange={e => {
+                  const city = startCities.find(
+                    c => c.poi_id === Number(e.target.value)
+                  );
+                  setStartPoi(city || null);
+                }}
+              >
+                {startCities.map(city => (
+                  <option key={city.poi_id} value={city.poi_id}>
+                    {city.name}
+                  </option>
+                ))}
+                <option value="">
+                  {t('originalStart') || 'Original Start'}
+                </option>
+              </select>
+            </div>
+          )}
+
           <TourStagePanel
             route={route}
             tourType={tourType}
@@ -212,11 +268,14 @@ export default function PublicView() {
             selectedStage={selectedStage}
             onStageSelect={setSelectedStage}
           />
-          <LocationFilter routeId={route.id} tourType={tourType} />
+          <LocationFilter
+            routeId={route.id}
+            tourType={tourType}
+            startPoiId={startPoi?.poi_id}
+          />
         </div>
 
         {/* Weather Forecast Overlay */}
-        {/* Desktop: Top Right. Mobile: Bottom Left (above profile) */}
         <div
           className={`absolute z-40 transition-all duration-300
             md:top-4 md:right-3 md:bottom-auto md:left-auto md:opacity-100 md:pointer-events-auto
@@ -239,9 +298,9 @@ export default function PublicView() {
           route={route}
           tourType={tourType}
           selectedStage={selectedStage}
+          startPoi={startPoi}
           onPositionChange={handleMapPositionChange}
           onPoiClick={setSelectedPoi}
-          isFullscreen={isFullscreen}
           highlightPosition={highlightPosition}
           flyToLocation={flyToLocation}
         />
@@ -249,12 +308,25 @@ export default function PublicView() {
         {/* Fullscreen Button */}
         <button
           onClick={toggleFullscreen}
-          className="absolute top-3 left-3 z-50 w-9 h-9 flex items-center justify-center bg-[#080e11] border border-[#1e2a33] rounded-lg text-gray-400 hover:text-white hover:bg-[#088d95] hover:border-[#088d95] transition-all hidden md:flex"
+          className="absolute top-3 left-3 z-1000 w-9 h-9 flex items-center justify-center bg-[#080e11] border border-[#1e2a33] rounded-lg text-gray-400 hover:text-white hover:bg-[#088d95] hover:border-[#088d95] transition-all hidden md:flex"
         >
           <i
             className={`fas fa-${isFullscreen ? 'compress' : 'expand'} text-sm`}
           ></i>
         </button>
+
+        {/* Explicit Exit Fullscreen Button (Top Right) */}
+        {isFullscreen && (
+          <button
+            onClick={toggleFullscreen}
+            className="fixed top-4 right-4 z-2000 bg-black/50 hover:bg-black/80 text-white rounded-full px-4 py-2 backdrop-blur-sm border border-white/20 flex items-center gap-2 transition-all"
+          >
+            <i className="fas fa-times"></i>
+            <span className="text-sm font-medium">
+              {t('exitFullscreen') || 'Exit'}
+            </span>
+          </button>
+        )}
 
         {/* POI Sidebar */}
         <POISidebar

@@ -127,6 +127,31 @@ export default function EmbedView() {
     }
   }, []);
 
+  // Handle fullscreen toggle
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error('Error attempting to enable fullscreen:', err);
+      });
+    } else {
+      document.exitFullscreen().catch(err => {
+        console.error('Error attempting to exit fullscreen:', err);
+      });
+    }
+  };
+
+  // Sync fullscreen state
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
   if (loading) {
     return (
       <div className="wrapper">
@@ -152,7 +177,7 @@ export default function EmbedView() {
   }
 
   return (
-    <div className="wrapper">
+    <div className="wrapper embedded-view">
       {/* Route Stats Bar */}
       <RouteStatsBar
         route={route}
@@ -277,23 +302,14 @@ export default function EmbedView() {
             onPositionChange={handleMapPositionChange}
             onPoiClick={setSelectedPoi}
             highlightPosition={highlightPosition}
-            isFullscreen={isFullscreen}
             flyToLocation={flyToLocation}
           />
         </div>
 
         {/* Fullscreen Button */}
         <button
-          onClick={() => {
-            if (!document.fullscreenElement) {
-              document.documentElement.requestFullscreen();
-              setIsFullscreen(true);
-            } else {
-              document.exitFullscreen();
-              setIsFullscreen(false);
-            }
-          }}
-          className="absolute top-3 left-3 z-50 w-10 h-10 flex items-center justify-center bg-[#080e11] border border-[#1e2a33] rounded-lg text-gray-400 hover:text-white hover:bg-[#088d95] hover:border-[#088d95] transition-all"
+          onClick={toggleFullscreen}
+          className="absolute top-3 left-3 z-[1000] w-10 h-10 flex items-center justify-center bg-[#080e11] border border-[#1e2a33] rounded-lg text-gray-400 hover:text-white hover:bg-[#088d95] hover:border-[#088d95] transition-all"
           title={isFullscreen ? t('exitFullscreen') : t('fullscreen')}
         >
           <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>

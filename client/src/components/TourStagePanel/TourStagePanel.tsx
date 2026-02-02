@@ -110,7 +110,7 @@ export default function TourStagePanel({
             letterSpacing: '0.5px',
           }}
         >
-          {t('tourStages') || 'Tour Stages'}
+          {t('tourStages')}
         </span>
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
@@ -147,7 +147,7 @@ export default function TourStagePanel({
                 letterSpacing: '0.5px',
               }}
             >
-              {t('difficultyLevel') || 'Difficulty Level'}
+              {t('difficultyLevel')}
             </div>
             <div className="tour-type-row">
               {(['gold', 'silver', 'bronze'] as const).map(type => (
@@ -159,9 +159,7 @@ export default function TourStagePanel({
                   }`}
                   data-type={type}
                 >
-                  <span className="tour-label">
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                  </span>
+                  <span className="tour-label">{t(`${type}Simple`)}</span>
                 </button>
               ))}
             </div>
@@ -179,7 +177,7 @@ export default function TourStagePanel({
                 letterSpacing: '0.5px',
               }}
             >
-              {t('days') || 'Days'}
+              {t('days')}
             </div>
             <div className="stage-tabs-row">
               {Array.from({ length: numStages }, (_, i) => i + 1).map(stage => (

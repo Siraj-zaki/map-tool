@@ -62,6 +62,7 @@ export default function POIModal({
     { value: 'restaurant', labelKey: 'restaurant' },
     { value: 'gipfel', labelKey: 'gipfel' },
     { value: 'highlight', labelKey: 'highlight' },
+    { value: 'city', labelKey: 'city' },
   ];
 
   const bestTimeOptions = [
@@ -153,6 +154,7 @@ export default function POIModal({
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
+              onKeyDown={e => e.stopPropagation()}
               placeholder={t('poiNamePlaceholder')}
               className="w-full px-4 py-2.5 bg-[#080e11] border border-[#1e2a33] rounded-lg text-white placeholder-gray-500 focus:border-[#088d95] focus:outline-none"
             />
@@ -241,6 +243,7 @@ export default function POIModal({
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
+              onKeyDown={e => e.stopPropagation()}
               placeholder={t('shortDescriptionPlaceholder')}
               rows={3}
               className="w-full px-4 py-2.5 bg-[#080e11] border border-[#1e2a33] rounded-lg text-white placeholder-gray-500 focus:border-[#088d95] focus:outline-none resize-none"

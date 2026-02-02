@@ -382,11 +382,13 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
 router.get('/:id/split-points', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { tourType } = req.query;
+    const { tourType, startPoiId } = req.query;
 
     let sql = `
       SELECT id, tour_type as tourType, stage_number as stageNumber, 
-             location_name as locationName, lng, lat, distance_km as distanceKm
+             start_poi_id as startPoiId,
+             location_name as locationName, lng, lat, distance_km as distanceKm,
+             elevation_gain as elevationGain, elevation_loss as elevationLoss, duration_minutes as durationMinutes
       FROM stage_split_points 
       WHERE route_id = ?
     `;
@@ -395,6 +397,14 @@ router.get('/:id/split-points', async (req: Request, res: Response) => {
     if (tourType) {
       sql += ' AND tour_type = ?';
       params.push(tourType);
+    }
+
+    if (startPoiId) {
+      sql += ' AND start_poi_id = ?';
+      params.push(startPoiId);
+    } else {
+      // If no startPoiId specified, prefer those with null start_poi_id (legacy) or just return all?
+      // Let's return all for now, the clients can filter.
     }
 
     sql += ' ORDER BY tour_type, stage_number';
@@ -410,10 +420,14 @@ router.get('/:id/split-points', async (req: Request, res: Response) => {
     splitPoints.forEach((sp: any) => {
       grouped[sp.tourType].push({
         stageNumber: sp.stageNumber,
+        startPoiId: sp.startPoiId,
         locationName: sp.locationName,
         lng: parseFloat(sp.lng),
         lat: parseFloat(sp.lat),
         distanceKm: parseFloat(sp.distanceKm),
+        elevationGain: sp.elevationGain ? parseFloat(sp.elevationGain) : 0,
+        elevationLoss: sp.elevationLoss ? parseFloat(sp.elevationLoss) : 0,
+        durationMinutes: sp.durationMinutes || 0,
       });
     });
 
@@ -433,7 +447,7 @@ router.put(
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const { tourType, splitPoints } = req.body;
+      const { tourType, splitPoints, startPoiId } = req.body;
 
       if (!tourType || !['silver', 'bronze'].includes(tourType)) {
         return res.status(400).json({
@@ -442,27 +456,39 @@ router.put(
         });
       }
 
-      // Delete existing split points for this tour type
-      await run(
-        'DELETE FROM stage_split_points WHERE route_id = ? AND tour_type = ?',
-        [id, tourType]
-      );
+      // Delete existing split points for this tour type AND startPoiId
+      let deleteSql =
+        'DELETE FROM stage_split_points WHERE route_id = ? AND tour_type = ?';
+      const deleteParams = [id, tourType];
+
+      if (startPoiId) {
+        deleteSql += ' AND start_poi_id = ?';
+        deleteParams.push(startPoiId);
+      } else {
+        deleteSql += ' AND start_poi_id IS NULL';
+      }
+
+      await run(deleteSql, deleteParams);
 
       // Insert new split points
       if (splitPoints && splitPoints.length > 0) {
         for (const sp of splitPoints) {
           await run(
             `INSERT INTO stage_split_points 
-           (route_id, tour_type, stage_number, location_name, lng, lat, distance_km)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+           (route_id, tour_type, stage_number, start_poi_id, location_name, lng, lat, distance_km, elevation_gain, elevation_loss, duration_minutes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               id,
               tourType,
               sp.stageNumber,
+              startPoiId || null,
               sp.locationName,
               sp.lng,
               sp.lat,
               sp.distanceKm,
+              sp.elevationGain || 0,
+              sp.elevationLoss || 0,
+              sp.durationMinutes || 0,
             ]
           );
         }
