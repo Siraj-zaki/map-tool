@@ -97,17 +97,17 @@ export default function TourStagePanel({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: isCollapsed ? 0 : '8px',
-          padding: '0 4px',
+          marginBottom: isCollapsed ? 0 : '0.5rem',
+          padding: '0 0.25rem',
         }}
       >
         <span
           style={{
-            fontSize: '11px',
+            fontSize: '0.6875rem',
             textTransform: 'uppercase',
             color: '#088d95',
             fontWeight: 600,
-            letterSpacing: '0.5px',
+            letterSpacing: '0.0313rem',
           }}
         >
           {t('tourStages')}
@@ -119,9 +119,9 @@ export default function TourStagePanel({
             border: 'none',
             color: '#6b7280',
             cursor: 'pointer',
-            padding: '2px 6px',
-            fontSize: '12px',
-            borderRadius: '4px',
+            padding: '0.125rem 0.375rem',
+            fontSize: '0.75rem',
+            borderRadius: '0.25rem',
             transition: 'all 0.2s ease',
           }}
           onMouseEnter={e => (e.currentTarget.style.color = '#088d95')}
@@ -136,15 +136,15 @@ export default function TourStagePanel({
       {!isCollapsed && (
         <>
           {/* Difficulty Section */}
-          <div style={{ padding: '0 4px', marginBottom: '12px' }}>
+          <div style={{ padding: '0 0.25rem', marginBottom: '0.75rem' }}>
             <div
               style={{
-                fontSize: '10px',
+                fontSize: '0.625rem',
                 textTransform: 'uppercase',
                 color: '#6b7280', // gray-500
                 fontWeight: 600,
-                marginBottom: '6px',
-                letterSpacing: '0.5px',
+                marginBottom: '0.375rem',
+                letterSpacing: '0.0313rem',
               }}
             >
               {t('difficultyLevel')}
@@ -166,15 +166,15 @@ export default function TourStagePanel({
           </div>
 
           {/* Days Section */}
-          <div style={{ padding: '0 4px', marginBottom: '4px' }}>
+          <div style={{ padding: '0 0.25rem', marginBottom: '0.25rem' }}>
             <div
               style={{
-                fontSize: '10px',
+                fontSize: '0.625rem',
                 textTransform: 'uppercase',
                 color: '#6b7280', // gray-500
                 fontWeight: 600,
-                marginBottom: '6px',
-                letterSpacing: '0.5px',
+                marginBottom: '0.375rem',
+                letterSpacing: '0.0313rem',
               }}
             >
               {t('days')}

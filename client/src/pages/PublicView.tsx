@@ -212,7 +212,7 @@ export default function PublicView() {
 
         {/* Tour Selector - Top Left (Hidden on mobile unless toggled) */}
         <div
-          className={`absolute top-2 left-2 md:top-3 md:left-[60px] z-40 flex flex-col gap-3 items-start transition-opacity duration-300 ${
+          className={`absolute top-2 left-2 md:top-3 md:left-[3.75rem] z-40 flex flex-col gap-3 items-start transition-opacity duration-300 ${
             showMobileRouteStats
               ? 'opacity-100 pointer-events-auto'
               : 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto'
@@ -279,7 +279,7 @@ export default function PublicView() {
 
       {/* Elevation Profile with Weather */}
       {!isFullscreen && (
-        <div className="flex flex-col bg-[#0b1215] h-[180px] sm:h-[200px] md:h-[220px] lg:h-[250px]">
+        <div className="flex flex-col bg-[#0b1215] h-[11.25rem] sm:h-[12.5rem] md:h-[13.75rem] lg:h-[15.625rem]">
           <ElevationProfile
             route={route}
             pois={route.pois}

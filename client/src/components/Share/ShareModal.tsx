@@ -22,9 +22,9 @@ export default function ShareModal({
     embed: `${baseUrl}/embed?route=${routeId}`,
     embedEN: `${baseUrl}/embed?route=${routeId}&lang=en`,
     embedDE: `${baseUrl}/embed?route=${routeId}&lang=de`,
-    iframe: `<iframe src="${baseUrl}/embed?route=${routeId}" width="100%" height="600" frameborder="0" style="border-radius: 8px;"></iframe>`,
-    iframeEN: `<iframe src="${baseUrl}/embed?route=${routeId}&lang=en" width="100%" height="600" frameborder="0" style="border-radius: 8px;"></iframe>`,
-    iframeDE: `<iframe src="${baseUrl}/embed?route=${routeId}&lang=de" width="100%" height="600" frameborder="0" style="border-radius: 8px;"></iframe>`,
+    iframe: `<iframe src="${baseUrl}/embed?route=${routeId}" width="100%" height="600" frameborder="0" style="border-radius: 0.5rem;"></iframe>`,
+    iframeEN: `<iframe src="${baseUrl}/embed?route=${routeId}&lang=en" width="100%" height="600" frameborder="0" style="border-radius: 0.5rem;"></iframe>`,
+    iframeDE: `<iframe src="${baseUrl}/embed?route=${routeId}&lang=de" width="100%" height="600" frameborder="0" style="border-radius: 0.5rem;"></iframe>`,
   };
 
   const copyToClipboard = async (text: string, type: string) => {

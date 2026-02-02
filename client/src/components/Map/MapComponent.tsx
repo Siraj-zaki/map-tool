@@ -547,18 +547,18 @@ export default function MapComponent({
         const el = document.createElement('div');
         el.className = 'stage-marker';
         el.style.cssText = `
-          width: 24px;
-          height: 24px;
+          width: 1.5rem;
+          height: 1.5rem;
           background: ${color};
-          border: 2px solid #ffffff;
+          border: 0.125rem solid #ffffff;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 11px;
+          font-size: 0.6875rem;
           font-weight: 700;
           color: #ffffff;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+          box-shadow: 0 0.125rem 0.375rem rgba(0,0,0,0.3);
           cursor: default;
         `;
         el.textContent = String(stageNumber);
@@ -608,11 +608,11 @@ export default function MapComponent({
         const el = document.createElement('div');
         el.className = 'hover-marker';
         el.style.cssText = `
-          width: 20px; height: 20px; 
+          width: 1.25rem; height: 1.25rem; 
           background-color: #0b1215;
           border-radius: 50%;
-          border: 2px solid white;
-          box-shadow: 0 0 5px rgba(46, 46, 46, 0.5);
+          border: 0.125rem solid white;
+          box-shadow: 0 0 0.3125rem rgba(46, 46, 46, 0.5);
           pointer-events: none;
         `;
         hoverMarkerRef.current = new mapboxgl.Marker({ element: el })
@@ -670,15 +670,15 @@ export default function MapComponent({
     //           position: absolute;
     //           bottom: 100%;
     //           left: 50%;
-    //           transform: translateX(-50%) translateY(-4px);
+    //           transform: translateX(-50%) translateY(-0.25rem);
     //           background: ${markerColor};
     //           color: ${tourType === 'gold' ? '#000' : '#fff'};
     //           font-weight: bold;
-    //           font-size: 11px;
-    //           padding: 4px 10px;
-    //           border-radius: 6px;
-    //           border: 2px solid white;
-    //           box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    //           font-size: 0.6875rem;
+    //           padding: 0.25rem 0.625rem;
+    //           border-radius: 0.375rem;
+    //           border: 0.125rem solid white;
+    //           box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.4);
     //           white-space: nowrap;
     //           opacity: 0;
     //           pointer-events: none;
@@ -687,16 +687,16 @@ export default function MapComponent({
     //           Stage ${i} → ${i + 1}
     //         </div>
     //         <div class="stage-dot" style="
-    //           width: 20px;
-    //           height: 20px;
+    //           width: 1.25rem;
+    //           height: 1.25rem;
     //           background: ${markerColor};
     //           border-radius: 50%;
-    //           border: 3px solid white;
-    //           box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    //           border: 0.1875rem solid white;
+    //           box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.4);
     //           display: flex;
     //           align-items: center;
     //           justify-content: center;
-    //           font-size: 10px;
+    //           font-size: 0.625rem;
     //           font-weight: bold;
     //           color: ${tourType === 'gold' ? '#000' : '#fff'};
     //         ">${i}</div>
@@ -707,14 +707,14 @@ export default function MapComponent({
     //       const tooltip = el.querySelector('.stage-tooltip') as HTMLElement;
     //       if (tooltip) {
     //         tooltip.style.opacity = '1';
-    //         tooltip.style.transform = 'translateX(-50%) translateY(-8px)';
+    //         tooltip.style.transform = 'translateX(-50%) translateY(-0.5rem)';
     //       }
     //     });
     //     el.addEventListener('mouseleave', () => {
     //       const tooltip = el.querySelector('.stage-tooltip') as HTMLElement;
     //       if (tooltip) {
     //         tooltip.style.opacity = '0';
-    //         tooltip.style.transform = 'translateX(-50%) translateY(-4px)';
+    //         tooltip.style.transform = 'translateX(-50%) translateY(-0.25rem)';
     //       }
     //     });
 
@@ -729,25 +729,25 @@ export default function MapComponent({
     const startEl = document.createElement('div');
     startEl.className = 'marker start-marker';
     startEl.style.cssText = `
-      width: 36px;
-      height: 36px;
+      width: 2.25rem;
+      height: 2.25rem;
       will-change: transform;
     `;
     startEl.innerHTML = `
       <div style="
         background: #0b1215;
-        width: 36px;
-        height: 36px;
+        width: 2.25rem;
+        height: 2.25rem;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        border: 2px solid #e0e0e0;
-        box-shadow: 0 2px 8px rgba(8, 141, 149, 0.2);
+        border: 0.125rem solid #e0e0e0;
+        box-shadow: 0 0.125rem 0.5rem rgba(8, 141, 149, 0.2);
         cursor: pointer;
-        padding-left: 2px;
+        padding-left: 0.125rem;
       ">
-        <i class="fa-solid fa-play" style="font-size: 14px; color: #fff;"></i>
+        <i class="fa-solid fa-play" style="font-size: 0.875rem; color: #fff;"></i>
       </div>
     `;
     const startMarker = new mapboxgl.Marker({
@@ -763,24 +763,24 @@ export default function MapComponent({
     const endEl = document.createElement('div');
     endEl.className = 'marker end-marker';
     endEl.style.cssText = `
-      width: 36px;
-      height: 36px;
+      width: 2.25rem;
+      height: 2.25rem;
       will-change: transform;
     `;
     endEl.innerHTML = `
       <div style="
         background: #0b1215;
-        width: 36px;
-        height: 36px;
+        width: 2.25rem;
+        height: 2.25rem;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        border: 2px solid #e0e0e0;
-        box-shadow: 0 2px 8px rgba(8, 141, 149, 0.2);
+        border: 0.125rem solid #e0e0e0;
+        box-shadow: 0 0.125rem 0.5rem rgba(8, 141, 149, 0.2);
         cursor: pointer;
       ">
-        <i class="fa-solid fa-flag-checkered" style="font-size: 14px; color: #fff;"></i>
+        <i class="fa-solid fa-flag-checkered" style="font-size: 0.875rem; color: #fff;"></i>
       </div>
     `;
     const endMarker = new mapboxgl.Marker({
@@ -861,11 +861,11 @@ export default function MapComponent({
           'circle-radius': [
             'step',
             ['get', 'point_count'],
-            18, // 18px radius for clusters with < 5 points
+            18, // 1.125rem radius for clusters with < 5 points
             5,
-            22, // 22px radius for clusters with 5-10 points
+            22, // 1.375rem radius for clusters with 5-10 points
             10,
-            28, // 28px radius for clusters with 10+ points
+            28, // 1.75rem radius for clusters with 10+ points
           ],
           'circle-stroke-width': 3,
           'circle-stroke-color': '#ffffff',
@@ -1061,11 +1061,11 @@ export default function MapComponent({
         const el = document.createElement('div');
         el.className = 'highlight-marker';
         el.style.cssText = `
-          width: 16px; height: 16px;
+          width: 1rem; height: 1rem;
           background-color: #088D95;
           border-radius: 50%;
-          border: 3px solid white;
-          box-shadow: 0 0 8px rgba(8, 141, 149, 0.6);
+          border: 0.1875rem solid white;
+          box-shadow: 0 0 0.5rem rgba(8, 141, 149, 0.6);
           pointer-events: none;
         `;
         highlightMarkerRef.current = new mapboxgl.Marker({ element: el })

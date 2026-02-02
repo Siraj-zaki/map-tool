@@ -195,11 +195,11 @@ export default function EmbedView() {
         <div
           style={{
             position: 'absolute',
-            top: '12px',
-            left: '60px',
+            top: '0.75rem',
+            left: '3.75rem',
             zIndex: 40,
             display: 'flex',
-            gap: '8px',
+            gap: '0.5rem',
             flexDirection: 'column',
             alignItems: 'flex-start',
           }}
@@ -209,16 +209,16 @@ export default function EmbedView() {
             onClick={() => setShowTourPanel(!showTourPanel)}
             style={{
               background: 'rgba(8, 14, 17, 0.9)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid #1e2a33',
-              borderRadius: '8px',
-              padding: '6px 10px',
+              backdropFilter: 'blur(1.25rem)',
+              border: '0.0625rem solid #1e2a33',
+              borderRadius: '0.5rem',
+              padding: '0.375rem 0.625rem',
               color: showTourPanel ? '#088d95' : 'rgba(255,255,255,0.6)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              fontSize: '11px',
+              gap: '0.375rem',
+              fontSize: '0.6875rem',
               fontWeight: '600',
               transition: 'all 0.2s ease',
             }}
@@ -227,7 +227,7 @@ export default function EmbedView() {
             <i className={`fas fa-route`}></i>
             <i
               className={`fas fa-chevron-${showTourPanel ? 'up' : 'down'}`}
-              style={{ fontSize: '9px' }}
+              style={{ fontSize: '0.5625rem' }}
             ></i>
           </button>
 
@@ -249,13 +249,13 @@ export default function EmbedView() {
         <div
           style={{
             position: 'absolute',
-            top: '12px',
-            right: '12px',
+            top: '0.75rem',
+            right: '0.75rem',
             zIndex: 40,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'flex-end',
-            gap: '8px',
+            gap: '0.5rem',
           }}
         >
           {/* Toggle Button for Weather */}
@@ -263,16 +263,16 @@ export default function EmbedView() {
             onClick={() => setShowWeatherWidget(!showWeatherWidget)}
             style={{
               background: 'rgba(8, 14, 17, 0.9)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid #1e2a33',
-              borderRadius: '8px',
-              padding: '6px 10px',
+              backdropFilter: 'blur(1.25rem)',
+              border: '0.0625rem solid #1e2a33',
+              borderRadius: '0.5rem',
+              padding: '0.375rem 0.625rem',
               color: showWeatherWidget ? '#088d95' : 'rgba(255,255,255,0.6)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              fontSize: '11px',
+              gap: '0.375rem',
+              fontSize: '0.6875rem',
               fontWeight: '600',
               transition: 'all 0.2s ease',
             }}
@@ -281,7 +281,7 @@ export default function EmbedView() {
             <i className="fas fa-cloud-sun"></i>
             <i
               className={`fas fa-chevron-${showWeatherWidget ? 'up' : 'down'}`}
-              style={{ fontSize: '9px' }}
+              style={{ fontSize: '0.5625rem' }}
             ></i>
           </button>
 
@@ -309,7 +309,7 @@ export default function EmbedView() {
         {/* Fullscreen Button */}
         <button
           onClick={toggleFullscreen}
-          className="absolute top-3 left-3 z-[1000] w-10 h-10 flex items-center justify-center bg-[#080e11] border border-[#1e2a33] rounded-lg text-gray-400 hover:text-white hover:bg-[#088d95] hover:border-[#088d95] transition-all"
+          className="fullscreen-btn absolute top-3 left-3 z-[1000] w-10 h-10 flex items-center justify-center bg-[#080e11] border border-[#1e2a33] rounded-lg text-gray-400 hover:text-white hover:bg-[#088d95] hover:border-[#088d95] transition-all"
           title={isFullscreen ? t('exitFullscreen') : t('fullscreen')}
         >
           <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>
@@ -361,9 +361,9 @@ const wrapperStyles = `
     bottom: 0;
     overflow: hidden;
     background: #0b1215;
-    border-radius: 12px;
-    border: 2px solid #088d95;
-    box-shadow: 0 0 15px rgba(8, 141, 149, 0.7);
+    border-radius: 0.75rem;
+    border: 0.125rem solid #088d95;
+    box-shadow: 0 0 0.9375rem rgba(8, 141, 149, 0.7);
   }
 
   .content {

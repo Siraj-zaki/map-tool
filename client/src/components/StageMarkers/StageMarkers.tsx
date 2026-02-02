@@ -50,34 +50,34 @@ export default function StageMarkers({
       endEl.innerHTML = `
         <div style="
           position: relative;
-          width: 32px;
-          height: 32px;
+          width: 2rem;
+          height: 2rem;
         ">
           <div style="
-            width: 32px;
-            height: 32px;
+            width: 2rem;
+            height: 2rem;
             background: ${config.colors[stageNum % config.colors.length]};
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 3px solid white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            border: 0.1875rem solid white;
+            box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.3);
             font-weight: bold;
             color: ${tourType === 'gold' ? '#000' : '#fff'};
-            font-size: 12px;
+            font-size: 0.75rem;
           ">
             ${stageNum + 1}
           </div>
           <div style="
             position: absolute;
-            top: -24px;
+            top: -1.5rem;
             left: 50%;
             transform: translateX(-50%);
             background: var(--background-dark);
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 10px;
+            padding: 0.125rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.625rem;
             white-space: nowrap;
             color: white;
           ">
@@ -97,15 +97,15 @@ export default function StageMarkers({
         const startEl = document.createElement('div');
         startEl.innerHTML = `
           <div style="
-            width: 24px;
-            height: 24px;
+            width: 1.5rem;
+            height: 1.5rem;
             background: ${config.colors[(stageNum + 1) % config.colors.length]};
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 2px solid white;
-            font-size: 12px;
+            border: 0.125rem solid white;
+            font-size: 0.75rem;
             font-weight: bold;
             color: ${tourType === 'gold' ? '#000' : '#fff'};
           ">
@@ -185,7 +185,7 @@ export function renderStageLines(
       .attr('y', 15)
       .attr('text-anchor', 'middle')
       .attr('fill', config.colors[index % config.colors.length])
-      .attr('font-size', '11px')
+      .attr('font-size', '0.6875rem')
       .attr('font-weight', 'bold')
       .text(`Etappe ${bp.stageNumber}`);
   });

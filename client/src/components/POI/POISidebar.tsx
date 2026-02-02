@@ -255,23 +255,23 @@ export default function POISidebar({
                 <div
                   className="poi-info-item"
                   style={{
-                    marginTop: '12px',
-                    padding: '8px 12px',
+                    marginTop: '0.75rem',
+                    padding: '0.5rem 0.75rem',
                     // background: 'rgba(8, 141, 149, 0.1)',
-                    borderRadius: '6px',
-                    border: '1px solid rgba(8, 141, 149, 0.3)',
+                    borderRadius: '0.375rem',
+                    border: '0.0625rem solid rgba(8, 141, 149, 0.3)',
                   }}
                 >
                   <i
                     className="fas fa-route"
-                    style={{ color: '#088d95', marginRight: '8px' }}
+                    style={{ color: '#088d95', marginRight: '0.5rem' }}
                   ></i>
                   <span>{t('distanceFromStart')}:</span>
                   <span
                     style={{
                       color: '#088d95',
                       fontWeight: 600,
-                      marginLeft: '6px',
+                      marginLeft: '0.375rem',
                     }}
                   >
                     {(() => {

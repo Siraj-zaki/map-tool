@@ -503,7 +503,7 @@ export default function Editor() {
       if (startPoint) {
         const el = document.createElement('div');
         el.innerHTML =
-          '<i class="fa-solid fa-play" style="color: white; font-size: 12px;"></i>';
+          '<i class="fa-solid fa-play" style="color: white; font-size: 0.75rem;"></i>';
         el.className = isGpxRoute
           ? 'w-8 h-8 bg-green-500 rounded-full flex items-center justify-center border-2 border-white pl-0.5'
           : 'w-8 h-8 bg-green-500 rounded-full flex items-center justify-center border-2 border-white cursor-move pl-0.5';
@@ -644,7 +644,7 @@ export default function Editor() {
       if (endPoint) {
         const el = document.createElement('div');
         el.innerHTML =
-          '<i class="fa-solid fa-flag-checkered" style="color: white; font-size: 12px;"></i>';
+          '<i class="fa-solid fa-flag-checkered" style="color: white; font-size: 0.75rem;"></i>';
         el.className = isGpxRoute
           ? 'w-8 h-8 bg-red-500 rounded-full flex items-center justify-center border-2 border-white'
           : 'w-8 h-8 bg-red-500 rounded-full flex items-center justify-center border-2 border-white cursor-move';
@@ -671,9 +671,9 @@ export default function Editor() {
         const iconInfo = poiIcons[poi.type] || poiIcons.highlight;
         el.innerHTML = `
           <div style="position: relative;">
-            <div style="position: absolute; width: 40px; height: 15px; bottom: -8px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.3); border-radius: 50%; filter: blur(5px);"></div>
-            <div style="width: 40px; height: 40px; background: ${iconInfo.color}; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); position: relative; z-index: 2;">
-              <i class="fas ${iconInfo.icon}" style="color: white; font-size: 16px;"></i>
+            <div style="position: absolute; width: 2.5rem; height: 0.9375rem; bottom: -0.5rem; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.3); border-radius: 50%; filter: blur(0.3125rem);"></div>
+            <div style="width: 2.5rem; height: 2.5rem; background: ${iconInfo.color}; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 0.1875rem solid white; box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.3); position: relative; z-index: 2;">
+              <i class="fas ${iconInfo.icon}" style="color: white; font-size: 1rem;"></i>
             </div>
           </div>
         `;
@@ -1510,7 +1510,7 @@ export default function Editor() {
         // Start marker
         const startEl = document.createElement('div');
         startEl.innerHTML =
-          '<i class="fa-solid fa-play" style="color: white; font-size: 12px;"></i>';
+          '<i class="fa-solid fa-play" style="color: white; font-size: 0.75rem;"></i>';
         startEl.className =
           'w-8 h-8 bg-green-500 rounded-full flex items-center justify-center border-2 border-white cursor-move pl-0.5';
         const startMarker = new mapboxgl.Marker({
@@ -1555,7 +1555,7 @@ export default function Editor() {
         // End marker
         const endEl = document.createElement('div');
         endEl.innerHTML =
-          '<i class="fa-solid fa-flag-checkered" style="color: white; font-size: 12px;"></i>';
+          '<i class="fa-solid fa-flag-checkered" style="color: white; font-size: 0.75rem;"></i>';
         endEl.className =
           'w-8 h-8 bg-red-500 rounded-full flex items-center justify-center border-2 border-white cursor-move';
         const endMarker = new mapboxgl.Marker({
@@ -1629,7 +1629,7 @@ export default function Editor() {
       <div className="flex flex-1 overflow-hidden">
         {/* Map + Elevation */}
         <div className="flex-1 flex flex-col">
-          <div className="flex-1 relative min-h-[300px]">
+          <div className="flex-1 relative min-h-[18.75rem]">
             <div
               ref={mapContainer}
               className="absolute h-[100%]  inset-0 z-10"
@@ -1637,7 +1637,7 @@ export default function Editor() {
           </div>
 
           {/* Elevation Profile */}
-          <div className="h-[200px] bg-[#080e11] border-t border-[#1e2a33]">
+          <div className="h-[12.5rem] bg-[#080e11] border-t border-[#1e2a33]">
             {startPoint && endPoint ? (
               <ElevationProfile
                 route={
@@ -1692,7 +1692,7 @@ export default function Editor() {
         </div>
 
         {/* Sidebar */}
-        <div className="w-[300px] bg-[#080e11] border-l border-[#1e2a33] p-3 flex flex-col gap-3 overflow-y-auto">
+        <div className="w-[18.75rem] bg-[#080e11] border-l border-[#1e2a33] p-3 flex flex-col gap-3 overflow-y-auto">
           {/* Route Name */}
           <input
             type="text"
@@ -1773,7 +1773,7 @@ export default function Editor() {
                 <i className="fas fa-bicycle"></i> {t('cycling') || 'Cycling'}
               </button>
             </div>
-            <p className="text-[10px] text-gray-500 mt-2">
+            <p className="text-[0.625rem] text-gray-500 mt-2">
               {t('routingProfileHint') ||
                 'Use Cycling to snap to trails/gravel roads that Walking might miss.'}
             </p>
@@ -1924,7 +1924,7 @@ export default function Editor() {
 
             <div
               ref={waypointListRef}
-              className="max-h-[300px] overflow-y-auto"
+              className="max-h-[18.75rem] overflow-y-auto"
             >
               {startPoint && (
                 <div className="flex justify-between items-center py-1.5 border-b border-[#1e2a33]">
@@ -1969,7 +1969,7 @@ export default function Editor() {
                 >
                   <span className="text-sm text-white flex items-center gap-2">
                     <span
-                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[0.6875rem] font-bold ${
                         selectedWaypointIndex === idx
                           ? 'bg-yellow-500'
                           : 'bg-[#088d95]'
@@ -2034,7 +2034,7 @@ export default function Editor() {
           <div className="bg-[#0b1215] border border-[#1e2a33] rounded-lg p-3">
             <h4 className="text-[#088d95] text-xs uppercase mb-2 font-semibold flex justify-between items-center">
               {t('routeStatistics')}
-              <span className="text-gray-500 text-[10px] normal-case font-normal">
+              <span className="text-gray-500 text-[0.625rem] normal-case font-normal">
                 (click to edit)
               </span>
             </h4>

@@ -86,11 +86,11 @@ const margin = { top: 15, right: 20, bottom: 35, left: 50 };
 // const tooltipStyles = {
 //   ...defaultStyles,
 //   background: 'rgba(11, 18, 21, 0.95)',
-//   border: '1px solid #088d95',
+//   border: '0.0625rem solid #088d95',
 //   color: '#fff',
-//   padding: '8px 12px',
-//   borderRadius: '6px',
-//   fontSize: '12px',
+//   padding: '0.5rem 0.75rem',
+//   borderRadius: '0.375rem',
+//   fontSize: '0.75rem',
 // };
 
 interface ChartProps {
@@ -140,7 +140,7 @@ function ElevationChart({
   } = useTooltip<ElevationPoint>();
 
   // Inner dimensions
-  // Reserve space for brush if we have data (50px height + 10px margin)
+  // Reserve space for brush if we have data (3.125rem height + 0.625rem margin)
   const BRUSH_HEIGHT = 50;
   const BRUSH_MARGIN = 10;
   const hasBrush = data.length > 0;
@@ -483,7 +483,7 @@ function ElevationChart({
                   style={{
                     pointerEvents: 'none',
                     opacity: isHovered ? 1 : 0.85,
-                    filter: isHovered ? 'drop-shadow(0 0 4px #088d95)' : 'none',
+                    filter: isHovered ? 'drop-shadow(0 0 0.25rem #088d95)' : 'none',
                     transition: 'opacity 0.15s ease, filter 0.15s ease',
                   }}
                 />
@@ -581,7 +581,7 @@ function ElevationChart({
                   style={{
                     pointerEvents: 'none',
                     opacity: isHovered ? 1 : 0.85,
-                    filter: isHovered ? 'drop-shadow(0 0 4px #088d95)' : 'none',
+                    filter: isHovered ? 'drop-shadow(0 0 0.25rem #088d95)' : 'none',
                     transition: 'opacity 0.15s ease, filter 0.15s ease',
                   }}
                 />
@@ -624,7 +624,7 @@ function ElevationChart({
 
       {/* Zoom Brush Chart (Mini Map) - Only visible when we have data */}
       {data.length > 0 && (
-        <div style={{ height: '50px', marginTop: '10px' }}>
+        <div style={{ height: '3.125rem', marginTop: '0.625rem' }}>
           <svg width={width} height={50}>
             <LinearGradient
               id="brush-gradient"
@@ -713,7 +713,7 @@ function ElevationChart({
             src={getPoiIcon(hoveredPoi?.type)}
             alt=""
             className="poi-tooltip-icon"
-            style={{ width: '18px', height: '18px' }}
+            style={{ width: '1.125rem', height: '1.125rem' }}
           />
           <span className="poi-tooltip-name">{hoveredPoi.name || 'POI'}</span>
         </div>
@@ -978,7 +978,7 @@ export default function ElevationProfileVisx({
       elevationData.length > 0
         ? Math.max(...elevationData.map(d => d.distance))
         : route.distance || 0;
-    // Minimum 40 pixels per km, but at least 800px and max 8000px
+    // Minimum 40 pixels per km, but at least 50rem and max 500rem
     return Math.max(800, Math.min(8000, maxDistance * 40));
   }, [route, elevationData]);
 

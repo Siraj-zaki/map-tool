@@ -57,8 +57,8 @@ export const CSS_VARS = {
   TEXT_PRIMARY: '#e0e0e0',
   TEXT_SECONDARY: '#a0a0a0',
   BORDER_COLOR: '#1e2a33',
-  BORDER_RADIUS: '8px',
-  BORDER_RADIUS_LG: '12px',
+  BORDER_RADIUS: '0.5rem',
+  BORDER_RADIUS_LG: '0.75rem',
 };
 
 // Marker types configuration

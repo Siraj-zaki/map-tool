@@ -74,7 +74,7 @@ export default function Dashboard() {
   return (
     <div className="flex h-screen bg-[#0b1215]">
       {/* Sidebar */}
-      <div className="w-64 bg-[#080e11] mt-[30px] border-r border-[#1e2a33] p-5 flex flex-col">
+      <div className="w-64 bg-[#080e11] mt-[1.875rem] border-r border-[#1e2a33] p-5 flex flex-col">
         <div className="mb-8">
           <img
             src="/images/ms-logo.png"

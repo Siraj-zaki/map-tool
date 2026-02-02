@@ -87,47 +87,48 @@ export default function WeatherForecast({
 
   return (
     <div
+      className="weather-forecast-widget"
       style={{
         background: 'rgba(8, 14, 17, 0.9)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderRadius: isMobile ? '8px' : '12px',
-        border: '1px solid #1e2a33',
-        padding: isMobile ? '6px' : isTablet ? '8px' : '12px',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-        minWidth: isMobile ? '100px' : isTablet ? '110px' : '130px',
+        backdropFilter: 'blur(1.25rem)',
+        WebkitBackdropFilter: 'blur(1.25rem)',
+        borderRadius: isMobile ? '0.5rem' : '0.75rem',
+        border: '0.0625rem solid #1e2a33',
+        padding: isMobile ? '0.375rem' : isTablet ? '0.5rem' : '0.75rem',
+        boxShadow: '0 0.5rem 2rem rgba(0, 0, 0, 0.4)',
+        minWidth: isMobile ? '6.25rem' : isTablet ? '6.875rem' : '8.125rem',
       }}
     >
       {/* Header with toggle */}
       <div
         style={{
-          fontSize: isMobile ? '8px' : isTablet ? '9px' : '10px',
+          fontSize: isMobile ? '0.5rem' : isTablet ? '0.5625rem' : '0.625rem',
           fontWeight: '700',
           color: '#088d95',
           textTransform: 'uppercase',
-          letterSpacing: isMobile ? '0.5px' : '1px',
+          letterSpacing: isMobile ? '0.0313rem' : '0.0625rem',
           marginBottom: isCollapsed
             ? 0
             : isMobile
-              ? '4px'
+              ? '0.25rem'
               : isTablet
-                ? '6px'
-                : '10px',
+                ? '0.375rem'
+                : '0.625rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: isMobile ? '3px' : '6px',
+          gap: isMobile ? '0.1875rem' : '0.375rem',
         }}
       >
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: isMobile ? '3px' : '6px',
+            gap: isMobile ? '0.1875rem' : '0.375rem',
           }}
         >
           <span
-            style={{ fontSize: isMobile ? '9px' : isTablet ? '10px' : '12px' }}
+            style={{ fontSize: isMobile ? '0.5625rem' : isTablet ? '0.625rem' : '0.75rem' }}
           >
             ☁️
           </span>
@@ -140,8 +141,8 @@ export default function WeatherForecast({
             border: 'none',
             color: '#6b7280',
             cursor: 'pointer',
-            padding: '2px',
-            fontSize: isMobile ? '8px' : '10px',
+            padding: '0.125rem',
+            fontSize: isMobile ? '0.5rem' : '0.625rem',
             transition: 'color 0.2s ease',
           }}
           onMouseEnter={e => (e.currentTarget.style.color = '#088d95')}
@@ -158,7 +159,7 @@ export default function WeatherForecast({
           style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: isMobile ? '2px' : '4px',
+            gap: isMobile ? '0.125rem' : '0.25rem',
           }}
         >
           {displayForecast.map((day, index) => (
@@ -167,28 +168,28 @@ export default function WeatherForecast({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: isMobile ? '4px' : isTablet ? '6px' : '10px',
+                gap: isMobile ? '0.25rem' : isTablet ? '0.375rem' : '0.625rem',
                 padding: isMobile
-                  ? '4px 5px'
+                  ? '0.25rem 0.3125rem'
                   : isTablet
-                    ? '5px 7px'
-                    : '8px 10px',
-                borderRadius: isMobile ? '4px' : '8px',
+                    ? '0.3125rem 0.4375rem'
+                    : '0.5rem 0.625rem',
+                borderRadius: isMobile ? '0.25rem' : '0.5rem',
                 background:
                   index === 0
                     ? 'rgba(8, 141, 149, 0.2)'
                     : 'rgba(30, 42, 51, 0.5)',
                 border:
-                  index === 0 ? '1px solid #088d95' : '1px solid transparent',
+                  index === 0 ? '0.0625rem solid #088d95' : '0.0625rem solid transparent',
                 transition: 'all 0.2s ease',
               }}
             >
               {/* Weather Icon */}
               <div
                 style={{
-                  fontSize: isMobile ? '12px' : isTablet ? '14px' : '20px',
-                  width: isMobile ? '16px' : isTablet ? '20px' : '28px',
-                  height: isMobile ? '16px' : isTablet ? '20px' : '28px',
+                  fontSize: isMobile ? '0.75rem' : isTablet ? '0.875rem' : '1.25rem',
+                  width: isMobile ? '1rem' : isTablet ? '1.25rem' : '1.75rem',
+                  height: isMobile ? '1rem' : isTablet ? '1.25rem' : '1.75rem',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -200,11 +201,11 @@ export default function WeatherForecast({
               {/* Day Name */}
               <div
                 style={{
-                  fontSize: isMobile ? '9px' : isTablet ? '10px' : '12px',
+                  fontSize: isMobile ? '0.5625rem' : isTablet ? '0.625rem' : '0.75rem',
                   fontWeight: '600',
                   color: index === 0 ? '#088d95' : 'rgba(255, 255, 255, 0.7)',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
+                  letterSpacing: '0.0313rem',
                   flex: 1,
                   textAlign: 'left',
                 }}
@@ -215,10 +216,10 @@ export default function WeatherForecast({
               {/* Temperature */}
               <div
                 style={{
-                  fontSize: isMobile ? '10px' : isTablet ? '11px' : '14px',
+                  fontSize: isMobile ? '0.625rem' : isTablet ? '0.6875rem' : '0.875rem',
                   fontWeight: '700',
                   color: '#fff',
-                  minWidth: isMobile ? '24px' : isTablet ? '30px' : '40px',
+                  minWidth: isMobile ? '1.5rem' : isTablet ? '1.875rem' : '2.5rem',
                   textAlign: 'right',
                   fontFamily: 'system-ui, -apple-system, sans-serif',
                 }}

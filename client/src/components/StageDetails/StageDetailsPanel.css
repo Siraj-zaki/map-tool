@@ -1,47 +1,47 @@
 .stage-details-panel {
   background: rgba(8, 14, 17, 0.95);
-  border: 1px solid #1e2a33;
-  border-radius: 8px;
-  padding: 12px;
-  min-width: 270px;
-  backdrop-filter: blur(10px);
-  font-size: 12px;
+  border: 0.0625rem solid #1e2a33;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  min-width: 16.875rem;
+  backdrop-filter: blur(0.625rem);
+  font-size: 0.75rem;
   color: #fff;
 }
 
 .stage-details-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.375rem;
   width: inherit;
   font-weight: 600;
-  font-size: 11px;
+  font-size: 0.6875rem;
   text-transform: uppercase;
   color: #088d95;
-  margin-bottom: 10px;
-  letter-spacing: 0.5px;
+  margin-bottom: 0.625rem;
+  letter-spacing: 0.0313rem;
 }
 
 .stage-details-header i {
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .stage-details-totals {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #1e2a33;
+  gap: 0.375rem;
+  padding-bottom: 0.625rem;
+  border-bottom: 0.0625rem solid #1e2a33;
 }
 
 .stat-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
 }
 
 .stat-item i {
-  width: 14px;
+  width: 0.875rem;
   text-align: center;
   color: #088d95;
 }
@@ -51,16 +51,16 @@
 }
 
 .stage-details-elevation {
-  padding: 8px 0;
-  border-bottom: 1px solid #1e2a33;
+  padding: 0.5rem 0;
+  border-bottom: 0.0625rem solid #1e2a33;
 }
 
 .elevation-range {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.375rem;
   color: #9ca3af;
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 
 .elevation-range i {
@@ -68,35 +68,35 @@
 }
 
 .stage-details-stages {
-  padding-top: 8px;
+  padding-top: 0.5rem;
 }
 
 .stages-header {
-  font-size: 10px;
+  font-size: 0.625rem;
   text-transform: uppercase;
   color: #6b7280;
-  margin-bottom: 8px;
-  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.0313rem;
 }
 
 .stage-row {
   display: flex;
   flex-direction: column;
-  padding: 6px 0 6px 10px;
-  border-left: 3px solid #088d95;
-  margin-bottom: 6px;
+  padding: 0.375rem 0 0.375rem 0.625rem;
+  border-left: 0.1875rem solid #088d95;
+  margin-bottom: 0.375rem;
 }
 
 .stage-name {
   font-weight: 600;
-  font-size: 11px;
-  margin-bottom: 2px;
+  font-size: 0.6875rem;
+  margin-bottom: 0.125rem;
 }
 
 .stage-stats {
   display: flex;
-  gap: 8px;
-  font-size: 10px;
+  gap: 0.5rem;
+  font-size: 0.625rem;
   color: #9ca3af;
 }
 
