@@ -72,16 +72,20 @@ interface MapComponentProps {
   onPoiClick?: (poi: POI) => void;
   highlightPosition?: { lng: number; lat: number } | null;
   flyToLocation?: { lng: number; lat: number } | null;
+  onMapLoad?: (map: mapboxgl.Map) => void;
+  selectedCity?: string;
 }
 
 export default function MapComponent({
   route,
-  tourType = 'gold',
+  tourType = 'silver',
   selectedStage,
   onPositionChange,
   onPoiClick,
   highlightPosition,
   flyToLocation,
+  onMapLoad,
+  selectedCity = 'Wernigerode',
 }: MapComponentProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -156,7 +160,7 @@ export default function MapComponent({
 
     const fetchSplitPoints = async () => {
       try {
-        const result = await splitPointsApi.getByRoute(route.id);
+        const result = await splitPointsApi.getByRoute(route.id, selectedCity);
         if (result.success) {
           setSplitPoints(result.splitPoints);
         }
@@ -166,7 +170,7 @@ export default function MapComponent({
     };
 
     fetchSplitPoints();
-  }, [route?.id]);
+  }, [route?.id, selectedCity]);
 
   // Create arrow SVG for route direction indicators - matching original main.js
   const createArrowImage = useCallback(() => {
@@ -303,8 +307,7 @@ export default function MapComponent({
       attributionControl: false,
     });
 
-    map.current.addControl(new mapboxgl.NavigationControl(), 'bottom-left');
-    map.current.addControl(new mapboxgl.ScaleControl(), 'bottom-left');
+    // Navigation and Scale controls removed to use custom UI overlay
 
     map.current.on('load', () => {
       createArrowImage();
@@ -312,6 +315,10 @@ export default function MapComponent({
       // 3. Enable terrain to make elevation data available
       map.current?.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 });
       setIsLoaded(true);
+
+      if (onMapLoad && map.current) {
+        onMapLoad(map.current);
+      }
     });
 
     return () => {
@@ -1170,6 +1177,6 @@ export default function MapComponent({
   }, [flyToLocation, isLoaded]);
 
   return (
-    <div ref={mapContainer} className="w-full h-full min-h-[100%] relative" />
+    <div ref={mapContainer} className="w-full h-full min-h-full relative" />
   );
 }

@@ -109,6 +109,17 @@ export default function Editor() {
     bronze: [],
   });
 
+  // Start Location state for Dynamic Splitting
+  const citiesList = [
+    'Wernigerode',
+    'Berlin',
+    'Hamburg',
+    'Munich',
+    'Cologne',
+    'Frankfurt',
+  ];
+  const [selectedCity, setSelectedCity] = useState(citiesList[0]);
+
   // Bi-directional sync between map and elevation profile
   // Note: highlightDistance is used for map→elevation sync (not yet implemented in Editor's ad-hoc map)
   // For now we only have elevation→map sync via highlightPosition
@@ -978,7 +989,10 @@ export default function Editor() {
 
           // Fetch split points
           try {
-            const spResult = await splitPointsApi.getByRoute(Number(id));
+            const spResult = await splitPointsApi.getByRoute(
+              Number(id),
+              selectedCity
+            );
             if (spResult.success) {
               setSplitPoints(spResult.splitPoints);
             }
@@ -1591,10 +1605,10 @@ export default function Editor() {
     if (gpxInputRef.current) gpxInputRef.current.value = '';
   };
 
-  // Calculate duration based on fixed 10.5 km/h average speed
+  // Calculate duration based on fixed 23 km/h average speed
   const calculateRealisticDuration = () => {
     const distanceKm = routeStats.distance;
-    const AVERAGE_SPEED_KMH = 10.5;
+    const AVERAGE_SPEED_KMH = 23;
     const totalTimeHours = distanceKm / AVERAGE_SPEED_KMH;
     return Math.round(totalTimeHours * 60);
   };
@@ -1867,6 +1881,7 @@ export default function Editor() {
                 }
               }}
               splitPoints={splitPoints}
+              selectedCity={selectedCity}
               onSplitPointChange={setSplitPoints}
             />
           )}
@@ -2022,11 +2037,26 @@ export default function Editor() {
                 </div>
               )}
 
-              {!startPoint && !endPoint && waypoints.length === 0 && (
-                <div className="text-gray-500 text-sm py-2">
-                  {t('clickOnMap')}
-                </div>
-              )}
+              <h3 className="text-white text-lg font-bold">
+                {routeStats.distance.toFixed(1)} km
+              </h3>
+            </div>
+
+            <div className="bg-[#0b1215] border border-[#1e2a33] rounded-lg p-3 lg:col-span-2">
+              <h4 className="text-[#088d95] text-xs uppercase mb-1 font-semibold">
+                Start Location
+              </h4>
+              <select
+                value={selectedCity}
+                onChange={e => setSelectedCity(e.target.value)}
+                className="w-full bg-[#080e11] text-white border border-[#1e2a33] rounded p-1 text-sm focus:outline-none focus:border-[#088d95]"
+              >
+                {citiesList.map(city => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

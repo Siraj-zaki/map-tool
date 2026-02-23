@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { gpxApi, routesApi, type Route } from '../../api';
+import { gpxApi, routesApi, splitPointsApi, type Route } from '../../api';
 
 interface GpxDownloadModalProps {
   routeId: number;
+  selectedCity?: string;
   onClose: () => void;
 }
 
@@ -58,13 +59,14 @@ function downloadGpx(content: string, filename: string) {
 
 export default function GpxDownloadModal({
   routeId,
+  selectedCity = 'Wernigerode',
   onClose,
 }: GpxDownloadModalProps) {
   const { t } = useTranslation();
   const [step, setStep] = useState<1 | 2>(1);
   const [startPoints, setStartPoints] = useState<StartPoint[]>([]);
   const [selectedStartPoint, setSelectedStartPoint] = useState<string | null>(
-    null
+    selectedCity
   );
   const [selectedTourType, setSelectedTourType] = useState<TourType | null>(
     null
@@ -85,15 +87,21 @@ export default function GpxDownloadModal({
           setRoute(routeResult.route);
         }
 
-        // Load start points
+        // Try to automatically use the selectedCity to bypass step 1
         const result = await gpxApi.getStartPoints(routeId);
         if (result.success && result.data.length > 0) {
           setStartPoints(result.data);
-          if (result.data.length === 1) {
+          // Auto select if it matches the current Start Location from the main panel
+          if (result.data.some((sp: any) => sp.name === selectedCity)) {
+            setSelectedStartPoint(selectedCity);
+            setStep(2);
+          } else if (result.data.length === 1) {
             setSelectedStartPoint(result.data[0].name);
             setStep(2);
           }
         } else {
+          // If no stored files exist, fallback immediately to step 2 for runtime generation
+          setSelectedStartPoint(selectedCity);
           setStep(2);
         }
       } catch (error) {
@@ -171,13 +179,68 @@ export default function GpxDownloadModal({
             ? route.routeGeometry
             : [route.startPoint, ...route.waypoints, route.endPoint];
 
+        // Load custom Split Points for the selected City/Location
+        let startIdx = 0;
+        let endIdx = coordinates.length;
         const numStages = tourTypeInfo[selectedTourType!].stages;
-        const pointsPerStage = Math.ceil(coordinates.length / numStages);
-        const startIdx = (file.stage_number - 1) * pointsPerStage;
-        const endIdx =
-          file.stage_number === numStages
-            ? coordinates.length // Last stage gets remaining points
-            : file.stage_number * pointsPerStage;
+
+        try {
+          const spResult = await splitPointsApi.getByRoute(
+            routeId,
+            selectedStartPoint || selectedCity
+          );
+
+          if (spResult.success) {
+            const breakpoints =
+              spResult.splitPoints[file.tour_type as 'silver' | 'bronze'] || [];
+
+            // Re-calculate the indices based on Breakpoint distance matching the geometry array distance
+            if (breakpoints.length > 0) {
+              const totalDist = route.distance || 1;
+              const calculateIndex = (distanceKm: number) => {
+                const ratio = Math.min(distanceKm / totalDist, 1);
+                return Math.floor(ratio * coordinates.length);
+              };
+
+              if (file.stage_number === 1) {
+                // First segment: Start to Breakpoint 1
+                startIdx = 0;
+                endIdx = calculateIndex(breakpoints[0].distanceKm);
+              } else if (file.stage_number === numStages) {
+                // Last segment: Last Breakpoint to End
+                startIdx = calculateIndex(
+                  breakpoints[breakpoints.length - 1].distanceKm
+                );
+                endIdx = coordinates.length;
+              } else {
+                // Middle segment: Last Breakpoint to Current Breakpoint
+                startIdx = calculateIndex(
+                  breakpoints[file.stage_number - 2].distanceKm
+                );
+                endIdx = calculateIndex(
+                  breakpoints[file.stage_number - 1].distanceKm
+                );
+              }
+            } else {
+              // Fallback to even array slicing if no breakpoints exist
+              const pointsPerStage = Math.ceil(coordinates.length / numStages);
+              startIdx = (file.stage_number - 1) * pointsPerStage;
+              endIdx =
+                file.stage_number === numStages
+                  ? coordinates.length
+                  : file.stage_number * pointsPerStage;
+            }
+          }
+        } catch (e) {
+          // Fallback to even array slicing
+          const pointsPerStage = Math.ceil(coordinates.length / numStages);
+          startIdx = (file.stage_number - 1) * pointsPerStage;
+          endIdx =
+            file.stage_number === numStages
+              ? coordinates.length
+              : file.stage_number * pointsPerStage;
+        }
+
         const stageCoordinates = coordinates.slice(startIdx, endIdx);
 
         console.log(

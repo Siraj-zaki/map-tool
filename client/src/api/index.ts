@@ -166,11 +166,18 @@ export interface SplitPointsResponse {
 
 // Split Points API
 export const splitPointsApi = {
-  getByRoute: async (routeId: number): Promise<SplitPointsResponse> => {
+  getByRoute: async (
+    routeId: number,
+    startLocation?: string
+  ): Promise<SplitPointsResponse> => {
     return cachedFetch(
-      `splitPoints:${routeId}`,
+      `splitPoints:${routeId}:${startLocation || 'Wernigerode'}`,
       async () => {
-        const res = await fetch(`${API_BASE}/routes/${routeId}/split-points`);
+        let url = `${API_BASE}/routes/${routeId}/split-points`;
+        if (startLocation) {
+          url += `?startLocation=${encodeURIComponent(startLocation)}`;
+        }
+        const res = await fetch(url);
         return res.json();
       },
       5 * 60 * 1000 // 5 minute cache
@@ -180,16 +187,18 @@ export const splitPointsApi = {
   save: async (
     routeId: number,
     tourType: 'silver' | 'bronze',
-    splitPoints: SplitPoint[]
+    splitPoints: SplitPoint[],
+    startLocation: string
   ) => {
     const res = await fetch(`${API_BASE}/routes/${routeId}/split-points`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ tourType, splitPoints }),
+      body: JSON.stringify({ tourType, splitPoints, startLocation }),
     });
-    // Invalidate cache
-    clearCache(`splitPoints:${routeId}`);
+    // Invalidate caches
+    clearCache(`splitPoints:${routeId}:${startLocation}`);
+    clearCache(`splitPoints:${routeId}:Wernigerode`);
     return res.json();
   },
 };
@@ -372,14 +381,14 @@ export function formatDuration(seconds: number): string {
   return `${hours}h ${minutes}m`;
 }
 
-// Calculate realistic hiking/cycling duration based on distance and elevation
-// Uses average speed of 10.5 km/h for gravel/mountain biking
+// Calculate realistic cycling duration based on distance and elevation
+// Uses average speed of 23 km/h for gravel/mountain biking
 // Adjusts for elevation gain (adds 1 hour per 500m of ascent)
 export function calculateHikingDuration(
   distanceKm: number,
   totalAscentM: number = 0
 ): number {
-  const averageSpeedKmH = 10.5; // Average gravel/MTB speed in km/h
+  const averageSpeedKmH = 23; // Average gravel/MTB speed in km/h
   const ascentPenaltyHoursPerM = 1 / 500; // 1 hour per 500m elevation gain
 
   // Base time from distance

@@ -11,6 +11,7 @@ interface SplitPointEditorProps {
   routeGeometry: [number, number][] | null;
   totalDistance: number;
   splitPoints: Record<TourType, SplitPoint[]>;
+  selectedCity: string;
   onSplitPointChange: (splitPoints: Record<TourType, SplitPoint[]>) => void;
   onSetSplitPointMode?: (
     active: boolean,
@@ -48,6 +49,7 @@ export default function SplitPointEditor({
   routeGeometry,
   totalDistance: _totalDistance,
   splitPoints,
+  selectedCity,
   onSplitPointChange,
   onSetSplitPointMode,
 }: SplitPointEditorProps) {
@@ -62,8 +64,18 @@ export default function SplitPointEditor({
     setSaving(true);
     try {
       // Save both tour types based on current props state
-      await splitPointsApi.save(routeId, 'silver', splitPoints.silver);
-      await splitPointsApi.save(routeId, 'bronze', splitPoints.bronze);
+      await splitPointsApi.save(
+        routeId,
+        'silver',
+        splitPoints.silver,
+        selectedCity
+      );
+      await splitPointsApi.save(
+        routeId,
+        'bronze',
+        splitPoints.bronze,
+        selectedCity
+      );
     } catch (error) {
       console.error('Failed to save split points:', error);
     } finally {

@@ -382,7 +382,7 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
 router.get('/:id/split-points', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { tourType } = req.query;
+    const { tourType, startLocation } = req.query;
 
     let sql = `
       SELECT id, tour_type as tourType, stage_number as stageNumber, 
@@ -391,6 +391,14 @@ router.get('/:id/split-points', async (req: Request, res: Response) => {
       WHERE route_id = ?
     `;
     const params: any[] = [id];
+
+    if (startLocation) {
+      sql += ' AND start_location = ?';
+      params.push(startLocation);
+    } else {
+      // Fallback for backwards compatibility if no startLocation is provided
+      sql += " AND start_location = 'Wernigerode'";
+    }
 
     if (tourType) {
       sql += ' AND tour_type = ?';
@@ -433,7 +441,7 @@ router.put(
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const { tourType, splitPoints } = req.body;
+      const { tourType, splitPoints, startLocation } = req.body;
 
       if (!tourType || !['silver', 'bronze'].includes(tourType)) {
         return res.status(400).json({
@@ -442,10 +450,17 @@ router.put(
         });
       }
 
-      // Delete existing split points for this tour type
+      if (!startLocation) {
+        return res.status(400).json({
+          success: false,
+          error: 'Start location is required to save split points.',
+        });
+      }
+
+      // Delete existing split points for this route, tour type, and start location
       await run(
-        'DELETE FROM stage_split_points WHERE route_id = ? AND tour_type = ?',
-        [id, tourType]
+        'DELETE FROM stage_split_points WHERE route_id = ? AND tour_type = ? AND start_location = ?',
+        [id, tourType, startLocation]
       );
 
       // Insert new split points
@@ -453,10 +468,11 @@ router.put(
         for (const sp of splitPoints) {
           await run(
             `INSERT INTO stage_split_points 
-           (route_id, tour_type, stage_number, location_name, lng, lat, distance_km)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+           (route_id, start_location, tour_type, stage_number, location_name, lng, lat, distance_km)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               id,
+              startLocation,
               tourType,
               sp.stageNumber,
               sp.locationName,

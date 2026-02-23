@@ -3,13 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { routesApi, type POI, type Route } from '../api';
 import ElevationProfile from '../components/ElevationProfile/ElevationProfileVisx';
-import LocationFilter from '../components/LocationFilter/LocationFilter';
+import GpxDownloadModal from '../components/GPX/GpxDownloadModal';
 import MapComponent from '../components/Map/MapComponent';
 import POISidebar from '../components/POI/POISidebar';
-import PremiumModal from '../components/Premium/PremiumModal';
 import RouteStatsBar from '../components/RouteStatsBar/RouteStatsBar';
 import TourStagePanel from '../components/TourStagePanel/TourStagePanel';
-import WeatherForecast from '../components/Weather/WeatherForecast';
 
 export default function EmbedView() {
   const { t, i18n } = useTranslation();
@@ -21,8 +19,7 @@ export default function EmbedView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPoi, setSelectedPoi] = useState<POI | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [showGpxModal, setShowGpxModal] = useState(false);
   const [tourType, setTourType] = useState<'gold' | 'silver' | 'bronze'>(
     'gold'
   );
@@ -41,10 +38,11 @@ export default function EmbedView() {
     lat: number;
   } | null>(null);
   const flyToPoiRef = useRef<((poi: POI) => void) | null>(null);
+  const [selectedCity, setSelectedCity] = useState('Wernigerode');
 
-  // Toggle states for widgets
-  const [showTourPanel, setShowTourPanel] = useState(true);
-  const [showWeatherWidget, setShowWeatherWidget] = useState(true);
+  // Custom Map Controls state
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const [, setIsFullscreen] = useState(false);
 
   // Set language from URL parameter
   useEffect(() => {
@@ -118,214 +116,233 @@ export default function EmbedView() {
     []
   );
 
-  // Handle POI click from elevation profile - opens sidebar and flies to POI
+  // Handle POI click
   const handlePoiClick = useCallback((poi: POI) => {
     setSelectedPoi(poi);
-    // Fly to POI on map
     if (flyToPoiRef.current) {
       flyToPoiRef.current(poi);
     }
   }, []);
 
-  // Handle fullscreen toggle
-  const toggleFullscreen = () => {
+  // Map Controls Actions
+  const handleZoomIn = useCallback(() => {
+    mapRef.current?.zoomIn();
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    mapRef.current?.zoomOut();
+  }, []);
+
+  const handleLocateMe = useCallback(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          mapRef.current?.flyTo({
+            center: [position.coords.longitude, position.coords.latitude],
+            zoom: 14,
+          });
+        },
+        err => {
+          console.error('Geolocation error:', err);
+        }
+      );
+    }
+  }, []);
+
+  const handleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(err => {
-        console.error('Error attempting to enable fullscreen:', err);
+        console.error(
+          `Error attempting to enable full-screen mode: ${err.message} (${err.name})`
+        );
       });
     } else {
-      document.exitFullscreen().catch(err => {
-        console.error('Error attempting to exit fullscreen:', err);
-      });
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
     }
-  };
+  }, []);
 
-  // Sync fullscreen state
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
-
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => {
+    return () =>
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    };
   }, []);
 
   if (loading) {
     return (
-      <div className="wrapper">
-        <div className="h-full flex flex-col items-center justify-center text-[#a0a0a0]">
-          <i className="fas fa-mountain text-4xl text-[#088d95] mb-4 animate-bounce"></i>
-          <div className="text-sm">{t('routeLoading')}</div>
-        </div>
-        <style>{wrapperStyles}</style>
+      <div className="h-screen w-full flex items-center justify-center bg-[#0b1215] text-[#a0a0a0]">
+        <i className="fas fa-mountain text-4xl text-[#088d95] mb-4 animate-bounce"></i>
+        <div className="text-sm ml-3">{t('routeLoading')}</div>
       </div>
     );
   }
 
   if (error || !route) {
     return (
-      <div className="wrapper">
-        <div className="h-full flex flex-col items-center justify-center text-[#a0a0a0]">
-          <i className="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
-          <div>{error || t('routeNotFound')}</div>
-        </div>
-        <style>{wrapperStyles}</style>
+      <div className="h-screen w-full flex items-center justify-center bg-[#0b1215] text-[#a0a0a0]">
+        <i className="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
+        <div className="ml-3">{error || t('routeNotFound')}</div>
       </div>
     );
   }
 
   return (
-    <div className="wrapper">
-      {/* Route Stats Bar */}
-      <RouteStatsBar
-        route={route}
-        showWeather={true}
-        showDownloadButton={true}
-        onDownloadClick={() => setShowPremiumModal(true)}
-        onLocationSelect={coords =>
-          setFlyToLocation({ lng: coords.lng, lat: coords.lat })
-        }
-      />
-
-      {/* Map Content Area */}
-      <div className="content" style={{ position: 'relative' }}>
-        {/* Tour Selector - Top Left */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '0.75rem',
-            left: '3.75rem',
-            zIndex: 40,
-            display: 'flex',
-            gap: '0.5rem',
-            flexDirection: 'column',
-            alignItems: 'flex-start',
+    <div className="relative w-full h-screen overflow-hidden bg-black font-sans">
+      {/* 1. Background Map */}
+      <div className="absolute inset-0 z-0">
+        <MapComponent
+          route={route}
+          tourType={tourType}
+          selectedStage={selectedStage}
+          onPositionChange={handleMapPositionChange}
+          onPoiClick={setSelectedPoi}
+          highlightPosition={highlightPosition}
+          flyToLocation={flyToLocation}
+          selectedCity={selectedCity}
+          onMapLoad={m => {
+            mapRef.current = m;
           }}
-        >
-          {/* Toggle Button for Tour Panel */}
-          <button
-            onClick={() => setShowTourPanel(!showTourPanel)}
-            style={{
-              background: 'rgba(8, 14, 17, 0.9)',
-              backdropFilter: 'blur(1.25rem)',
-              border: '0.0625rem solid #1e2a33',
-              borderRadius: '0.5rem',
-              padding: '0.375rem 0.625rem',
-              color: showTourPanel ? '#088d95' : 'rgba(255,255,255,0.6)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              fontSize: '0.6875rem',
-              fontWeight: '600',
-              transition: 'all 0.2s ease',
-            }}
-            title={showTourPanel ? t('hideRouteInfo') : t('showRouteInfo')}
-          >
-            <i className={`fas fa-route`}></i>
-            <i
-              className={`fas fa-chevron-${showTourPanel ? 'up' : 'down'}`}
-              style={{ fontSize: '0.5625rem' }}
-            ></i>
-          </button>
-
-          {showTourPanel && (
-            <>
-              <TourStagePanel
-                route={route}
-                tourType={tourType}
-                onTourTypeChange={setTourType}
-                selectedStage={selectedStage}
-                onStageSelect={setSelectedStage}
-              />
-              <LocationFilter routeId={route.id} tourType={tourType} />
-            </>
-          )}
-        </div>
-
-        {/* Weather Forecast Overlay - Center Right */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '0.75rem',
-            right: '0.75rem',
-            zIndex: 40,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-end',
-            gap: '0.5rem',
-          }}
-        >
-          {/* Toggle Button for Weather */}
-          <button
-            onClick={() => setShowWeatherWidget(!showWeatherWidget)}
-            style={{
-              background: 'rgba(8, 14, 17, 0.9)',
-              backdropFilter: 'blur(1.25rem)',
-              border: '0.0625rem solid #1e2a33',
-              borderRadius: '0.5rem',
-              padding: '0.375rem 0.625rem',
-              color: showWeatherWidget ? '#088d95' : 'rgba(255,255,255,0.6)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              fontSize: '0.6875rem',
-              fontWeight: '600',
-              transition: 'all 0.2s ease',
-            }}
-            title={showWeatherWidget ? t('hideWeather') : t('showWeather')}
-          >
-            <i className="fas fa-cloud-sun"></i>
-            <i
-              className={`fas fa-chevron-${showWeatherWidget ? 'up' : 'down'}`}
-              style={{ fontSize: '0.5625rem' }}
-            ></i>
-          </button>
-
-          {showWeatherWidget && (
-            <WeatherForecast
-              lat={(route.startPoint[1] + route.endPoint[1]) / 2}
-              lng={(route.startPoint[0] + route.endPoint[0]) / 2}
-              locationName={route.name || 'Route'}
-            />
-          )}
-        </div>
-
-        <div id="map">
-          <MapComponent
-            route={route}
-            tourType={tourType}
-            selectedStage={selectedStage}
-            onPositionChange={handleMapPositionChange}
-            onPoiClick={setSelectedPoi}
-            highlightPosition={highlightPosition}
-            flyToLocation={flyToLocation}
-          />
-        </div>
-
-        {/* Fullscreen Button */}
-        <button
-          onClick={toggleFullscreen}
-          className="fullscreen-btn absolute top-3 left-3 z-[1000] w-10 h-10 flex items-center justify-center bg-[#080e11] border border-[#1e2a33] rounded-lg text-gray-400 hover:text-white hover:bg-[#088d95] hover:border-[#088d95] transition-all"
-          title={isFullscreen ? t('exitFullscreen') : t('fullscreen')}
-        >
-          <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>
-        </button>
+        />
       </div>
 
-      {/* Elevation Profile Container */}
-      <div id="profilesContainer">
-        <ElevationProfile
+      {/* 2. Top Navigation Bar */}
+      <div className="absolute top-0 left-0 right-0 z-50 shadow-lg">
+        <RouteStatsBar
           route={route}
-          pois={route.pois}
-          tourType={tourType}
-          onPositionChange={handleElevationPositionChange}
-          highlightDistance={highlightDistance}
-          onPoiClick={handlePoiClick}
+          showDownloadButton={true}
+          onDownloadClick={() => setShowGpxModal(true)}
+          onLocationSelect={coords =>
+            setFlyToLocation({ lng: coords.lng, lat: coords.lat })
+          }
         />
+      </div>
+
+      {/* 3. Left Floating Panel (Tour Stages) */}
+      <div className="static md:absolute md:top-28 md:left-4 z-60 flex flex-col gap-4 md:transform md:origin-top-left md:scale-90 lg:scale-100 transition-all">
+        {/* <TourStagePanel
+          route={route}
+          tourType={tourType}
+          onTourTypeChange={setTourType}
+          selectedStage={selectedStage}
+          onStageSelect={setSelectedStage}
+        /> */}
+        {/* <LocationFilter routeId={route.id} tourType={tourType} /> */}
+      </div>
+
+      {/* 5. Left Floating Simple Weather Widget */}
+      <div className="absolute bottom-[230px] md:bottom-[244px] right-2 md:right-4 z-40 transform origin-right scale-75 sm:scale-90 lg:scale-100 transition-all">
+        <TourStagePanel
+          route={route}
+          tourType={tourType}
+          onTourTypeChange={setTourType}
+          selectedStage={selectedStage}
+          onStageSelect={setSelectedStage}
+          selectedCity={selectedCity}
+          onCityChange={setSelectedCity}
+        />
+        {/* <LocationFilter routeId={route.id} tourType={tourType} /> */}
+      </div>
+
+      {/* 4. Right Floating Widget (Custom Map Controls) */}
+      <div className="absolute top-[160px] md:top-[284px] right-2 md:right-4 z-40 flex flex-col items-center gap-2 md:gap-3 transform origin-right scale-75 sm:scale-90 lg:scale-100 transition-all pointer-events-auto">
+        {/* Fullscreen Tool */}
+        <button onClick={handleFullscreen} className="" title="Fullscreen">
+          <img
+            src="/images/fullscreen-icon.svg"
+            alt="Fullscreen"
+            className="w-12 h-12 md:w-12 md:h-12 text-white"
+          />
+        </button>
+
+        {/* Location Tool */}
+        <button onClick={handleLocateMe} className="" title="Locate Me">
+          <img
+            src="/images/location-icon.svg"
+            alt="Locate Me"
+            className="w-12 h-12 md:w-12 md:h-12 text-white"
+          />
+        </button>
+
+        {/* Zoom Controls */}
+        <div className="w-12 md:w-10 h-22 md:h-20 bg-[#0a1f26] rounded-[14px] md:rounded-[10px] relative flex flex-col items-center justify-between shadow-lg border border-[#1d4450]">
+          <button
+            onClick={handleZoomIn}
+            className="w-full h-1/2 flex items-center justify-center hover:bg-white/10 transition-colors rounded-t-[14px] md:rounded-t-[10px] z-10 text-white"
+            title="Zoom In"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M12 4v16m-8-8h16"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          {/* Divider line */}
+          <div className="absolute top-1/2 left-2 right-2 h-px bg-[#1d4450] -translate-y-1/2"></div>
+          <button
+            onClick={handleZoomOut}
+            className="w-full h-1/2 flex items-center justify-center hover:bg-white/10 transition-colors rounded-b-[14px] md:rounded-b-[10px] z-10 text-white"
+            title="Zoom Out"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M4 12h16"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* 5. Left Floating Simple Weather Widget */}
+      <div className="absolute bottom-[244px] left-[55%] -translate-x-1/2 z-40">
+        <div className="h-9 px-4 bg-[#081f21] rounded-[20px] shadow-[0px_2px_7px_0px_rgba(0,0,0,0.25)] border border-[#0f3437] flex justify-center items-center gap-[7px]">
+          <img
+            src="/images/weather-icon.svg"
+            alt="Weather"
+            className="w-[14px] h-[14px]"
+          />
+          <div className="text-white text-xs font-semibold font-['Roboto'] leading-none pt-px">
+            5°
+          </div>
+        </div>
+      </div>
+
+      {/* 5. Bottom Elevation Profile Panel */}
+      <div className="absolute bottom-[92px] md:bottom-4 left-0 md:left-4 right-0 md:right-4 h-[280px] md:h-56 z-50 bg-black md:bg-[#020617] rounded-t-[20px] md:rounded-2xl overflow-hidden shadow-2xl border-t border-cyan-950 md:border-gray-800 transition-all duration-300">
+        <div className="h-full w-full relative">
+          <ElevationProfile
+            route={route}
+            pois={route.pois}
+            tourType={tourType}
+            onPositionChange={handleElevationPositionChange}
+            highlightDistance={highlightDistance}
+            onPoiClick={handlePoiClick}
+          />
+          {/* Custom overlays for bottom panel could go here if needed */}
+        </div>
       </div>
 
       {/* POI Sidebar */}
@@ -336,60 +353,14 @@ export default function EmbedView() {
         onClose={() => setSelectedPoi(null)}
       />
 
-      {/* Premium Modal */}
-      <PremiumModal
-        isOpen={showPremiumModal}
-        onClose={() => setShowPremiumModal(false)}
-      />
-
-      <style>{wrapperStyles}</style>
+      {/* Modals */}
+      {showGpxModal && route && (
+        <GpxDownloadModal
+          routeId={route.id}
+          selectedCity={selectedCity}
+          onClose={() => setShowGpxModal(false)}
+        />
+      )}
     </div>
   );
 }
-
-// CSS matching public.css exactly with enhancements
-const wrapperStyles = `
-  .wrapper {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    width: 100%;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    overflow: hidden;
-    background: #0b1215;
-    border-radius: 0.75rem;
-    border: 0.125rem solid #088d95;
-    box-shadow: 0 0 0.9375rem rgba(8, 141, 149, 0.7);
-  }
-
-  .content {
-    position: relative;
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-    overflow: hidden;
-    background: transparent;
-  }
-
-  #map {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: #0b1215;
-  }
-
-  #profilesContainer {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    background: #0b1215;
-    z-index: 10;
-  }
-`;

@@ -217,7 +217,7 @@ function formatDurationHHMMSS(totalHours: number): string {
  * - Parses ALL track points (no sampling/simplification)
  * - Uses Haversine formula for 2D distance
  * - Calculates elevation stats WITHOUT smoothing/hysteresis to capture micro-terrain
- * - Duration based on fixed 10.5 km/h average speed
+ * - Duration based on fixed 23 km/h average speed
  *
  * @param gpxText Raw GPX XML string
  * @returns Accurate route statistics
@@ -235,8 +235,8 @@ export function processGPXWithAccurateStats(gpxText: string): GPXAccurateStats {
     totalDistanceKm += calculateDistance(points[i - 1], points[i]);
   }
 
-  // Calculate duration at fixed 10.5 km/h
-  const AVERAGE_SPEED_KMH = 10.5;
+  // Calculate duration at fixed 23 km/h
+  const AVERAGE_SPEED_KMH = 23;
   const durationHours = totalDistanceKm / AVERAGE_SPEED_KMH;
   const durationMinutes = Math.round(durationHours * 60);
   const durationFormatted = formatDurationHHMMSS(durationHours);

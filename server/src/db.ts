@@ -254,6 +254,7 @@ export async function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS stage_split_points (
       id INT AUTO_INCREMENT PRIMARY KEY,
       route_id INT NOT NULL,
+      start_location VARCHAR(255) NOT NULL DEFAULT 'Wernigerode',
       tour_type ENUM('bronze', 'silver') NOT NULL,
       stage_number INT NOT NULL,
       location_name VARCHAR(255) NOT NULL,
@@ -262,9 +263,31 @@ export async function initializeDatabase() {
       distance_km DECIMAL(8,3) NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (route_id) REFERENCES routes(route_id) ON DELETE CASCADE,
-      UNIQUE KEY unique_route_tour_stage (route_id, tour_type, stage_number)
+      UNIQUE KEY unique_route_start_tour_stage (route_id, start_location, tour_type, stage_number)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
+
+  // Add start_location column if it doesn't exist (for existing databases)
+  try {
+    await pool.execute(`
+      ALTER TABLE stage_split_points ADD COLUMN IF NOT EXISTS start_location VARCHAR(255) NOT NULL DEFAULT 'Wernigerode'
+    `);
+
+    // Also try to drop the old constraint and add the new one, this may fail if it was already updated
+    // Catching the error is safe here for iterative boots
+    try {
+      await pool.execute(
+        'ALTER TABLE stage_split_points DROP INDEX unique_route_tour_stage;'
+      );
+      await pool.execute(
+        'ALTER TABLE stage_split_points ADD UNIQUE INDEX unique_route_start_tour_stage (route_id, start_location, tour_type, stage_number);'
+      );
+    } catch (e) {
+      /* constraint likely already exists or replaced */
+    }
+  } catch (e) {
+    // Column may already exist
+  }
 
   // Create default admin user if not exists
   const [adminRows] = await pool.execute(

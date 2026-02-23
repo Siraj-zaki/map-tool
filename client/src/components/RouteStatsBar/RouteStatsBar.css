@@ -1,222 +1,177 @@
-/* Route Stats Bar - Modern Glassy Design */
-
 .route-stats-bar {
-  display: flex;
+  display: none; /* hidden by default on mobile */
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 1rem;
-  background: rgba(11, 18, 21, 0.9);
-  backdrop-filter: blur(1.25rem);
-  -webkit-backdrop-filter: blur(1.25rem);
-  border-bottom: 0.0625rem solid rgba(30, 42, 51, 0.6);
-  flex-shrink: 0;
+  width: 100%;
+  height: 4rem; /* 64px */
+  background-color: #000000;
+  padding: 0 1.25rem;
+  color: #ffffff;
+  font-family: 'Roboto', sans-serif;
+  box-shadow: 0px 8px 8px 0px rgba(0, 0, 0, 0.25);
+  z-index: 50;
   position: relative;
-  gap: 1rem;
-  min-height: 3rem;
 }
 
-/* Left Section */
+@media (min-width: 768px) {
+  .route-stats-bar {
+    display: flex;
+  }
+}
+
+/* Left: Logo & Title */
 .stats-left {
   display: flex;
   align-items: center;
   gap: 1rem;
-  flex-shrink: 0;
 }
 
-/* Route Title */
+.ms-logo-icon {
+  width: 2.875rem; /* 46px */
+  height: 2.5rem; /* 40px */
+  object-fit: contain;
+}
+
 .route-title {
-  font-family: 'Segoe UI', Arial, sans-serif;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #e0e0e0;
+  font-size: 1.5rem; /* 24px */
+  font-weight: 700;
+  color: #ffffff;
   margin: 0;
   white-space: nowrap;
 }
 
-/* Center Section - Stats */
+/* Vertical Separator */
+.stats-separator {
+  width: 2.75rem; /* 44px */
+  height: 1px;
+  background-color: #3f3f46; /* zinc-700 */
+  transform: rotate(90deg);
+  transform-origin: center;
+  margin: 0 -1rem; /* Adjust spacing to account for rotation */
+}
+
+/* Center: Stats Grid */
 .stats-center {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  flex: 1;
-  justify-content: center;
+  gap: 2rem;
 }
 
-/* Stat Item */
 .stat-item {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  color: #e0e0e0;
-  font-size: 0.85rem;
-  font-weight: 500;
-  padding: 0.3rem 0.5rem;
-  background: rgba(30, 42, 51, 0.4);
-  border-radius: 0.375rem;
-  border: 0.0625rem solid rgba(30, 42, 51, 0.6);
-  transition: all 0.2s ease;
+  gap: 0.75rem;
 }
 
-.stat-item:hover {
-  background: rgba(8, 141, 149, 0.1);
-  border-color: rgba(8, 141, 149, 0.3);
+.stat-icon-wrapper {
+  width: 1.5rem; /* 24px */
+  height: 1.5rem; /* 24px */
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.stat-item i {
-  color: #088d95;
-  font-size: 0.75rem;
+/* Custom styled icons (squares with outlines/fills) */
+.icon-box-outline {
+  width: 1rem; /* 16px */
+  height: 1rem; /* 16px */
+  border: 2px solid #2dd4bf; /* teal-400 */
 }
 
-/* Right Section */
+.icon-box-fill {
+  width: 1rem; /* 16px */
+  height: 1rem; /* 16px */
+  background-color: #2dd4bf; /* teal-400 */
+}
+
+.icon-box-half {
+  width: 0.875rem; /* 14px */
+  height: 1rem; /* 16px */
+  border: 2px solid #2dd4bf; /* teal-400 */
+}
+
+.icon-box-wide {
+  width: 1.25rem; /* 20px */
+  height: 1rem; /* 16px */
+  background-color: #2dd4bf; /* teal-400 */
+}
+
+.stat-value {
+  font-size: 1.125rem; /* 18px */
+  font-weight: 600;
+  color: #ffffff;
+}
+
+/* Right: Actions */
 .stats-right {
   display: flex;
   align-items: center;
   gap: 1rem;
-  flex-shrink: 0;
 }
 
-/* Weather Container */
-.weather-container {
-  display: flex;
-  align-items: center;
-}
-
-/* Download Button - Bigger */
 .download-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, #088d95 0%, #0da6ae 100%);
-  color: #fff;
+  width: 15rem; /* 240px */
+  height: 2.75rem; /* 44px */
+  background-color: #14b8a6; /* teal-500 */
+  border-radius: 0.75rem; /* 12px */
   border: none;
-  border-radius: 0.5rem;
-  font-size: 0.9rem;
-  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  box-shadow: 0 0.125rem 0.5rem rgba(8, 141, 149, 0.3);
+  transition: background-color 0.2s;
 }
 
 .download-btn:hover {
-  transform: translateY(-0.0625rem);
-  box-shadow: 0 0.25rem 0.75rem rgba(8, 141, 149, 0.4);
-}
-
-.download-btn i {
-  font-size: 0.85rem;
+  background-color: #0d9488; /* teal-600 */
 }
 
 .download-text {
-  display: inline;
+  font-size: 1.125rem; /* 18px */
+  font-weight: 700;
+  color: #ffffff;
 }
 
-/* Logo */
-.logo-link {
+.download-icon {
+  width: 1.25rem; /* 20px */
+  height: 1.25rem; /* 20px */
   display: flex;
+  flex-direction: column;
   align-items: center;
-  opacity: 0.9;
-  transition: opacity 0.2s ease;
+  justify-content: center;
 }
 
-.logo-link:hover {
-  opacity: 1;
+.download-arrow {
+  width: 0.5rem;
+  height: 0.75rem;
+  background-color: white;
+  margin-bottom: 2px;
+}
+.download-bar {
+  width: 1.25rem;
+  height: 0.3rem;
+  background-color: white;
 }
 
-.ms-logo {
-  height: 2rem;
-  width: auto;
-  display: block;
-}
-
-/* Tablet/Small Desktop */
-@media (max-width: 68.75rem) {
-  .route-stats-bar {
-    padding: 0.4rem 0.8rem;
-    gap: 0.8rem;
-    min-height: 2.75rem;
-  }
-
+/* Responsive adjustments */
+@media (max-width: 1024px) {
   .route-title {
-    font-size: 1rem;
+    font-size: 1.125rem;
   }
-
-  .stat-item {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.4rem;
+  .stat-value {
+    font-size: 0.875rem;
   }
-
-  .stat-item i {
-    font-size: 0.7rem;
-  }
-}
-
-/* Mobile Responsive */
-@media (max-width: 75rem) {
-  .route-stats-bar {
-    flex-wrap: wrap;
-    padding: 0.35rem 0.5rem;
-    flex-direction: row;
-    gap: 0.3rem;
-    min-height: auto;
-  }
-
-  .stats-left {
-    order: 1;
-    /* width: 100%; */
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 0.3rem;
-  }
-
-  .route-title {
-    font-size: 0.9rem;
-    text-align: center;
-    /* width: 100%; */
-  }
-
   .stats-center {
-    order: 2;
-    /* width: 100%; */
-    flex-wrap: wrap;
-    gap: 0.3rem;
-    justify-content: center;
+    gap: 1rem;
   }
-
-  .stats-right {
-    order: 3;
-    /* width: 100%; */
-    justify-content: center;
-    gap: 0.3rem;
+  .download-btn {
+    width: auto;
+    padding: 0 1rem;
   }
-}
-
-@media (max-width: 37.5rem) {
-  .stat-item {
-    font-size: 0.65rem;
-    padding: 0.2rem 0.35rem;
-    gap: 0.2rem;
-  }
-
-  .stat-item i {
-    font-size: 0.6rem;
-  }
-
   .download-text {
     display: none;
-  }
-
-  .download-btn {
-    padding: 0.25rem 0.4rem;
-    font-size: 0.65rem;
-  }
-
-  .ms-logo {
-    height: 1.25rem;
-  }
-
-  .route-title {
-    font-size: 0.8rem;
   }
 }
