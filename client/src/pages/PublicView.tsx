@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { routesApi, type POI, type Route } from '../api';
 import ElevationProfile from '../components/ElevationProfile/ElevationProfileVisx';
-import GpxDownloadModal from '../components/GPX/GpxDownloadModal';
 import MapComponent from '../components/Map/MapComponent';
 import POISidebar from '../components/POI/POISidebar';
+import PremiumModal from '../components/Premium/PremiumModal';
 import RouteStatsBar from '../components/RouteStatsBar/RouteStatsBar';
 import TourStagePanel from '../components/TourStagePanel/TourStagePanel';
 
@@ -186,7 +186,7 @@ export default function PublicView() {
   return (
     <div className="relative w-full h-screen overflow-hidden bg-black font-sans">
       {/* 1. Background Map */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 md:inset-0 bottom-[360px] md:bottom-0 z-0">
         <MapComponent
           route={route}
           tourType={tourType}
@@ -334,13 +334,10 @@ export default function PublicView() {
       />
 
       {/* Modals */}
-      {showGpxModal && route && (
-        <GpxDownloadModal
-          routeId={route.id}
-          selectedCity={selectedCity}
-          onClose={() => setShowGpxModal(false)}
-        />
-      )}
+      <PremiumModal
+        isOpen={showGpxModal}
+        onClose={() => setShowGpxModal(false)}
+      />
     </div>
   );
 }

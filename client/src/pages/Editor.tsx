@@ -978,12 +978,14 @@ export default function Editor() {
           setElevationData(result.route.elevationData || null); // Restore stored elevation data
           setPois(result.route.pois || []);
           setRouteStats({
-            distance: result.route.distance || 0,
-            duration: Math.round((result.route.duration || 0) / 60),
-            highestPoint: result.route.highestPoint || 0,
-            lowestPoint: result.route.lowestPoint || 0,
-            totalAscent: result.route.totalAscent || 0,
-            totalDescent: result.route.totalDescent || 0,
+            distance: parseFloat(String(result.route.distance || 0)),
+            duration: Math.round(
+              parseFloat(String(result.route.duration || 0)) / 60
+            ),
+            highestPoint: parseInt(String(result.route.highestPoint || 0)),
+            lowestPoint: parseInt(String(result.route.lowestPoint || 0)),
+            totalAscent: parseInt(String(result.route.totalAscent || 0)),
+            totalDescent: parseInt(String(result.route.totalDescent || 0)),
           });
           setEditMode('waypoint');
 
@@ -1642,7 +1644,7 @@ export default function Editor() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Map + Elevation */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col w-[calc(100%-300px)]">
           <div className="flex-1 relative min-h-[18.75rem]">
             <div
               ref={mapContainer}

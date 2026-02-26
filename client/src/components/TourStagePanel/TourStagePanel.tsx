@@ -150,7 +150,7 @@ export default function TourStagePanel({
   );
 
   const renderStageCards = () => (
-    <div className="flex flex-col gap-[6px] overflow-y-auto scrollbar-hide pb-2 h-full min-h-[200px]">
+    <div className="flex flex-col gap-[6px] overflow-y-auto scrollbar-hide pb-2 h-full min-h-[120px]">
       {Array.from({ length: numStages }).map((_, idx) => {
         const stats = getStageStats(idx, numStages);
         if (!stats) return null;
@@ -283,10 +283,10 @@ export default function TourStagePanel({
               <span className="text-[#00cccc] text-sm font-bold font-['Roboto']">
                 TOUR STAGES
               </span>
-              <span className="text-white text-xs sm:text-sm font-normal font-['Roboto'] mt-1 sm:mt-0">
-                Difficulty Level
-              </span>
             </div>
+            <span className="text-white text-xs sm:text-sm font-normal font-['Roboto'] mt-1 sm:mt-0">
+              Difficulty Level
+            </span>
 
             <div className="flex items-center gap-3">
               <div
@@ -309,7 +309,7 @@ export default function TourStagePanel({
                 </span>
               </div>
               <img
-                src="/images/arrow-down.svg"
+                src="/images/difficult-arrow.svg"
                 className="w-[10px] h-[6px] rotate-180 opacity-80"
                 alt="Expand"
               />

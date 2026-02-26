@@ -27,13 +27,13 @@
 }
 
 .ms-logo-icon {
-  width: 2.875rem; /* 46px */
-  height: 2.5rem; /* 40px */
+  width: 2rem; /* 46px */
+  height: 2rem; /* 40px */
   object-fit: contain;
 }
 
 .route-title {
-  font-size: 1.5rem; /* 24px */
+  font-size: 1rem; /* 24px */
   font-weight: 700;
   color: #ffffff;
   margin: 0;
@@ -64,8 +64,8 @@
 }
 
 .stat-icon-wrapper {
-  width: 1.5rem; /* 24px */
-  height: 1.5rem; /* 24px */
+  width: 1rem; /* 24px */
+  height: 1rem; /* 24px */
   position: relative;
   overflow: hidden;
   display: flex;
@@ -99,7 +99,7 @@
 }
 
 .stat-value {
-  font-size: 1.125rem; /* 18px */
+  font-size: 0.7rem; /* 18px */
   font-weight: 600;
   color: #ffffff;
 }
@@ -116,8 +116,8 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  width: 15rem; /* 240px */
-  height: 2.75rem; /* 44px */
+  width: 10rem; /* 240px */
+  height: 2.3rem; /* 44px */
   background-color: #14b8a6; /* teal-500 */
   border-radius: 0.75rem; /* 12px */
   border: none;
@@ -130,14 +130,14 @@
 }
 
 .download-text {
-  font-size: 1.125rem; /* 18px */
+  font-size: 0.8rem; /* 18px */
   font-weight: 700;
   color: #ffffff;
 }
 
 .download-icon {
-  width: 1.25rem; /* 20px */
-  height: 1.25rem; /* 20px */
+  width: 1rem; /* 20px */
+  height: 1rem; /* 20px */
   display: flex;
   flex-direction: column;
   align-items: center;

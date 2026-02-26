@@ -12,6 +12,7 @@ import { useTooltip } from '@visx/tooltip';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { POI, Route } from '../../api';
+import { useColorSettings } from '../../contexts/ColorSettingsContext';
 import './ElevationProfileVisx.css';
 
 // --- Assets ---
@@ -59,6 +60,7 @@ function ElevationChart({
   onPositionChange,
   highlightDistance,
   onPoiClick,
+  tourType = 'gold',
 }: {
   width: number;
   height: number;
@@ -67,6 +69,7 @@ function ElevationChart({
   onPositionChange?: any;
   highlightDistance?: number;
   onPoiClick?: (poi: POI) => void;
+  tourType?: 'gold' | 'silver' | 'bronze';
 }) {
   // Bounds
   const margin = { top: 20, right: 0, bottom: 30, left: 40 }; // Adjusted for mobile edge-to-edge
@@ -76,6 +79,10 @@ function ElevationChart({
   const svgHeight = graphHeight;
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = graphHeight - margin.top - margin.bottom;
+
+  // Stage colors from context
+  const { getStageColor, stageColors } = useColorSettings();
+  const numStages = stageColors[tourType]?.length ?? 1;
 
   // Derived Data
   const maxDistance = useMemo(
@@ -114,8 +121,24 @@ function ElevationChart({
 
   // Brush / Minimap Scales
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  // Default visible window: 60 km on desktop, 40 km on mobile
+  const DEFAULT_VISIBLE_KM = isMobile ? 40 : 60;
   const brushHeight = isMobile ? 24 : 30; // Shorter on mobile
-  const brushWidth = isMobile ? window.innerWidth - 64 : 358; // Dynamic width on mobile (padding x2 + a bit more)
+  const brushWidth = isMobile ? window.innerWidth - 24 : 358; // Dynamic width on mobile (padding x2 + a bit more)
+
+  // Apply default zoom once data is available
+  const hasAppliedDefaultZoom = useRef(false);
+  if (
+    !hasAppliedDefaultZoom.current &&
+    maxDistance > 1 &&
+    zoomDomain === null
+  ) {
+    hasAppliedDefaultZoom.current = true;
+    // Only zoom in if route is longer than the default window
+    if (maxDistance > DEFAULT_VISIBLE_KM) {
+      setZoomDomain([0, DEFAULT_VISIBLE_KM]);
+    }
+  }
 
   const brushXScale = useMemo(
     () =>
@@ -305,8 +328,8 @@ function ElevationChart({
             x2="0"
             y2="1"
           >
-            <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.8} />
-            <stop offset="100%" stopColor="#22d3ee" stopOpacity={0.2} />
+            <stop offset="0%" stopColor="#088d95" stopOpacity={0.8} />
+            <stop offset="100%" stopColor="#088d95" stopOpacity={0.2} />
           </linearGradient>
           <filter
             id={`${idPrefix}-chartBlur`}
@@ -333,9 +356,9 @@ function ElevationChart({
           x={d => brushXScale(d.distance)}
           y={d => brushYScale(d.elevation)}
           yScale={brushYScale}
-          fill="#22d3ee"
+          fill="#088d95"
           fillOpacity={0.15}
-          stroke="#22d3ee"
+          stroke="#088d95"
           strokeOpacity={0.3}
           strokeWidth={1}
           pointerEvents="none"
@@ -348,7 +371,7 @@ function ElevationChart({
           y={d => brushYScale(d.elevation)}
           yScale={brushYScale}
           fill={`url(#${idPrefix}-minimapGradient)`}
-          stroke="#22d3ee"
+          stroke="#088d95"
           strokeOpacity={1}
           strokeWidth={1.5}
           pointerEvents="none"
@@ -367,8 +390,8 @@ function ElevationChart({
           onChange={onBrushChange}
           onClick={() => setZoomDomain(null)}
           selectedBoxStyle={{
-            fill: 'rgba(34, 211, 238, 0.05)',
-            stroke: '#22d3ee',
+            fill: 'rgba(8, 141, 149, 0.05)',
+            stroke: '#088d95',
             strokeWidth: 2,
             rx: 6,
           }}
@@ -461,7 +484,7 @@ function ElevationChart({
         {renderMinimap('mobile')}
 
         {/* Mobile Zoom Control Row */}
-        <div className="flex justify-between items-center px-4 mt-1">
+        <div className="flex justify-between items-center  mt-1">
           {/* Badge */}
           <div className="w-[52px] h-[28px] bg-[#0c191a] rounded-md border border-[#2b5963] flex justify-center items-center shrink-0">
             <div className="text-white text-[12px] font-normal font-['Roboto']">
@@ -469,7 +492,7 @@ function ElevationChart({
             </div>
           </div>
 
-          <div className="flex flex-1 max-w-[50%] justify-between items-center px-4 mt-1">
+          <div className="flex flex-1 max-w-[50%] justify-between items-center mt-1">
             <div
               className="size-[28px] bg-[#0c191a] rounded-lg shadow-sm cursor-pointer flex items-center justify-center shrink-0 ml-4 hover:bg-[#153033]"
               onClick={() => handleZoom(1.2)}
@@ -527,10 +550,10 @@ function ElevationChart({
       </div>
 
       {/* --- Body: Chart & Arrows --- */}
-      <div className="flex-1 w-full relative">
+      <div className="flex-1 w-full relative p-4 pb-0 pt-0">
         {/* Navigation Buttons - Left Arrow */}
         <button
-          className="hidden md:flex absolute right-20 top-[-40%] -translate-y-1/2 z-30 w-12 h-12 items-center justify-center bg-[#115e59] hover:bg-[#0f766e] rounded-full text-white shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all border border-[#2dd4bf] hover:shadow-[0_0_15px_rgba(45,212,191,0.4)] disabled:opacity-0 disabled:pointer-events-none"
+          className="hidden md:flex absolute right-20 top-[-40%] -translate-y-1/2 z-30 w-12 h-12 items-center justify-center bg-[#115e59] hover:bg-[#0f766e] rounded-full text-white shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all border border-[#088d95] hover:shadow-[0_0_15px_rgba(8,141,149,0.4)] disabled:opacity-0 disabled:pointer-events-none"
           onClick={() => {
             if (!zoomDomain) return;
             const currentSpan = zoomDomain[1] - zoomDomain[0];
@@ -557,11 +580,12 @@ function ElevationChart({
           onTouchMove={handleMouseMove}
           onTouchEnd={() => hideTooltip()}
         >
+          {/* Legacy gradient kept for backward compat (not rendered if stages cover all) */}
           <LinearGradient
             id="main-gradient"
-            from="#2dd4bf"
-            to="#2dd4bf"
-            fromOpacity={0.8} // Match mobile design opacity
+            from="#088d95"
+            to="#088d95"
+            fromOpacity={0.8}
             toOpacity={0.0}
           />
 
@@ -594,26 +618,62 @@ function ElevationChart({
               />
             ))}
 
-            {/* Area */}
-            <AreaClosed
-              data={data}
-              x={d => xScale(d.distance)}
-              y={d => yScale(d.elevation)}
-              yScale={yScale}
-              curve={curveMonotoneX}
-              fill="url(#main-gradient)"
-              stroke="transparent"
-            />
-
-            {/* Stroke Line */}
-            <LinePath
-              data={data}
-              x={d => xScale(d.distance)}
-              y={d => yScale(d.elevation)}
-              curve={curveMonotoneX}
-              stroke="#2dd4bf"
-              strokeWidth={2}
-            />
+            {/* Per-Stage Area & Line */}
+            {Array.from({ length: numStages }).map((_, stageIdx) => {
+              const stageColor = getStageColor(tourType, stageIdx);
+              const gradId = `stage-gradient-${stageIdx}`;
+              // Split data by stage distance boundaries
+              const stageFraction = 1 / numStages;
+              const maxDist =
+                data.length > 0 ? data[data.length - 1].distance : 1;
+              const stageStart = stageIdx * stageFraction * maxDist;
+              const stageEnd = (stageIdx + 1) * stageFraction * maxDist;
+              // Include one overlap point on each side for smooth continuous fill
+              const stageData = data.filter(
+                d =>
+                  d.distance >= (stageIdx === 0 ? 0 : stageStart - 0.01) &&
+                  d.distance <=
+                    (stageIdx === numStages - 1 ? maxDist + 1 : stageEnd + 0.01)
+              );
+              if (stageData.length < 2) return null;
+              return (
+                <g key={stageIdx}>
+                  <defs>
+                    <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                      <stop
+                        offset="0%"
+                        stopColor={stageColor}
+                        stopOpacity={0.7}
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor={stageColor}
+                        stopOpacity={0.0}
+                      />
+                    </linearGradient>
+                  </defs>
+                  {/* Area fill */}
+                  <AreaClosed
+                    data={stageData}
+                    x={d => xScale(d.distance)}
+                    y={d => yScale(d.elevation)}
+                    yScale={yScale}
+                    curve={curveMonotoneX}
+                    fill={`url(#${gradId})`}
+                    stroke="transparent"
+                  />
+                  {/* Stroke line */}
+                  <LinePath
+                    data={stageData}
+                    x={d => xScale(d.distance)}
+                    y={d => yScale(d.elevation)}
+                    curve={curveMonotoneX}
+                    stroke={stageColor}
+                    strokeWidth={2}
+                  />
+                </g>
+              );
+            })}
 
             {/* Axes */}
             <AxisBottom
@@ -652,7 +712,7 @@ function ElevationChart({
                 cy={yScale(tooltipData.elevation)}
                 r={6}
                 fill="#ffffff"
-                stroke="#2dd4bf"
+                stroke="#088d95"
                 strokeWidth={2}
                 pointerEvents="none"
               />
@@ -665,7 +725,7 @@ function ElevationChart({
                 x2={xScale(highlightDistance)}
                 y1={0}
                 y2={innerHeight}
-                stroke="#2dd4bf"
+                stroke="#088d95"
                 strokeWidth={1}
                 strokeDasharray="4 4"
               />
@@ -702,7 +762,7 @@ function ElevationChart({
 
         {/* Navigation Buttons - Right Arrow */}
         <button
-          className="hidden md:flex absolute right-4 top-[-40%] -translate-y-1/2 z-30 w-12 h-12 items-center justify-center bg-[#115e59] hover:bg-[#0f766e] rounded-full text-white shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all border border-[#2dd4bf] hover:shadow-[0_0_15px_rgba(45,212,191,0.4)] disabled:opacity-0 disabled:pointer-events-none"
+          className="hidden md:flex absolute right-4 top-[-40%] -translate-y-1/2 z-30 w-12 h-12 items-center justify-center bg-[#115e59] hover:bg-[#0f766e] rounded-full text-white shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all border border-[#088d95] hover:shadow-[0_0_15px_rgba(8,141,149,0.4)] disabled:opacity-0 disabled:pointer-events-none"
           onClick={() => {
             if (!zoomDomain) return;
             const currentSpan = zoomDomain[1] - zoomDomain[0];
@@ -792,6 +852,7 @@ export default function ElevationProfileVisx({
   highlightDistance,
   onPositionChange,
   onPoiClick,
+  tourType = 'gold',
 }: ElevationProfileVisxProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -896,13 +957,14 @@ export default function ElevationProfileVisx({
       <ParentSize>
         {({ width, height }) => (
           <ElevationChart
-            width={width}
+            width={Math.max(0, width - 30)}
             height={height}
             data={chartData}
             pois={processedPois}
             onPositionChange={onPositionChange}
             highlightDistance={highlightDistance}
             onPoiClick={onPoiClick}
+            tourType={tourType}
           />
         )}
       </ParentSize>

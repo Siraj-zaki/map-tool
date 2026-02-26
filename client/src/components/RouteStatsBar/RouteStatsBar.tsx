@@ -126,16 +126,17 @@ export default function RouteStatsBar({
       </div>
 
       {/* --- MOBILE VIEW (visible only on mobile) --- */}
-      <div className="flex md:hidden flex-col w-full relative z-50 bg-black rounded-b-3xl mt-[-10px] pt-[10px] pb-4 px-5">
+      <div className="flex md:hidden h-[80px] flex-col w-full relative z-50 bg-black rounded-b-3xl mt-[-10px] pt-[10px] pb-4 px-5">
         {/* Top Row: Logo, Title, Download */}
-        <div className="w-full flex items-center justify-between mb-2 mt-2">
+        <div className="w-full flex items-center h-[35px] justify-between  mt-2">
           <div className="flex items-center gap-3">
             <img
-              className="w-[32px] h-[32px] object-contain"
+              className="w-[42px] h-[42px] mt-[10px] ml-[-10px] object-contain"
               src="/images/header-logo.svg"
               alt="Logo"
             />
-            <h1 className="text-white text-[16px] font-bold font-['Roboto'] truncate max-w-[200px]">
+            <div className="h-[40px] absolute left-[60px] top-[25px] w-[1px] bg-[#4b4b4b]" />
+            <h1 className="text-white ml-[10px] text-[16px] font-bold font-['Roboto'] truncate max-w-[200px]">
               {route.name}
             </h1>
           </div>
@@ -143,7 +144,7 @@ export default function RouteStatsBar({
           {showDownloadButton && onDownloadClick && (
             <button
               onClick={onDownloadClick}
-              className="w-10 h-10 bg-[#5ec4cd] rounded-xl flex items-center justify-center shrink-0 active:scale-95 transition-transform"
+              className="w-10 h-10 mt-2 bg-[#5ec4cd] rounded-xl flex items-center justify-center shrink-0 active:scale-95 transition-transform"
             >
               <img
                 src="/images/download-icon.svg"
@@ -155,7 +156,7 @@ export default function RouteStatsBar({
         </div>
 
         {/* Bottom Row: Core Stats */}
-        <div className="w-full flex items-center gap-4 pl-[44px]">
+        <div className="w-full flex items-center gap-4 pl-[54px]">
           {/* Distance */}
           <div className="flex items-center gap-1.5">
             <img

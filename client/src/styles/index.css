@@ -3,6 +3,19 @@
 /* Only essential overrides - everything else uses Tailwind classes */
 
 /* Mapbox GL styles override */
+
+:root {
+  --color-teal-400: #43b3be !important;
+}
+
+/* Base font — Roboto applied globally */
+body,
+button,
+input,
+select,
+textarea {
+  font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+}
 .mapboxgl-map {
   font-family: inherit;
 }
