@@ -1,3 +1,4 @@
+// @ts-ignore
 import { AxisBottom, AxisLeft } from '@visx/axis';
 import { Brush } from '@visx/brush';
 import type { BaseBrush, Bounds, BrushHandleRenderProps } from '@visx/brush/lib/types';
