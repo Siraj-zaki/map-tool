@@ -1,0 +1,34 @@
+Here is a step-by-step guide on how you can test the new dynamic "unlimited split points" functionality across your application:
+
+1. Enable Edit Mode and Select a Tour
+Open your map application in the browser (likely http://localhost:5173 since your client dev server is running).
+Ensure you are logged in and navigate to the Editor (or whatever page you use to edit routes and split points).
+Select an existing route or draw a new one.
+From the Tour Stages panel (or editor window), click on Silver or Bronze. (We will test Gold separately).
+2. Add Multiple Split Points (Breaking the Old Limits)
+In the Editor, find the option to Add a Split Point.
+Click on the map along your route to place the first split point. Give it a name (e.g., "Split 1").
+Repeat this process to add 4 or 5 split points for the same tour type. (Previously, Silver was hard-limited to 2 stages (1 split point) and Bronze to 3 stages (2 split points). Now, you should be able to add as many as you want).
+Save the split points if there is a save button, or ensure they are registered in the UI.
+3. Verify the "Tour Stage Panel" (The UI Cards)
+Look at the Tour Stages panel on the bottom/left of your screen.
+Check the Duration: If you added 4 split points, the panel should dynamically update to say "5 days" (or 5 stages) under the selected tour type tab instead of the old hardcoded limits.
+Check the Stage Cards: Scroll through the list of stage cards below the tabs. There should dynamically be 5 separate cards generated (STAGE 1, STAGE 2, ..., STAGE 5), each showing a segment's calculated distance, ascent, and descent.
+Check Mobile View: Shrink your browser window to simulate a mobile screen. Click the bottom bar to expand it. Ensure the mobile view also correctly says "5 days" and lists all 5 stage cards.
+4. Verify the Map Rendering (The Visual Route)
+Look at the colored route line on the map.
+The route should now be chopped into 5 distinct colored segments corresponding to where you placed your split points.
+Check the Stage Boundary Markers: You should see small numbered circular markers (2, 3, 4, 5) exactly at the GPS coordinates where you dropped the split points, indicating where one stage ends and the next begins.
+5. Verify the Infinite Color Cycling
+Since the original app only defined colors for up to 3 stages (for Bronze), testing with 5 stages should trigger the new "fallback cycling" logic.
+Look at the colors of Stage 4 and Stage 5 on the route line and in the UI stage cards.
+They should automatically cycle and reuse the colors from Stage 1 and Stage 2, preventing the app from breaking or defaulting to a single solid color.
+6. Test the "Gold" Tour Type
+Switch your selected tour type to Gold.
+(Gold was previously hardcoded to always be 1 stage with no split points).
+Add 1 or 2 split points specifically for Gold.
+Verify that the UI updates to show "2 days" or "3 days" under the Gold tab.
+Verify the map correctly slices the route into multiple segments using the Gold color theme.
+7. Test Removing Split Points
+Finally, try deleting one or two of the split points you just created.
+The map and the UI panels should immediately and gracefully react by merging the stages back together, decreasing the "days" count, and removing the extra stage cards from the list.

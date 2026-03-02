@@ -1,4 +1,4 @@
-import mapboxgl from 'mapbox-gl';
+
 
 export interface ElevationResult {
   elevations: number[];

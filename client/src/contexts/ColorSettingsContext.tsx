@@ -138,13 +138,10 @@ export function ColorSettingsProvider({
       return stage.lineColor;
     }
 
-    // Fallback: try default settings
+    // Fallback: try default settings (cycle through if stage index exceeds defined colors)
     const defaultStages = defaultSettings.stageColors[tourType];
-    const defaultStage = defaultStages?.find(
-      s => s.stageNumber === stageNumber
-    );
-    if (defaultStage) {
-      return defaultStage.lineColor;
+    if (defaultStages && defaultStages.length > 0) {
+      return defaultStages[stageIndex % defaultStages.length].lineColor;
     }
 
     // Ultimate fallback
@@ -163,6 +160,11 @@ export function ColorSettingsProvider({
     const stage = stages?.find(s => s.stageNumber === stageNumber);
     if (stage) {
       return stage.lineOpacity;
+    }
+    // Fallback: cycle through default opacities
+    const defaultStages = defaultSettings.stageColors[tourType];
+    if (defaultStages && defaultStages.length > 0) {
+      return defaultStages[stageIndex % defaultStages.length].lineOpacity;
     }
     return 1;
   };

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Route } from '../../api';
+import { splitPointsApi } from '../../api';
 import './TourStagePanel.css';
 
 type TourType = 'gold' | 'silver' | 'bronze';
@@ -15,12 +16,7 @@ interface TourStagePanelProps {
   onCityChange?: (city: string) => void;
 }
 
-// Stage count per tour type
-const stageConfig: Record<TourType, number> = {
-  gold: 1,
-  silver: 2,
-  bronze: 3,
-};
+// Stage count is dynamically derived
 
 export default function TourStagePanel({
   route,
@@ -34,16 +30,33 @@ export default function TourStagePanel({
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
+  const [splitPoints, setSplitPoints] = useState<Record<TourType, any[]>>({
+    gold: [],
+    silver: [],
+    bronze: [],
+  });
 
   const citiesList = [
     'Wernigerode',
     'Berlin',
     'Hamburg',
     'Munich',
-    'Munich',
     'Cologne',
     'Frankfurt',
   ];
+  useEffect(() => {
+    if (route && route.id) {
+      splitPointsApi.getByRoute(route.id, selectedCity).then(res => {
+        if (res.success && res.splitPoints) {
+          setSplitPoints({
+            gold: res.splitPoints.gold || [],
+            silver: res.splitPoints.silver || [],
+            bronze: res.splitPoints.bronze || [],
+          });
+        }
+      }).catch(console.error);
+    }
+  }, [route, selectedCity]);
 
   // Calculate stats for a specific stage
   const getStageStats = (stageIndex: number, totalStages: number) => {
@@ -52,10 +65,15 @@ export default function TourStagePanel({
     const asc = parseFloat(String(route.totalAscent || 4972)) / totalStages;
     const desc = parseFloat(String(route.totalDescent || 1142)) / totalStages;
 
+    // Use split point locations if available
+    const points = splitPoints[tourType] || [];
+    const prevPoint = stageIndex === 0 ? selectedCity : (points[stageIndex - 1]?.locationName || `Point ${stageIndex}`);
+    const endPoint = stageIndex === totalStages - 1 ? 'End' : (points[stageIndex]?.locationName || `Point ${stageIndex + 1}`);
+
     return {
       name: `STAGE ${stageIndex + 1}`,
-      start: indexToCity(stageIndex),
-      end: indexToCity(stageIndex + 1),
+      start: prevPoint,
+      end: endPoint,
       distance: dist,
       ascent: asc,
       descent: desc,
@@ -64,7 +82,7 @@ export default function TourStagePanel({
     };
   };
 
-  const numStages = stageConfig[tourType];
+  const numStages = (splitPoints[tourType]?.length || 0) + 1;
 
   const renderTabs = () => (
     <div className="w-full h-9 bg-black rounded-[8px] flex items-center justify-between px-[2px] mb-[-3px] shrink-0">
@@ -100,7 +118,7 @@ export default function TourStagePanel({
               className="text-white/50 text-[9px] font-normal leading-none"
               style={{ marginTop: '1px' }}
             >
-              {stageConfig[type]} {stageConfig[type] === 1 ? 'day' : 'days'}
+              {(splitPoints[type]?.length || 0) + 1} {((splitPoints[type]?.length || 0) + 1) === 1 ? 'day' : 'days'}
             </span>
           </button>
         );
@@ -303,8 +321,8 @@ export default function TourStagePanel({
                   {tourType.charAt(0).toUpperCase() + tourType.slice(1)}
                 </span>
                 <span className="text-[10px] text-gray-400 leading-none">
-                  {stageConfig[tourType]}{' '}
-                  {stageConfig[tourType] === 1 ? 'day' : 'days'}
+                  {numStages}{' '}
+                  {numStages === 1 ? 'day' : 'days'}
                 </span>
               </div>
               <img
@@ -366,9 +384,4 @@ export default function TourStagePanel({
       </div>
     </>
   );
-}
-
-function indexToCity(index: number) {
-  const cities = ['Point A', 'Point B', 'Point C', 'Point D'];
-  return cities[index] || `Point ${index + 1}`;
 }

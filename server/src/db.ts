@@ -255,7 +255,7 @@ export async function initializeDatabase() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       route_id INT NOT NULL,
       start_location VARCHAR(255) NOT NULL DEFAULT 'Wernigerode',
-      tour_type ENUM('bronze', 'silver') NOT NULL,
+      tour_type ENUM('bronze', 'silver', 'gold') NOT NULL,
       stage_number INT NOT NULL,
       location_name VARCHAR(255) NOT NULL,
       lng DECIMAL(11,8) NOT NULL,
@@ -266,6 +266,15 @@ export async function initializeDatabase() {
       UNIQUE KEY unique_route_start_tour_stage (route_id, start_location, tour_type, stage_number)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
+
+  // Allow 'gold' tour_type for existing databases
+  try {
+    await pool.execute(`
+      ALTER TABLE stage_split_points MODIFY COLUMN tour_type ENUM('bronze', 'silver', 'gold') NOT NULL;
+    `);
+  } catch (e) {
+    console.error('Failed to alter stage_split_points tour_type:', e);
+  }
 
   // Add start_location column if it doesn't exist (for existing databases)
   try {

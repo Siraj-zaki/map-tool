@@ -413,6 +413,7 @@ router.get('/:id/split-points', async (req: Request, res: Response) => {
     const grouped: Record<string, any[]> = {
       silver: [],
       bronze: [],
+      gold: [],
     };
 
     splitPoints.forEach((sp: any) => {
@@ -443,10 +444,10 @@ router.put(
       const { id } = req.params;
       const { tourType, splitPoints, startLocation } = req.body;
 
-      if (!tourType || !['silver', 'bronze'].includes(tourType)) {
+      if (!tourType || !['silver', 'bronze', 'gold'].includes(tourType)) {
         return res.status(400).json({
           success: false,
-          error: 'Invalid tour type. Must be silver or bronze.',
+          error: 'Invalid tour type. Must be bronze, silver, or gold.',
         });
       }
 

@@ -76,7 +76,7 @@ export default function Editor() {
 
   // Split point selection state
   const [_splitPointTourType, setSplitPointTourType] = useState<
-    'silver' | 'bronze'
+    'gold' | 'silver' | 'bronze'
   >('silver');
   const [_splitPointStageNumber, setSplitPointStageNumber] =
     useState<number>(1);
@@ -102,9 +102,11 @@ export default function Editor() {
 
   // Split points state
   const [splitPoints, setSplitPoints] = useState<{
+    gold: SplitPoint[];
     silver: SplitPoint[];
     bronze: SplitPoint[];
   }>({
+    gold: [],
     silver: [],
     bronze: [],
   });
@@ -420,52 +422,45 @@ export default function Editor() {
             waypoints.forEach(wp => fullPath.push(wp));
             if (endPoint) fullPath.push(endPoint);
 
-            // Function to calculate perpendicular distance from point to line segment
-            const pointToSegmentDistance = (
-              point: [number, number],
-              segStart: [number, number],
-              segEnd: [number, number]
-            ): number => {
-              const dx = segEnd[0] - segStart[0];
-              const dy = segEnd[1] - segStart[1];
-              const lengthSq = dx * dx + dy * dy;
-
-              if (lengthSq === 0) {
-                // Segment is a point
-                return Math.sqrt(
-                  Math.pow(point[0] - segStart[0], 2) +
-                  Math.pow(point[1] - segStart[1], 2)
-                );
-              }
-
-              // Project point onto the line segment
-              let t =
-                ((point[0] - segStart[0]) * dx +
-                  (point[1] - segStart[1]) * dy) /
-                lengthSq;
-              t = Math.max(0, Math.min(1, t)); // Clamp to segment
-
-              const projX = segStart[0] + t * dx;
-              const projY = segStart[1] + t * dy;
-
-              return Math.sqrt(
-                Math.pow(point[0] - projX, 2) + Math.pow(point[1] - projY, 2)
-              );
-            };
-
             // Find the closest segment
-            let minDist = Infinity;
-            let insertIndex = waypoints.length; // Default to end
+            let bestInteriorDist = Infinity;
+            let insertIndex = waypoints.length; // Default to append to the end
+            const INSERTION_THRESHOLD = 0.005; // ~500 meters roughly in degrees
 
-            for (let i = 0; i < fullPath.length - 1; i++) {
-              const dist = pointToSegmentDistance(
-                coord,
-                fullPath[i],
-                fullPath[i + 1]
-              );
-              if (dist < minDist) {
-                minDist = dist;
-                insertIndex = i;
+            if (fullPath.length > 1) {
+              for (let i = 0; i < fullPath.length - 1; i++) {
+                const segStart = fullPath[i];
+                const segEnd = fullPath[i + 1];
+
+                const dx = segEnd[0] - segStart[0];
+                const dy = segEnd[1] - segStart[1];
+                const lengthSq = dx * dx + dy * dy;
+
+                let dist = 0;
+                let t = 0;
+
+                if (lengthSq === 0) {
+                  dist = Math.sqrt(
+                    Math.pow(coord[0] - segStart[0], 2) +
+                    Math.pow(coord[1] - segStart[1], 2)
+                  );
+                } else {
+                  t = ((coord[0] - segStart[0]) * dx + (coord[1] - segStart[1]) * dy) / lengthSq;
+                  const clampedT = Math.max(0, Math.min(1, t));
+                  const projX = segStart[0] + clampedT * dx;
+                  const projY = segStart[1] + clampedT * dy;
+                  dist = Math.sqrt(
+                    Math.pow(coord[0] - projX, 2) + Math.pow(coord[1] - projY, 2)
+                  );
+                }
+
+                // Strictly require the click to project ONTO the interior of the segment (0 <= t <= 1)
+                // This prevents points clicked "past" the end of the route from being erroneously inserted
+                // between previous points (which caused the route to build backwards).
+                if (t >= 0 && t <= 1 && dist < INSERTION_THRESHOLD && dist < bestInteriorDist) {
+                  bestInteriorDist = dist;
+                  insertIndex = i;
+                }
               }
             }
 
@@ -480,8 +475,7 @@ export default function Editor() {
             });
 
             console.log(
-              `[Editor] Inserted waypoint at index ${insertIndex} (will be waypoint #${insertIndex + 1
-              })`
+              `[Editor] Inserted waypoint at index ${insertIndex} (will be waypoint #${insertIndex + 1})`
             );
           }
         }

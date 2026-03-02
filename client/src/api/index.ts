@@ -161,6 +161,7 @@ export interface SplitPointsResponse {
   splitPoints: {
     silver: SplitPoint[];
     bronze: SplitPoint[];
+    gold: SplitPoint[];
   };
 }
 
@@ -186,7 +187,7 @@ export const splitPointsApi = {
 
   save: async (
     routeId: number,
-    tourType: 'silver' | 'bronze',
+    tourType: 'silver' | 'bronze' | 'gold',
     splitPoints: SplitPoint[],
     startLocation: string
   ) => {
@@ -210,9 +211,8 @@ export const gpxApi = {
     tourType?: string,
     startPoint?: string
   ) => {
-    const cacheKey = `gpx:${routeId}:${tourType || 'all'}:${
-      startPoint || 'all'
-    }`;
+    const cacheKey = `gpx:${routeId}:${tourType || 'all'}:${startPoint || 'all'
+      }`;
 
     return cachedFetch(
       cacheKey,
@@ -367,9 +367,9 @@ export function calculateDistance(
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }

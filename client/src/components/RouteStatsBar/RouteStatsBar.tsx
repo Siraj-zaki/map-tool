@@ -126,73 +126,79 @@ export default function RouteStatsBar({
       </div>
 
       {/* --- MOBILE VIEW (visible only on mobile) --- */}
-      <div className="flex md:hidden h-[80px] flex-col w-full relative z-50 bg-black rounded-b-3xl mt-[-10px] pt-[10px] pb-4 px-5">
-        {/* Top Row: Logo, Title, Download */}
-        <div className="w-full flex items-center h-[35px] justify-between  mt-2">
-          <div className="flex items-center gap-3">
+      <div className="flex md:hidden h-[80px] flex-row w-full relative z-50 bg-black rounded-b-3xl mt-[-10px] pt-[10px] pb-4 px-5 items-center justify-between">
+
+        {/* Left Section (Logo + Texts) */}
+        <div className="flex items-center gap-2 h-full mt-1 w-full overflow-hidden">
+          {/* Logo & Divider */}
+          <div className="flex items-center h-full relative shrink-0">
             <img
-              className="w-[42px] h-[42px] mt-[10px] ml-[-10px] object-contain"
+              className="w-[42px] h-[42px] ml-[-10px] object-contain"
               src="/images/header-logo.svg"
               alt="Logo"
             />
-            <div className="h-[40px] absolute left-[60px] top-[25px] w-[1px] bg-[#4b4b4b]" />
-            <h1 className="text-white ml-[10px] text-[16px] font-bold font-['Roboto'] truncate max-w-[200px]">
+            <div className="h-[40px] w-[1px] bg-[#4b4b4b] ml-[4px]" />
+          </div>
+
+          {/* Texts (Title & Stats) vertically justified */}
+          <div className="flex flex-col justify-between h-[42px] ml-[2px] w-full min-w-0">
+            <h1 className="text-white text-[16px] font-bold font-['Roboto'] truncate w-full leading-tight mt-[-2px]">
               {route.name}
             </h1>
-          </div>
 
-          {showDownloadButton && onDownloadClick && (
-            <button
-              onClick={onDownloadClick}
-              className="w-10 h-10 mt-2 bg-[#5ec4cd] rounded-xl flex items-center justify-center shrink-0 active:scale-95 transition-transform"
-            >
-              <img
-                src="/images/download-icon.svg"
-                alt="Download"
-                className="w-5 h-5 filter brightness-0 invert"
-              />
-            </button>
-          )}
-        </div>
+            <div className="flex items-center gap-2 sm:gap-4 mt-[4px]">
+              {/* Distance */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <img
+                  src="/images/header-distance.svg"
+                  alt="Dist"
+                  className="w-[14px] h-[14px] object-contain"
+                />
+                <span className="text-white text-[11.5px] font-semibold font-['Roboto']">
+                  {distanceKm.toFixed(1)} km
+                </span>
+              </div>
 
-        {/* Bottom Row: Core Stats */}
-        <div className="w-full flex items-center gap-4 pl-[54px]">
-          {/* Distance */}
-          <div className="flex items-center gap-1.5">
-            <img
-              src="/images/header-distance.svg"
-              alt="Dist"
-              className="w-[15px] h-[15px] object-contain"
-            />
-            <span className="text-white text-xs font-semibold font-['Roboto']">
-              {distanceKm.toFixed(1)} km
-            </span>
-          </div>
+              {/* Duration */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <img
+                  src="/images/header-time.svg"
+                  alt="Time"
+                  className="w-[14px] h-[14px] object-contain"
+                />
+                <span className="text-white text-[11.5px] font-semibold font-['Roboto']">
+                  {formatDuration(calculatedDuration)}
+                </span>
+              </div>
 
-          {/* Duration */}
-          <div className="flex items-center gap-2">
-            <img
-              src="/images/header-time.svg"
-              alt="Time"
-              className="w-[15px] h-[15px] object-contain"
-            />
-            <span className="text-white text-xs font-semibold font-['Roboto']">
-              {formatDuration(calculatedDuration)}
-            </span>
-          </div>
-
-          {/* Ascent */}
-          <div className="flex items-center gap-2">
-            <img
-              src="/images/header-arrow-up.svg"
-              alt="Up"
-              className="w-[15px] h-[15px] object-contain"
-            />
-            <span className="text-white text-xs font-semibold font-['Roboto']">
-              {Math.round(totalAscent)} m
-            </span>
+              {/* Ascent */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <img
+                  src="/images/header-arrow-up.svg"
+                  alt="Up"
+                  className="w-[14px] h-[14px] object-contain"
+                />
+                <span className="text-white text-[11.5px] font-semibold font-['Roboto']">
+                  {Math.round(totalAscent)} m
+                </span>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Right Section (Download Button) sized exactly to match text block height */}
+        {showDownloadButton && onDownloadClick && (
+          <button
+            onClick={onDownloadClick}
+            className="w-10 h-[42px] bg-[#5ec4cd] rounded-xl flex items-center justify-center shrink-0 active:scale-95 transition-transform mt-1 ml-2"
+          >
+            <img
+              src="/images/download-icon.svg"
+              alt="Download"
+              className="w-5 h-5 filter brightness-0 invert"
+            />
+          </button>
+        )}
       </div>
     </>
   );
