@@ -57,33 +57,10 @@ export async function getMapboxElevation(
     `[Mapbox Elevation] Querying elevations for ${coordinates.length} points (NO SAMPLING)...`
   );
 
-  // Save current map state to restore later
-  const currentCenter = map.getCenter();
-  const currentZoom = map.getZoom();
-  const currentPitch = map.getPitch();
-  const currentBearing = map.getBearing();
-
   try {
-    // CRITICAL: Fit map to route bounds to ensure terrain tiles are loaded for ALL coordinates
-    // queryTerrainElevation returns null for off-screen points
-    console.log(
-      '[Mapbox Elevation] Fitting map to route bounds to load terrain tiles...'
-    );
-    const bounds = new mapboxgl.LngLatBounds();
-    coordinates.forEach(coord => bounds.extend(coord));
-
-    map.fitBounds(bounds, {
-      padding: 50,
-      duration: 0, // Instant, no animation
-      animate: false,
-    });
-
-    // Wait for terrain to be ready AFTER fitting bounds
+    // Wait for terrain to be ready
     await waitForTerrain(map);
-
-    // Additional wait for terrain tiles to load after bounds change
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log('[Mapbox Elevation] Terrain should be loaded for route area');
+    console.log('[Mapbox Elevation] Terrain should be loaded for current view');
 
     // Query elevation for EVERY coordinate - no sampling!
     const allElevations: number[] = [];
@@ -184,14 +161,8 @@ export async function getMapboxElevation(
       totalAscent: Math.round(totalAscent),
       totalDescent: Math.round(totalDescent),
     };
-  } finally {
-    // Restore map state
-    console.log('[Mapbox Elevation] Restoring map camera state...');
-    map.jumpTo({
-      center: currentCenter,
-      zoom: currentZoom,
-      pitch: currentPitch,
-      bearing: currentBearing,
-    });
+  } catch (err) {
+    console.error('[Mapbox Elevation] Failed to get elevation', err);
+    throw err;
   }
 }

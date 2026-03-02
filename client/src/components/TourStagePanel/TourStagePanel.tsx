@@ -67,7 +67,7 @@ export default function TourStagePanel({
   const numStages = stageConfig[tourType];
 
   const renderTabs = () => (
-    <div className="w-full h-12 bg-black rounded-[10px] flex items-center justify-between px-[2px] mb-[-4px] shrink-0">
+    <div className="w-full h-9 bg-black rounded-[8px] flex items-center justify-between px-[2px] mb-[-3px] shrink-0">
       {(['gold', 'silver', 'bronze'] as const).map(type => {
         const isActive = tourType === type;
 
@@ -90,14 +90,14 @@ export default function TourStagePanel({
         return (
           <button
             key={type}
-            className={`flex flex-col items-center justify-center w-20 md:w-20 flex-1 md:flex-none h-10 rounded-lg transition-colors ${activeBg}`}
+            className={`flex flex-col items-center justify-center flex-1 h-[30px] rounded-md transition-colors ${activeBg}`}
             onClick={() => onTourTypeChange(type)}
           >
-            <span className={`text-sm ${activeText} leading-none mb-[3px]`}>
+            <span className={`text-[11px] ${activeText} leading-none mb-[2px]`}>
               {type.charAt(0).toUpperCase() + type.slice(1)}
             </span>
             <span
-              className="text-white/50 text-[10px] font-normal leading-none"
+              className="text-white/50 text-[9px] font-normal leading-none"
               style={{ marginTop: '1px' }}
             >
               {stageConfig[type]} {stageConfig[type] === 1 ? 'day' : 'days'}
@@ -109,32 +109,32 @@ export default function TourStagePanel({
   );
 
   const renderLocationBox = () => (
-    <div className="w-full relative mt-4 mb-3 shrink-0 z-10">
+    <div className="w-full relative mt-3 mb-2 shrink-0 z-10">
       <div
-        className="w-full h-7 bg-black rounded-lg border border-neutral-500 flex items-center px-[6px] cursor-pointer"
+        className="w-full h-6 bg-black rounded-md border border-neutral-500 flex items-center px-[5px] cursor-pointer"
         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
       >
         <img
           src="/images/location-pin.svg"
           alt="Location"
-          className="w-[14px] h-[14px] ml-1 mr-[7px] opacity-80"
+          className="w-[11px] h-[11px] ml-1 mr-[6px] opacity-80"
         />
-        <span className="text-zinc-500 text-xs font-normal pb-px">
+        <span className="text-zinc-500 text-[10px] font-normal pb-px">
           {selectedCity}
         </span>
         <img
           src="/images/arrow-down.svg"
           alt="Dropdown"
-          className={`w-[8px] h-[8px] absolute right-[12px] opacity-80 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+          className={`w-[12px] h-[12px] absolute right-[10px] opacity-80 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
         />
       </div>
 
       {isDropdownOpen && (
-        <div className="absolute top-[32px] left-0 w-full bg-black border border-neutral-500 rounded-lg overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
+        <div className="absolute top-[27px] left-0 w-full bg-black border border-neutral-500 rounded-md overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
           {citiesList.map(city => (
             <div
               key={city}
-              className="px-3 py-[6px] text-zinc-400 text-xs font-normal hover:bg-teal-900/50 hover:text-white cursor-pointer transition-colors"
+              className="px-3 py-[5px] text-zinc-400 text-[10px] font-normal hover:bg-teal-900/50 hover:text-white cursor-pointer transition-colors"
               onClick={e => {
                 e.stopPropagation();
                 if (onCityChange) onCityChange(city);
@@ -150,12 +150,11 @@ export default function TourStagePanel({
   );
 
   const renderStageCards = () => (
-    <div className="flex flex-col gap-[6px] overflow-y-auto scrollbar-hide pb-2 h-full min-h-[120px]">
+    <div className="flex flex-col gap-[5px] overflow-y-auto scrollbar-hide pb-1 h-full min-h-[90px]">
       {Array.from({ length: numStages }).map((_, idx) => {
         const stats = getStageStats(idx, numStages);
         if (!stats) return null;
 
-        // Mapping matching the user design explicitly
         let barColor = 'bg-slate-500';
         if (idx === 0) barColor = 'bg-[#5CA2A4]';
         else if (idx === 1) barColor = 'bg-slate-500';
@@ -164,28 +163,29 @@ export default function TourStagePanel({
         return (
           <div
             key={idx}
-            className="w-full relative bg-[#02181B] rounded-[10px] border-2 border-cyan-900 cursor-pointer transition-colors hover:bg-slate-900 shrink-0 h-32"
+            className="w-full relative bg-[#02181B] rounded-[8px] border border-cyan-900 cursor-pointer transition-colors hover:bg-slate-900 shrink-0"
+            style={{ height: '100px' }}
             onClick={() => {
               if (onStageSelect) onStageSelect(idx + 1);
-              if (window.innerWidth < 768) setIsMobileExpanded(false); // Auto-close on mobile selection
+              if (window.innerWidth < 768) setIsMobileExpanded(false);
             }}
           >
             {/* Colored side bar */}
             <div
-              className={`absolute left-0 top-0 bottom-0 w-3 rounded-l-sm ${barColor}`}
+              className={`absolute left-0 top-0 bottom-0 w-[9px] rounded-l-sm ${barColor}`}
             />
 
             {/* Stage Name */}
-            <div className="absolute left-[27px] top-[10px] text-teal-400 text-sm font-bold uppercase">
+            <div className="absolute left-[21px] top-[8px] text-teal-400 text-[11px] font-bold uppercase tracking-wide">
               {stats.name}
             </div>
 
-            {/* Points */}
-            <div className="absolute left-[27px] top-[32px] text-white text-xs font-normal">
+            {/* Points row */}
+            <div className="absolute left-[21px] top-[24px] text-white text-[10px] font-normal">
               {stats.start}
             </div>
             <svg
-              className="absolute left-[83px] top-[34px] w-2.5 h-2.5 text-teal-400"
+              className="absolute left-[62px] top-[27px] w-[9px] h-[9px] text-teal-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -197,50 +197,50 @@ export default function TourStagePanel({
                 d="M14 5l7 7m0 0l-7 7m7-7H3"
               ></path>
             </svg>
-            <div className="absolute left-[88px] top-[32px] text-white text-xs font-normal">
+            <div className="absolute left-[80px] top-[24px] text-white text-[10px] font-normal">
               {stats.end}
             </div>
 
             {/* Dividers */}
-            <div className="absolute left-[12px] right-[12px] top-[56px] h-px bg-cyan-950" />
-            <div className="absolute left-[12px] right-[12px] top-[90px] h-px bg-cyan-950" />
-            <div className="absolute left-[146px] top-[56px] w-px h-16 bg-cyan-950" />
+            <div className="absolute left-[10px] right-[10px] top-[44px] h-px bg-cyan-950" />
+            <div className="absolute left-[10px] right-[10px] top-[72px] h-px bg-cyan-950" />
+            <div className="absolute left-[118px] top-[44px] w-px h-[50px] bg-cyan-950" />
 
-            {/* Icons and Text Row 1 */}
+            {/* Row 1: distance + ascent */}
             <img
               src="/images/header-distance.svg"
               alt="dist"
-              className="absolute left-[42px] top-[64px] w-3.5 h-[14px]"
+              className="absolute left-[28px] top-[51px] w-3 h-3"
             />
-            <div className="absolute left-[66px] top-[66px] text-slate-400 text-xs font-semibold">
+            <div className="absolute left-[48px] top-[52px] text-slate-400 text-[10px] font-semibold">
               {stats.distance.toFixed(1)} km
             </div>
 
             <img
               src="/images/header-arrow-up.svg"
               alt="asc"
-              className="absolute left-[175px] top-[64px] w-3.5 h-[14px]"
+              className="absolute left-[134px] top-[51px] w-3 h-3"
             />
-            <div className="absolute left-[199px] top-[66px] text-slate-400 text-xs font-semibold">
+            <div className="absolute left-[152px] top-[52px] text-slate-400 text-[10px] font-semibold">
               {Math.round(stats.ascent)} m
             </div>
 
-            {/* Icons and Text Row 2 */}
+            {/* Row 2: min ele + max ele */}
             <img
               src="/images/header-arrow-down.svg"
               alt="desc"
-              className="absolute left-[42px] top-[98px] w-3.5 h-[14px]"
+              className="absolute left-[28px] top-[79px] w-3 h-3"
             />
-            <div className="absolute left-[66px] top-[100px] text-slate-400 text-xs font-semibold">
+            <div className="absolute left-[48px] top-[80px] text-slate-400 text-[10px] font-semibold">
               {Math.round(Number(stats.minEle))} m
             </div>
 
             <img
               src="/images/header-mountain.svg"
               alt="maxEle"
-              className="absolute left-[175px] top-[98px] w-3.5 h-[14px] opacity-90"
+              className="absolute left-[134px] top-[79px] w-3 h-3 opacity-90"
             />
-            <div className="absolute left-[199px] top-[100px] text-slate-400 text-xs font-semibold">
+            <div className="absolute left-[152px] top-[80px] text-slate-400 text-[10px] font-semibold">
               {Math.round(Number(stats.maxEle || stats.descent))} m
             </div>
           </div>
@@ -252,17 +252,17 @@ export default function TourStagePanel({
   return (
     <>
       {/* --- DESKTOP VIEW --- */}
-      <div className="hidden md:flex w-[288px] bg-teal-950 rounded-2xl shadow-lg border border-cyan-950/50 p-[12px] font-['Roboto'] flex-col shrink-0 mb-4 max-h-[600px] relative pointer-events-auto">
-        <div className="pl-[3px] mt-[5px] mb-[6px]">
-          <div className="text-teal-400 text-base font-bold leading-none mb-1 uppercase flex justify-between items-center pr-2">
+      <div className="hidden md:flex w-[236px] bg-teal-950 rounded-xl shadow-lg border border-cyan-950/50 p-[10px] font-['Roboto'] flex-col shrink-0 mb-3 max-h-[520px] relative pointer-events-auto">
+        <div className="pl-[2px] mt-[3px] mb-[5px]">
+          <div className="text-teal-400 text-[12px] font-bold leading-none mb-1 uppercase flex justify-between items-center pr-1">
             <span>{t('tourStages', 'TOUR STAGES')}</span>
             <img
               src="/images/arrow-down.svg"
               alt="Collapse"
-              className="w-[10px] h-[6px] rotate-180 opacity-80"
+              className="w-[12px] h-[12px] rotate-180 opacity-80"
             />
           </div>
-          <div className="text-white text-xs font-normal mt-[9px] mb-[6px]">
+          <div className="text-white text-[10px] font-normal mt-[7px] mb-[4px]">
             {t('difficultyLevel', 'Difficulty Level')}
           </div>
         </div>
@@ -290,13 +290,12 @@ export default function TourStagePanel({
 
             <div className="flex items-center gap-3">
               <div
-                className={`flex flex-col items-center justify-center w-[68px] h-[38px] rounded-lg ${
-                  tourType === 'gold'
-                    ? 'bg-[#3b3a2c]'
-                    : tourType === 'silver'
-                      ? 'bg-[#1e2a30]'
-                      : 'bg-[#3b2a22]'
-                }`}
+                className={`flex flex-col items-center justify-center w-[68px] h-[38px] rounded-lg ${tourType === 'gold'
+                  ? 'bg-[#3b3a2c]'
+                  : tourType === 'silver'
+                    ? 'bg-[#1e2a30]'
+                    : 'bg-[#3b2a22]'
+                  }`}
               >
                 <span
                   className={`text-sm leading-none font-bold mb-[2px] ${tourType === 'gold' ? 'text-[#eab308]' : tourType === 'silver' ? 'text-white' : 'text-orange-400'}`}
@@ -327,7 +326,7 @@ export default function TourStagePanel({
             ></div>
 
             {/* Modal Content */}
-            <div className="w-full bg-teal-950 rounded-t-[20px] shadow-[0px_2px_7px_0px_rgba(0,0,0,0.25)] border-t border-cyan-950 p-[15px] font-['Roboto'] flex flex-col pointer-events-auto min-h-[10vh] ">
+            <div className="w-full bg-teal-950 rounded-t-[20px] shadow-[0px_2px_7px_0px_rgba(0,0,0,0.25)] border-t border-cyan-950 p-[15px] font-['Roboto'] flex flex-col pointer-events-auto min-h-[10vh]">
               {/* Header and Close */}
               <div className="flex justify-between items-start mb-[6px] pl-1 relative">
                 <div className="flex flex-col">

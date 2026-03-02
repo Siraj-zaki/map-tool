@@ -256,8 +256,8 @@ export default function Editor() {
               const a =
                 Math.sin(dLat / 2) ** 2 +
                 Math.cos((prev[1] * Math.PI) / 180) *
-                  Math.cos((rc[1] * Math.PI) / 180) *
-                  Math.sin(dLon / 2) ** 2;
+                Math.cos((rc[1] * Math.PI) / 180) *
+                Math.sin(dLon / 2) ** 2;
               accumulatedDistance +=
                 R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
             }
@@ -336,7 +336,7 @@ export default function Editor() {
                 for (let i = 0; i < routeGeometry.length; i++) {
                   const d = Math.sqrt(
                     Math.pow(wp[0] - routeGeometry[i][0], 2) +
-                      Math.pow(wp[1] - routeGeometry[i][1], 2)
+                    Math.pow(wp[1] - routeGeometry[i][1], 2)
                   );
                   if (d < bestDist) {
                     bestDist = d;
@@ -362,8 +362,7 @@ export default function Editor() {
               });
 
               console.log(
-                `[Editor] GPX mode: Added waypoint at closest route point, waypoint #${
-                  insertIndex + 1
+                `[Editor] GPX mode: Added waypoint at closest route point, waypoint #${insertIndex + 1
                 }`
               );
               // GPX geometry and elevation data are PRESERVED
@@ -382,7 +381,7 @@ export default function Editor() {
                 for (let i = 0; i < routeGeometry.length; i++) {
                   const d = Math.sqrt(
                     Math.pow(wp[0] - routeGeometry[i][0], 2) +
-                      Math.pow(wp[1] - routeGeometry[i][1], 2)
+                    Math.pow(wp[1] - routeGeometry[i][1], 2)
                   );
                   if (d < bestDist) {
                     bestDist = d;
@@ -410,8 +409,7 @@ export default function Editor() {
               });
 
               console.log(
-                `[Editor] Route will be recalculated through new waypoint at position ${
-                  insertIndex + 1
+                `[Editor] Route will be recalculated through new waypoint at position ${insertIndex + 1
                 }`
               );
             }
@@ -436,7 +434,7 @@ export default function Editor() {
                 // Segment is a point
                 return Math.sqrt(
                   Math.pow(point[0] - segStart[0], 2) +
-                    Math.pow(point[1] - segStart[1], 2)
+                  Math.pow(point[1] - segStart[1], 2)
                 );
               }
 
@@ -482,8 +480,7 @@ export default function Editor() {
             });
 
             console.log(
-              `[Editor] Inserted waypoint at index ${insertIndex} (will be waypoint #${
-                insertIndex + 1
+              `[Editor] Inserted waypoint at index ${insertIndex} (will be waypoint #${insertIndex + 1
               })`
             );
           }
@@ -596,7 +593,7 @@ export default function Editor() {
             for (const rc of routeGeometry) {
               const d = Math.sqrt(
                 Math.pow(draggedLngLat[0] - rc[0], 2) +
-                  Math.pow(draggedLngLat[1] - rc[1], 2)
+                Math.pow(draggedLngLat[1] - rc[1], 2)
               );
               if (d < minDist) {
                 minDist = d;
@@ -976,6 +973,7 @@ export default function Editor() {
           setWaypoints(result.route.waypoints || []);
           setRouteGeometry(result.route.routeGeometry || null);
           setElevationData(result.route.elevationData || null); // Restore stored elevation data
+          setIsGpxRoute(!!(result.route.routeGeometry && result.route.routeGeometry.length > 0));
           setPois(result.route.pois || []);
           setRouteStats({
             distance: parseFloat(String(result.route.distance || 0)),
@@ -1722,41 +1720,37 @@ export default function Editor() {
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setEditMode('start')}
-              className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm transition-all ${
-                editMode === 'start'
-                  ? 'bg-green-500 text-white'
-                  : 'bg-[#0b1215] border border-[#1e2a33] text-gray-400 hover:border-green-500'
-              }`}
+              className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm transition-all ${editMode === 'start'
+                ? 'bg-green-500 text-white'
+                : 'bg-[#0b1215] border border-[#1e2a33] text-gray-400 hover:border-green-500'
+                }`}
             >
               <i className="fas fa-play"></i> {t('start')}
             </button>
             <button
               onClick={() => setEditMode('end')}
-              className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm transition-all ${
-                editMode === 'end'
-                  ? 'bg-red-500 text-white'
-                  : 'bg-[#0b1215] border border-[#1e2a33] text-gray-400 hover:border-red-500'
-              }`}
+              className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm transition-all ${editMode === 'end'
+                ? 'bg-red-500 text-white'
+                : 'bg-[#0b1215] border border-[#1e2a33] text-gray-400 hover:border-red-500'
+                }`}
             >
               <i className="fas fa-flag-checkered"></i> {t('end')}
             </button>
             <button
               onClick={() => setEditMode('waypoint')}
-              className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm transition-all ${
-                editMode === 'waypoint'
-                  ? 'bg-[#088d95] text-white'
-                  : 'bg-[#0b1215] border border-[#1e2a33] text-gray-400 hover:border-[#088d95]'
-              }`}
+              className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm transition-all ${editMode === 'waypoint'
+                ? 'bg-[#088d95] text-white'
+                : 'bg-[#0b1215] border border-[#1e2a33] text-gray-400 hover:border-[#088d95]'
+                }`}
             >
               <i className="fas fa-plus"></i> {t('waypoint')}
             </button>
             <button
               onClick={() => setEditMode('poi')}
-              className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm transition-all ${
-                editMode === 'poi'
-                  ? 'bg-yellow-500 text-white'
-                  : 'bg-[#0b1215] border border-[#1e2a33] text-gray-400 hover:border-yellow-500'
-              }`}
+              className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm transition-all ${editMode === 'poi'
+                ? 'bg-yellow-500 text-white'
+                : 'bg-[#0b1215] border border-[#1e2a33] text-gray-400 hover:border-yellow-500'
+                }`}
             >
               <i className="fas fa-map-marker-alt"></i> POI
             </button>
@@ -1770,21 +1764,19 @@ export default function Editor() {
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setRoutingProfile('walking')}
-                className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm transition-all ${
-                  routingProfile === 'walking'
-                    ? 'bg-[#088d95] text-white'
-                    : 'bg-[#0b1215] border border-[#1e2a33] text-gray-400 hover:border-[#088d95]'
-                }`}
+                className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm transition-all ${routingProfile === 'walking'
+                  ? 'bg-[#088d95] text-white'
+                  : 'bg-[#0b1215] border border-[#1e2a33] text-gray-400 hover:border-[#088d95]'
+                  }`}
               >
                 <i className="fas fa-hiking"></i> {t('walking') || 'Walking'}
               </button>
               <button
                 onClick={() => setRoutingProfile('cycling')}
-                className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm transition-all ${
-                  routingProfile === 'cycling'
-                    ? 'bg-[#088d95] text-white'
-                    : 'bg-[#0b1215] border border-[#1e2a33] text-gray-400 hover:border-[#088d95]'
-                }`}
+                className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm transition-all ${routingProfile === 'cycling'
+                  ? 'bg-[#088d95] text-white'
+                  : 'bg-[#0b1215] border border-[#1e2a33] text-gray-400 hover:border-[#088d95]'
+                  }`}
               >
                 <i className="fas fa-bicycle"></i> {t('cycling') || 'Cycling'}
               </button>
@@ -1823,11 +1815,10 @@ export default function Editor() {
               !routeGeometry ||
               routeGeometry.length === 0
             }
-            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg transition-all ${
-              elevationData && elevationData.length > 0
-                ? 'bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/30'
-                : 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30'
-            } disabled:opacity-50`}
+            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg transition-all ${elevationData && elevationData.length > 0
+              ? 'bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/30'
+              : 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30'
+              } disabled:opacity-50`}
           >
             {calculatingElevation ? (
               <i className="fas fa-spinner fa-spin"></i>
@@ -1902,9 +1893,8 @@ export default function Editor() {
                   >
                     <span className="text-sm text-white flex items-center gap-2 truncate">
                       <i
-                        className={`fas ${
-                          (poiIcons[poi.type] || poiIcons.highlight).icon
-                        }`}
+                        className={`fas ${(poiIcons[poi.type] || poiIcons.highlight).icon
+                          }`}
                         style={{
                           color: (poiIcons[poi.type] || poiIcons.highlight)
                             .color,
@@ -1978,19 +1968,17 @@ export default function Editor() {
                       });
                     }
                   }}
-                  className={`flex justify-between items-center py-1.5 border-b border-[#1e2a33] cursor-pointer transition-all ${
-                    selectedWaypointIndex === idx
-                      ? 'bg-yellow-500/20 border-l-2 border-l-yellow-500 pl-2'
-                      : 'hover:bg-[#1e2a33]/50'
-                  }`}
+                  className={`flex justify-between items-center py-1.5 border-b border-[#1e2a33] cursor-pointer transition-all ${selectedWaypointIndex === idx
+                    ? 'bg-yellow-500/20 border-l-2 border-l-yellow-500 pl-2'
+                    : 'hover:bg-[#1e2a33]/50'
+                    }`}
                 >
                   <span className="text-sm text-white flex items-center gap-2">
                     <span
-                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[0.6875rem] font-bold ${
-                        selectedWaypointIndex === idx
-                          ? 'bg-yellow-500'
-                          : 'bg-[#088d95]'
-                      }`}
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[0.6875rem] font-bold ${selectedWaypointIndex === idx
+                        ? 'bg-yellow-500'
+                        : 'bg-[#088d95]'
+                        }`}
                     >
                       {idx + 1}
                     </span>
@@ -2205,10 +2193,10 @@ export default function Editor() {
           editingPoiIndex !== null
             ? pois[editingPoiIndex]
             : pois.find(
-                p =>
-                  p.lngLat[0] === poiModalLngLat[0] &&
-                  p.lngLat[1] === poiModalLngLat[1]
-              )
+              p =>
+                p.lngLat[0] === poiModalLngLat[0] &&
+                p.lngLat[1] === poiModalLngLat[1]
+            )
         }
         onSave={handlePOISave}
         onClose={() => {

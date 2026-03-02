@@ -215,7 +215,7 @@ export default function PublicView() {
       </div>
 
       {/* 3. Left Floating Panel */}
-      <div className="static md:absolute md:top-28 md:left-4 z-60 flex flex-col gap-4 md:transform md:origin-top-left md:scale-90 lg:scale-100 transition-all">
+      <div className="static md:absolute md:top-18 md:left-5 z-60 flex flex-col gap-4 md:transform md:origin-top-left md:scale-90 lg:scale-100 transition-all">
         <TourStagePanel
           route={route}
           tourType={tourType}

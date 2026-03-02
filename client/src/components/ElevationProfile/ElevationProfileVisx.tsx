@@ -9,7 +9,7 @@ import { ParentSize } from '@visx/responsive';
 import { scaleLinear } from '@visx/scale';
 import { AreaClosed, LinePath } from '@visx/shape';
 import { useTooltip } from '@visx/tooltip';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { POI, Route } from '../../api';
 import { useColorSettings } from '../../contexts/ColorSettingsContext';
@@ -74,7 +74,7 @@ function ElevationChart({
   // Bounds
   const margin = { top: 20, right: 0, bottom: 30, left: 40 }; // Adjusted for mobile edge-to-edge
   const HEADER_HEIGHT =
-    typeof window !== 'undefined' && window.innerWidth < 768 ? 85 : 90;
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 85 : 60;
   const graphHeight = height - HEADER_HEIGHT;
   const svgHeight = graphHeight;
   const innerWidth = width - margin.left - margin.right;
@@ -92,8 +92,10 @@ function ElevationChart({
 
   // State
   const [zoomDomain, setZoomDomain] = useState<[number, number] | null>(null);
-  const brushRef = useRef<any>(null); // For resetting brush
-  const svgRef = useRef<SVGSVGElement>(null); // Added ref
+  const brushRef = useRef<any>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [resizingHandle, setResizingHandle] = useState<'left' | 'right' | null>(null);
+  const [panStart, setPanStart] = useState<{ x: number; domain: [number, number] } | null>(null);
 
   // Scales
   const xScale = useMemo(
@@ -292,6 +294,63 @@ function ElevationChart({
     setZoomDomain([start, end]);
   };
 
+  // Minimap resize handle interactions
+  const isDragRef = useRef(false); // true if mouse moved after mousedown (drag, not click)
+
+  // Global mouseup so drag ends even if cursor leaves the SVG
+  useEffect(() => {
+    const onUp = () => {
+      setResizingHandle(null);
+      setPanStart(null);
+      isDragRef.current = false;
+    };
+    window.addEventListener('mouseup', onUp);
+    return () => window.removeEventListener('mouseup', onUp);
+  }, []);
+
+  const handleHandleMouseDown = (
+    e: React.MouseEvent<SVGElement>,
+    handle: 'left' | 'right'
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    isDragRef.current = false;
+    setResizingHandle(handle);
+  };
+
+  const handleMinimapMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    // ── Resize handle drag ──
+    if (resizingHandle) {
+      isDragRef.current = true;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = Math.max(0, Math.min(e.clientX - rect.left, brushWidth));
+      const km = brushXScale.invert(x);
+      const current = zoomDomain || [0, maxDistance];
+      const MIN_SPAN = Math.max(maxDistance * 0.04, 2);
+      if (resizingHandle === 'left') {
+        setZoomDomain([Math.max(0, Math.min(km, current[1] - MIN_SPAN)), current[1]]);
+      } else {
+        setZoomDomain([current[0], Math.min(maxDistance, Math.max(km, current[0] + MIN_SPAN))]);
+      }
+      return;
+    }
+    // ── Pan drag ──
+    if (panStart) {
+      isDragRef.current = true;
+      const dxPx = e.clientX - panStart.x;
+      const dkm = (dxPx / brushWidth) * maxDistance; // pixels → km
+      const span = panStart.domain[1] - panStart.domain[0];
+      const newStart = Math.max(0, Math.min(panStart.domain[0] + dkm, maxDistance - span));
+      setZoomDomain([newStart, newStart + span]);
+    }
+  };
+
+  const handleMinimapMouseUp = () => {
+    setResizingHandle(null);
+    setPanStart(null);
+    isDragRef.current = false;
+  };
+
   // Derived Values for UI
   const currentSpan = zoomDomain ? zoomDomain[1] - zoomDomain[0] : maxDistance;
   const zoomPercentage = Math.round((maxDistance / currentSpan) * 100);
@@ -314,96 +373,180 @@ function ElevationChart({
 
   if (width < 10) return null;
 
-  const renderMinimap = (idPrefix: string) => (
-    <div
-      className="relative bg-[#0b1215] border border-[#2a4e58] shadow-xl overflow-hidden cursor-crosshair shrink-0 mx-auto md:mx-0 rounded-[10px]"
-      style={{ width: brushWidth, height: brushHeight + 2 }}
-    >
-      <svg width={brushWidth} height={brushHeight}>
-        <defs>
-          <linearGradient
-            id={`${idPrefix}-minimapGradient`}
-            x1="0"
-            y1="0"
-            x2="0"
-            y2="1"
-          >
-            <stop offset="0%" stopColor="#088d95" stopOpacity={0.8} />
-            <stop offset="100%" stopColor="#088d95" stopOpacity={0.2} />
-          </linearGradient>
-          <filter
-            id={`${idPrefix}-chartBlur`}
-            x="-10%"
-            y="-10%"
-            width="120%"
-            height="120%"
-          >
-            <feGaussianBlur stdDeviation="1.5" />
-          </filter>
-          <clipPath id={`${idPrefix}-brushClip`}>
-            <rect
-              x={selectionStart}
-              y={0}
-              width={selectionWidth}
-              height={brushHeight}
-              rx={isMobile ? 0 : 0}
-            />
-          </clipPath>
-        </defs>
+  const renderMinimap = (idPrefix: string) => {
+    const HANDLE_W = 8;   // px width of each drag handle
+    const HANDLE_R = 3;   // border-radius of handle rect
+    const hasSelection = selectionWidth > 0 && selectionWidth < brushWidth;
+    const leftHandleX = Math.max(0, selectionStart - HANDLE_W / 2);
+    const rightHandleX = Math.min(brushWidth - HANDLE_W, selectionStart + selectionWidth - HANDLE_W / 2);
+    const midY = Math.floor(brushHeight / 2);
 
-        <AreaClosed
-          data={data}
-          x={d => brushXScale(d.distance)}
-          y={d => brushYScale(d.elevation)}
-          yScale={brushYScale}
-          fill="#088d95"
-          fillOpacity={0.15}
-          stroke="#088d95"
-          strokeOpacity={0.3}
-          strokeWidth={1}
-          pointerEvents="none"
-          filter={`url(#${idPrefix}-chartBlur)`}
-        />
-
-        <AreaClosed
-          data={data}
-          x={d => brushXScale(d.distance)}
-          y={d => brushYScale(d.elevation)}
-          yScale={brushYScale}
-          fill={`url(#${idPrefix}-minimapGradient)`}
-          stroke="#088d95"
-          strokeOpacity={1}
-          strokeWidth={1.5}
-          pointerEvents="none"
-          clipPath={`url(#${idPrefix}-brushClip)`}
-        />
-
-        <Brush
-          xScale={brushXScale}
-          yScale={brushYScale}
+    return (
+      <div
+        className="relative bg-[#0b1215] border border-[#2a4e58] shadow-xl overflow-hidden shrink-0 mx-auto md:mx-0 rounded-[10px]"
+        style={{ width: brushWidth, height: brushHeight + 2 }}
+      >
+        <svg
           width={brushWidth}
           height={brushHeight}
-          handleSize={0}
-          innerRef={brushRef}
-          resizeTriggerAreas={['left', 'right']}
-          brushDirection="horizontal"
-          onChange={onBrushChange}
-          onClick={() => setZoomDomain(null)}
-          selectedBoxStyle={{
-            fill: 'rgba(8, 141, 149, 0.05)',
-            stroke: '#088d95',
-            strokeWidth: 2,
-            rx: 6,
-          }}
-        />
-      </svg>
-    </div>
-  );
+          style={{ cursor: resizingHandle ? 'ew-resize' : 'crosshair' }}
+          onMouseMove={handleMinimapMouseMove}
+          onMouseUp={handleMinimapMouseUp}
+          onMouseLeave={handleMinimapMouseUp}
+        >
+          <defs>
+            <linearGradient
+              id={`${idPrefix}-minimapGradient`}
+              x1="0" y1="0" x2="0" y2="1"
+            >
+              <stop offset="0%" stopColor="#088d95" stopOpacity={0.8} />
+              <stop offset="100%" stopColor="#088d95" stopOpacity={0.2} />
+            </linearGradient>
+            <filter id={`${idPrefix}-chartBlur`} x="-10%" y="-10%" width="120%" height="120%">
+              <feGaussianBlur stdDeviation="1.5" />
+            </filter>
+            <clipPath id={`${idPrefix}-brushClip`}>
+              <rect x={selectionStart} y={0} width={selectionWidth} height={brushHeight} />
+            </clipPath>
+          </defs>
+
+          {/* Background area (dimmed) */}
+          <AreaClosed
+            data={data}
+            x={d => brushXScale(d.distance)}
+            y={d => brushYScale(d.elevation)}
+            yScale={brushYScale}
+            fill="#088d95"
+            fillOpacity={0.15}
+            stroke="#088d95"
+            strokeOpacity={0.3}
+            strokeWidth={1}
+            pointerEvents="none"
+            filter={`url(#${idPrefix}-chartBlur)`}
+          />
+
+          {/* Highlighted (clipped) area */}
+          <AreaClosed
+            data={data}
+            x={d => brushXScale(d.distance)}
+            y={d => brushYScale(d.elevation)}
+            yScale={brushYScale}
+            fill={`url(#${idPrefix}-minimapGradient)`}
+            stroke="#088d95"
+            strokeOpacity={1}
+            strokeWidth={1.5}
+            pointerEvents="none"
+            clipPath={`url(#${idPrefix}-brushClip)`}
+          />
+
+          {/* Visx Brush — handles drag-to-create-selection; box is invisible (we draw our own) */}
+          <Brush
+            xScale={brushXScale}
+            yScale={brushYScale}
+            width={brushWidth}
+            height={brushHeight}
+            handleSize={0}
+            innerRef={brushRef}
+            resizeTriggerAreas={['left', 'right']}
+            brushDirection="horizontal"
+            onChange={onBrushChange}
+            onClick={() => setZoomDomain(null)}
+            selectedBoxStyle={{ fill: 'transparent', stroke: 'transparent', strokeWidth: 0 }}
+          />
+
+          {/* Custom selection box — drag to pan, click to deselect */}
+          {hasSelection && (
+            <rect
+              x={selectionStart}
+              y={1}
+              width={selectionWidth}
+              height={brushHeight - 2}
+              fill="rgba(8, 141, 149, 0.07)"
+              stroke="#088d95"
+              strokeWidth={2}
+              rx={5}
+              style={{ cursor: panStart ? 'grabbing' : 'grab' }}
+              onMouseDown={e => {
+                e.stopPropagation();
+                isDragRef.current = false;
+                if (zoomDomain) {
+                  setPanStart({ x: e.clientX, domain: [...zoomDomain] as [number, number] });
+                }
+              }}
+              onClick={() => {
+                // Only deselect on a true click (no drag movement)
+                if (!isDragRef.current) setZoomDomain(null);
+                isDragRef.current = false;
+              }}
+            />
+          )}
+
+          {/* ── Left resize handle ── */}
+          {hasSelection && (
+            <g
+              style={{ cursor: 'ew-resize' }}
+              onMouseDown={e => handleHandleMouseDown(e, 'left')}
+            >
+              {/* hit area (wider than visual) */}
+              <rect
+                x={leftHandleX - 4}
+                y={0}
+                width={HANDLE_W + 8}
+                height={brushHeight}
+                fill="transparent"
+              />
+              {/* visible pill */}
+              <rect
+                x={leftHandleX}
+                y={2}
+                width={HANDLE_W}
+                height={brushHeight - 4}
+                fill="#088d95"
+                rx={HANDLE_R}
+              />
+              {/* grip lines */}
+              <line x1={leftHandleX + 3} y1={midY - 3} x2={leftHandleX + 3} y2={midY + 3} stroke="white" strokeWidth={1.2} strokeOpacity={0.7} pointerEvents="none" />
+              <line x1={leftHandleX + 5} y1={midY - 3} x2={leftHandleX + 5} y2={midY + 3} stroke="white" strokeWidth={1.2} strokeOpacity={0.7} pointerEvents="none" />
+            </g>
+          )}
+
+          {/* ── Right resize handle ── */}
+          {hasSelection && (
+            <g
+              style={{ cursor: 'ew-resize' }}
+              onMouseDown={e => handleHandleMouseDown(e, 'right')}
+            >
+              {/* hit area */}
+              <rect
+                x={rightHandleX - 4}
+                y={0}
+                width={HANDLE_W + 8}
+                height={brushHeight}
+                fill="transparent"
+              />
+              {/* visible pill */}
+              <rect
+                x={rightHandleX}
+                y={2}
+                width={HANDLE_W}
+                height={brushHeight - 4}
+                fill="#088d95"
+                rx={HANDLE_R}
+              />
+              {/* grip lines */}
+              <line x1={rightHandleX + 3} y1={midY - 3} x2={rightHandleX + 3} y2={midY + 3} stroke="white" strokeWidth={1.2} strokeOpacity={0.7} pointerEvents="none" />
+              <line x1={rightHandleX + 5} y1={midY - 3} x2={rightHandleX + 5} y2={midY + 3} stroke="white" strokeWidth={1.2} strokeOpacity={0.7} pointerEvents="none" />
+            </g>
+          )}
+        </svg>
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col w-full h-full select-none bg-transparent md:bg-[#0b1215] rounded-xl overflow-hidden">
       {/* --- Header: Minimap & Zoom Controls (Hidden on Mobile) --- */}
-      <div className="hidden md:flex h-[90px] w-full items-center px-4 gap-6 border-b border-gray-800/30 shrink-0 relative z-30">
+      <div className="hidden md:flex h-[60px] w-full items-center px-4 gap-6 border-b border-gray-800/30 shrink-0 relative z-30">
         {/* Minimap (Brush) Container */}
         {renderMinimap('desktop')}
 
@@ -553,7 +696,7 @@ function ElevationChart({
       <div className="flex-1 w-full relative p-4 pb-0 pt-0">
         {/* Navigation Buttons - Left Arrow */}
         <button
-          className="hidden md:flex absolute right-20 top-[-40%] -translate-y-1/2 z-30 w-12 h-12 items-center justify-center bg-[#115e59] hover:bg-[#0f766e] rounded-full text-white shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all border border-[#088d95] hover:shadow-[0_0_15px_rgba(8,141,149,0.4)] disabled:opacity-0 disabled:pointer-events-none"
+          className="hidden md:flex absolute right-16 top-[-20%] -translate-y-1/2 z-30 w-8 h-8 items-center justify-center bg-[#115e59] hover:bg-[#0f766e] rounded-full text-white shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all border border-[#088d95] hover:shadow-[0_0_15px_rgba(8,141,149,0.4)] disabled:opacity-0 disabled:pointer-events-none"
           onClick={() => {
             if (!zoomDomain) return;
             const currentSpan = zoomDomain[1] - zoomDomain[0];
@@ -567,7 +710,7 @@ function ElevationChart({
           }}
           style={{ display: !zoomDomain ? 'none' : '' }}
         >
-          <i className="fas fa-chevron-left text-lg"></i>
+          <i className="fas fa-chevron-left text-sm"></i>
         </button>
 
         {/* Main Chart SVG */}
@@ -633,7 +776,7 @@ function ElevationChart({
                 d =>
                   d.distance >= (stageIdx === 0 ? 0 : stageStart - 0.01) &&
                   d.distance <=
-                    (stageIdx === numStages - 1 ? maxDist + 1 : stageEnd + 0.01)
+                  (stageIdx === numStages - 1 ? maxDist + 1 : stageEnd + 0.01)
               );
               if (stageData.length < 2) return null;
               return (
@@ -719,23 +862,29 @@ function ElevationChart({
             )}
 
             {/* Highlight Distance */}
-            {highlightDistance !== undefined && (
-              <line
-                x1={xScale(highlightDistance)}
-                x2={xScale(highlightDistance)}
-                y1={0}
-                y2={innerHeight}
-                stroke="#088d95"
-                strokeWidth={1}
-                strokeDasharray="4 4"
-              />
-            )}
+            {highlightDistance !== undefined &&
+              (() => {
+                const currentDomain = zoomDomain || [0, maxDistance];
+                return highlightDistance >= currentDomain[0] && highlightDistance <= currentDomain[1];
+              })() && (
+                <line
+                  x1={xScale(highlightDistance)}
+                  x2={xScale(highlightDistance)}
+                  y1={0}
+                  y2={innerHeight}
+                  stroke="#088d95"
+                  strokeWidth={1}
+                  strokeDasharray="4 4"
+                />
+              )}
 
             {/* POIs */}
             {pois.map((p, i) => {
+              const currentDomain = zoomDomain || [0, maxDistance];
+              if (p.distance < currentDomain[0] || p.distance > currentDomain[1]) return null;
+
               const x = xScale(p.distance);
               const y = yScale(p.elevation);
-              if (x < 0 || x > innerWidth) return null;
 
               return (
                 <g
@@ -762,7 +911,7 @@ function ElevationChart({
 
         {/* Navigation Buttons - Right Arrow */}
         <button
-          className="hidden md:flex absolute right-4 top-[-40%] -translate-y-1/2 z-30 w-12 h-12 items-center justify-center bg-[#115e59] hover:bg-[#0f766e] rounded-full text-white shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all border border-[#088d95] hover:shadow-[0_0_15px_rgba(8,141,149,0.4)] disabled:opacity-0 disabled:pointer-events-none"
+          className="hidden md:flex absolute right-4 top-[-20%] -translate-y-1/2 z-30 w-8 h-8 items-center justify-center bg-[#115e59] hover:bg-[#0f766e] rounded-full text-white shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all border border-[#088d95] hover:shadow-[0_0_15px_rgba(8,141,149,0.4)] disabled:opacity-0 disabled:pointer-events-none"
           onClick={() => {
             if (!zoomDomain) return;
             const currentSpan = zoomDomain[1] - zoomDomain[0];
@@ -776,7 +925,7 @@ function ElevationChart({
           }}
           style={{ display: !zoomDomain ? 'none' : '' }}
         >
-          <i className="fas fa-chevron-right text-lg"></i>
+          <i className="fas fa-chevron-right text-sm"></i>
         </button>
 
         {/* Custom Tooltip Overlay - Pixel Perfect as requested */}
