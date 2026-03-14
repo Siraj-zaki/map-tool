@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Route } from '../../api';
-import { splitPointsApi } from '../../api';
+import type { Route, RouteLocation } from '../../api';
+import { splitPointsApi, locationsApi } from '../../api';
 import './TourStagePanel.css';
 
 type TourType = 'gold' | 'silver' | 'bronze';
@@ -12,8 +12,8 @@ interface TourStagePanelProps {
   onTourTypeChange: (type: TourType) => void;
   selectedStage?: number | null;
   onStageSelect?: (stage: number | null) => void;
-  selectedCity?: string;
-  onCityChange?: (city: string) => void;
+  selectedLocationId?: number | null;
+  onLocationChange?: (locationId: number | null) => void;
 }
 
 // Stage count is dynamically derived
@@ -23,30 +23,38 @@ export default function TourStagePanel({
   tourType,
   onTourTypeChange,
   onStageSelect,
-  selectedCity = 'Wernigerode',
-  onCityChange,
+  selectedLocationId = null,
+  onLocationChange,
 }: TourStagePanelProps) {
   const { t } = useTranslation();
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
+  const [locations, setLocations] = useState<RouteLocation[]>([]);
   const [splitPoints, setSplitPoints] = useState<Record<TourType, any[]>>({
     gold: [],
     silver: [],
     bronze: [],
   });
 
-  const citiesList = [
-    'Wernigerode',
-    'Berlin',
-    'Hamburg',
-    'Munich',
-    'Cologne',
-    'Frankfurt',
-  ];
+  // Fetch locations for this route
   useEffect(() => {
-    if (route && route.id) {
-      splitPointsApi.getByRoute(route.id, selectedCity).then(res => {
+    if (route?.id) {
+      locationsApi.getByRoute(route.id).then(res => {
+        if (res.success && res.data) {
+          setLocations(res.data);
+        }
+      }).catch(console.error);
+    }
+  }, [route?.id]);
+
+  // Fetch split points when location changes
+  useEffect(() => {
+    if (route?.id) {
+      const startLocation = selectedLocationId ? undefined : 'Route Start';
+      const locationId = selectedLocationId || undefined;
+      
+      splitPointsApi.getByRoute(route.id, startLocation, locationId).then(res => {
         if (res.success && res.splitPoints) {
           setSplitPoints({
             gold: res.splitPoints.gold || [],
@@ -56,7 +64,10 @@ export default function TourStagePanel({
         }
       }).catch(console.error);
     }
-  }, [route, selectedCity]);
+  }, [route?.id, selectedLocationId]);
+
+  const selectedLocation = locations.find(l => l.id === selectedLocationId);
+  const hasLocations = locations.length > 0;
 
   // Calculate stats for a specific stage
   const getStageStats = (stageIndex: number, totalStages: number) => {
@@ -67,8 +78,12 @@ export default function TourStagePanel({
 
     // Use split point locations if available
     const points = splitPoints[tourType] || [];
-    const prevPoint = stageIndex === 0 ? selectedCity : (points[stageIndex - 1]?.locationName || `Point ${stageIndex}`);
-    const endPoint = stageIndex === totalStages - 1 ? 'End' : (points[stageIndex]?.locationName || `Point ${stageIndex + 1}`);
+    const prevPoint = stageIndex === 0 
+      ? (selectedLocation?.name || 'Start') 
+      : (points[stageIndex - 1]?.locationName || `Point ${stageIndex}`);
+    const endPoint = stageIndex === totalStages - 1 
+      ? 'End' 
+      : (points[stageIndex]?.locationName || `Point ${stageIndex + 1}`);
 
     return {
       name: `STAGE ${stageIndex + 1}`,
@@ -126,49 +141,65 @@ export default function TourStagePanel({
     </div>
   );
 
-  const renderLocationBox = () => (
-    <div className="w-full relative mt-3 mb-2 shrink-0 z-10">
-      <div
-        className="w-full h-6 bg-black rounded-md border border-neutral-500 flex items-center px-[5px] cursor-pointer"
-        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-      >
-        <img
-          src="/images/location-pin.svg"
-          alt="Location"
-          className="w-[11px] h-[11px] ml-1 mr-[6px] opacity-80"
-        />
-        <span className="text-zinc-500 text-[10px] font-normal pb-px">
-          {selectedCity}
-        </span>
-        <img
-          src="/images/arrow-down.svg"
-          alt="Dropdown"
-          className={`w-[12px] h-[12px] absolute right-[10px] opacity-80 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
-        />
-      </div>
+  const renderLocationBox = () => {
+    if (!hasLocations) return null;
 
-      {isDropdownOpen && (
-        <div className="absolute top-[27px] left-0 w-full bg-black border border-neutral-500 rounded-md overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
-          {citiesList.map(city => (
+    return (
+      <div className="w-full relative mt-3 mb-2 shrink-0 z-10">
+        <div
+          className="w-full h-6 bg-black rounded-md border border-neutral-500 flex items-center px-[5px] cursor-pointer"
+          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+        >
+          <img
+            src="/images/location-pin.svg"
+            alt="Location"
+            className="w-[11px] h-[11px] ml-1 mr-[6px] opacity-80"
+          />
+          <span className="text-zinc-500 text-[10px] font-normal pb-px truncate">
+            {selectedLocation?.name || 'Route Start'}
+          </span>
+          <img
+            src="/images/arrow-down.svg"
+            alt="Dropdown"
+            className={`w-[12px] h-[12px] absolute right-[10px] opacity-80 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+          />
+        </div>
+
+        {isDropdownOpen && (
+          <div className="absolute top-[27px] left-0 w-full bg-black border border-neutral-500 rounded-md overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.5)] max-h-40 overflow-y-auto">
+            {/* Default Route Start option */}
             <div
-              key={city}
               className="px-3 py-[5px] text-zinc-400 text-[10px] font-normal hover:bg-teal-900/50 hover:text-white cursor-pointer transition-colors"
               onClick={e => {
                 e.stopPropagation();
-                if (onCityChange) onCityChange(city);
+                onLocationChange?.(null);
                 setIsDropdownOpen(false);
               }}
             >
-              {city}
+              Route Start
             </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+            {/* Location options */}
+            {locations.map(loc => (
+              <div
+                key={loc.id}
+                className="px-3 py-[5px] text-zinc-400 text-[10px] font-normal hover:bg-teal-900/50 hover:text-white cursor-pointer transition-colors"
+                onClick={e => {
+                  e.stopPropagation();
+                  onLocationChange?.(loc.id);
+                  setIsDropdownOpen(false);
+                }}
+              >
+                {loc.name}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderStageCards = () => (
-    <div className="flex flex-col gap-[5px] overflow-y-auto scrollbar-hide pb-1 h-full min-h-[90px]">
+    <div className="flex flex-col gap-[5px] overflow-y-auto scrollbar-hide pb-1 h-full min-h-[90px] mt-[10px]">
       {Array.from({ length: numStages }).map((_, idx) => {
         const stats = getStageStats(idx, numStages);
         if (!stats) return null;

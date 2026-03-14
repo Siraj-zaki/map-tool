@@ -4,6 +4,19 @@ import { useNavigate } from 'react-router-dom';
 import { authApi, routesApi, type Route } from '../api';
 import ShareModal from '../components/Share/ShareModal';
 
+const ROUTE_IMAGES = [
+  'https://images.unsplash.com/photo-1604223190546-a43e4c7f29d7?q=80&w=1169&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1610552050890-fe99536c2615?q=80&w=1207&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1584907600887-9732fa3647ac?q=80&w=1632&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1688936020461-eb11f0ad247a?q=80&w=735&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1700507987180-b7a9610f508f?q=80&w=1631&auto=format&fit=crop',
+  'https://plus.unsplash.com/premium_photo-1719933400890-2959b59e4632?q=80&w=1170&auto=format&fit=crop',
+];
+
+const getRouteImage = (routeId: number) => {
+  return ROUTE_IMAGES[routeId % ROUTE_IMAGES.length];
+};
+
 export default function Dashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -74,87 +87,87 @@ export default function Dashboard() {
   return (
     <div className="flex h-screen bg-[#0b1215]">
       {/* Sidebar */}
-      <div className="w-64 bg-[#080e11] mt-[1.875rem] border-r border-[#1e2a33] p-5 flex flex-col">
-        <div className="mb-8">
-          <img
-            src="/images/ms-logo.png"
-            alt="Logo"
-            className="h-10 object-contain"
-            onError={e => {
-              e.currentTarget.style.display = 'none';
-            }}
-          />
+      <div className="w-64 mt-[30px] bg-[#080e11] border-r border-[#1e2a33] flex flex-col">
+        {/* Logo */}
+        <div className="p-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#088d95] flex items-center justify-center">
+              <i className="fas fa-layer-group text-white text-sm"></i>
+            </div>
+            <div>
+              <div className="text-white font-semibold text-sm">Route Dashboard</div>
+              <div className="text-gray-500 text-xs">Admin Panel</div>
+            </div>
+          </div>
         </div>
 
-        <nav className="flex-1 space-y-2">
+        {/* Navigation */}
+        <nav className="flex-1 px-4 space-y-1">
           <a
             href="/admin"
-            className="flex items-center gap-3 px-4 py-3 bg-[#088d95] text-[#0b1215] rounded-lg font-medium hover:bg-[#0da6ae] transition-all"
+            className="flex items-center gap-3 px-4 py-3 bg-[#088d95] text-white rounded-xl font-medium transition-all"
           >
-            <i className="fas fa-map-marked-alt"></i>
-            {t('routes')}
+            <i className="fas fa-map text-sm"></i>
+            <span className="text-sm">{t('routes')}</span>
           </a>
           <a
             href="/admin/edit"
-            className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-[#1e2a33] rounded-lg transition-all"
+            className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-[#1e2a33] rounded-xl transition-all"
           >
-            <i className="fas fa-plus"></i>
-            {t('createRoute')}
+            <div className="w-5 h-5 rounded-full border border-gray-500 flex items-center justify-center">
+              <i className="fas fa-plus text-[10px]"></i>
+            </div>
+            <span className="text-sm">{t('createRoute')}</span>
           </a>
           <a
             href="/admin/settings"
-            className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-[#1e2a33] rounded-lg transition-all"
+            className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-[#1e2a33] rounded-xl transition-all"
           >
-            <i className="fas fa-palette"></i>
-            Settings
+            <i className="fas fa-cog text-sm"></i>
+            <span className="text-sm">Settings</span>
           </a>
         </nav>
 
-        <button
-          onClick={handleLogout}
-          className="flex items-center justify-center gap-2 w-full px-4 py-3 text-gray-400 hover:text-white hover:bg-red-500/20 border border-[#1e2a33] rounded-lg transition-all"
-        >
-          <i className="fas fa-sign-out-alt"></i>
-          {t('logout')}
-        </button>
+        {/* Logout */}
+        <div className="p-4">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+          >
+            <i className="fas fa-sign-out-alt"></i>
+            <span className="text-sm">{t('logout')}</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Topbar */}
-        <div className="h-16 bg-[#080e11] border-b border-[#1e2a33] flex items-center px-6">
-          <h2 className="flex items-center gap-3 text-xl font-semibold text-white">
-            <i className="fas fa-map-marked-alt text-[#088d95]"></i>
-            {t('routeManagement')}
-          </h2>
-          <div className="ml-auto flex items-center gap-4">
-            <span className="text-gray-400 text-sm">
-              {routes.length} {routes.length === 1 ? t('route') : t('routes')}
-            </span>
-          </div>
+        {/* Header */}
+        <div className="h-16 flex items-center justify-between px-8 border-b border-[#1e2a33]">
+          <h1 className="text-lg font-semibold text-white">Route Management</h1>
+          <button
+            onClick={() => navigate('/admin/edit')}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[#088d95] hover:bg-[#0da6ae] text-white text-sm font-medium rounded-xl transition-all"
+          >
+            <i className="fas fa-plus text-xs"></i>
+            Create Route
+          </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 p-6 overflow-auto">
-          {/* Search and Create */}
-          <div className="flex gap-4 mb-6">
-            <div className="relative flex-1">
+        <div className="flex-1 p-8 overflow-auto">
+          {/* Search */}
+          <div className="mb-6">
+            <div className="relative max-w-2xl">
               <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"></i>
               <input
                 type="search"
-                placeholder={t('searchRoutes')}
+                placeholder="Search for routes..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-[#080e11] border border-[#1e2a33] rounded-lg text-white placeholder-gray-500 focus:border-[#088d95] focus:outline-none transition-all"
+                className="w-full pl-12 pr-4 py-3 bg-[#080e11] border border-[#1e2a33] rounded-xl text-white placeholder-gray-500 focus:border-[#088d95] focus:outline-none transition-all"
               />
             </div>
-            <button
-              onClick={() => navigate('/admin/edit')}
-              className="flex items-center gap-2 px-6 py-3 bg-[#088d95] hover:bg-[#0da6ae] text-white font-medium rounded-lg transition-all"
-            >
-              <i className="fas fa-plus"></i>
-              {t('createRoute')}
-            </button>
           </div>
 
           {/* Routes Grid */}
@@ -176,92 +189,91 @@ export default function Dashboard() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredRoutes.map(route => (
                 <div
                   key={route.id}
-                  className="bg-[#080e11] border border-[#1e2a33] rounded-xl p-5 hover:border-[#088d95]/50 transition-all group"
+                  className="bg-[#080e11] border border-[#1e2a33] rounded-2xl overflow-hidden hover:border-[#088d95]/50 transition-all group"
                 >
-                  {/* Route Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold text-white truncate group-hover:text-[#088d95] transition-colors">
-                        {route.name}
-                      </h3>
-                      {route.description && (
-                        <p className="text-gray-400 text-sm mt-1 line-clamp-2">
-                          {route.description}
-                        </p>
-                      )}
-                    </div>
+                  {/* Route Image */}
+                  <div className="h-40 bg-[#0b1215] relative overflow-hidden">
+                    <img
+                      src={getRouteImage(route.id)}
+                      alt={route.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).parentElement!.innerHTML = '<i class="fas fa-mountain text-4xl text-[#1e2a33] flex items-center justify-center h-full"></i>';
+                      }}
+                    />
                   </div>
 
-                  {/* Route Stats */}
-                  <div className="grid grid-cols-3 gap-3 mb-4 p-3 bg-[#0b1215] rounded-lg">
-                    <div className="text-center">
-                      <div className="text-xs text-gray-500 mb-1">
-                        {t('distance')}
-                      </div>
-                      <div className="text-[#088d95] font-semibold">
-                        {parseFloat(String(route.distance || 0)).toFixed(1)} km
-                      </div>
-                    </div>
-                    <div className="text-center border-x border-[#1e2a33]">
-                      <div className="text-xs text-gray-500 mb-1">
-                        {t('ascent')}
-                      </div>
-                      <div className="text-green-500 font-semibold">
-                        ↑{' '}
-                        {Math.round(parseFloat(String(route.totalAscent || 0)))}{' '}
-                        m
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-xs text-gray-500 mb-1">
-                        {t('descent')}
-                      </div>
-                      <div className="text-red-400 font-semibold">
-                        ↓{' '}
-                        {Math.round(
-                          parseFloat(String(route.totalDescent || 0))
-                        )}{' '}
-                        m
-                      </div>
-                    </div>
-                  </div>
+                  {/* Route Info */}
+                  <div className="p-5">
+                    <h3 className="text-base font-semibold text-white mb-4 group-hover:text-[#088d95] transition-colors">
+                      {route.name}
+                    </h3>
 
-                  {/* Actions */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() =>
-                        window.open(`/route/${route.id}`, '_blank')
-                      }
-                      className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#1e2a33] hover:bg-[#2a3a47] text-gray-300 rounded-lg transition-all"
-                      title={t('view')}
-                    >
-                      <i className="fas fa-eye"></i>
-                    </button>
-                    <button
-                      onClick={() => setShareRoute(route)}
-                      className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#088d95] hover:bg-[#0da6ae] text-white rounded-lg transition-all"
-                      title={t('share')}
-                    >
-                      <i className="fas fa-share-alt"></i>
-                    </button>
-                    <button
-                      onClick={() => navigate(`/admin/edit/${route.id}`)}
-                      className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#1e2a33] hover:bg-[#2a3a47] text-gray-300 rounded-lg transition-all"
-                      title={t('edit')}
-                    >
-                      <i className="fas fa-edit"></i>
-                    </button>
-                    <button
-                      onClick={() => handleDelete(route.id)}
-                      className="flex items-center justify-center px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-all"
-                      title={t('delete')}
-                    >
-                      <i className="fas fa-trash"></i>
-                    </button>
+                    {/* Stats */}
+                    <div className="space-y-2 mb-5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-500">Distance:</span>
+                        <span className="text-[#088d95] font-medium">
+                          {parseFloat(String(route.distance || 0)).toFixed(1)}km
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-500">Ascent:</span>
+                        <span className="text-[#088d95] font-medium">
+                          {Math.round(parseFloat(String(route.totalAscent || 0)))}m
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-500">Descent:</span>
+                        <span className="text-[#088d95] font-medium">
+                          {Math.round(parseFloat(String(route.totalDescent || 0)))}m
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-between pt-4 border-t border-[#1e2a33]">
+                      <button
+                        onClick={() => window.open(`/route/${route.id}`, '_blank')}
+                        className="text-gray-400 hover:text-[#088d95] transition-colors"
+                        title={t('view')}
+                      >
+                        <i className="fas fa-eye"></i>
+                      </button>
+                      <button
+                        onClick={() => setShareRoute(route)}
+                        className="text-gray-400 hover:text-[#088d95] transition-colors"
+                        title={t('share')}
+                      >
+                        <i className="fas fa-share-alt"></i>
+                      </button>
+                      <button
+                        onClick={() => navigate(`/admin/stages/${route.id}`)}
+                        className="text-gray-400 hover:text-[#088d95] transition-colors"
+                        title="Stages"
+                      >
+                        <i className="fas fa-route"></i>
+                      </button>
+                      <button
+                        onClick={() => navigate(`/admin/edit/${route.id}`)}
+                        className="text-gray-400 hover:text-[#088d95] transition-colors"
+                        title={t('edit')}
+                      >
+                        <i className="fas fa-pen"></i>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(route.id)}
+                        className="text-red-400 hover:text-red-300 transition-colors"
+                        title={t('delete')}
+                      >
+                        <i className="fas fa-trash"></i>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

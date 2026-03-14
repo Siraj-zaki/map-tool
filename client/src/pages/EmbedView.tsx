@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { routesApi, type POI, type Route } from '../api';
+import { routesApi, splitPointsApi, type POI, type Route, type SplitPoint } from '../api';
 import ElevationProfile from '../components/ElevationProfile/ElevationProfileVisx';
 import MapComponent from '../components/Map/MapComponent';
 import POISidebar from '../components/POI/POISidebar';
@@ -38,7 +38,25 @@ export default function EmbedView() {
     lat: number;
   } | null>(null);
   const flyToPoiRef = useRef<((poi: POI) => void) | null>(null);
-  const [selectedCity, setSelectedCity] = useState('Wernigerode');
+  const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null);
+  const [splitPoints, setSplitPoints] = useState<{
+    gold: SplitPoint[];
+    silver: SplitPoint[];
+    bronze: SplitPoint[];
+  } | null>(null);
+
+  // Fetch split points when location changes
+  useEffect(() => {
+    if (route?.id) {
+      const startLocation = selectedLocationId ? undefined : 'Route Start';
+      const locId = selectedLocationId || undefined;
+      splitPointsApi.getByRoute(route.id, startLocation, locId).then(res => {
+        if (res.success) {
+          setSplitPoints(res.splitPoints);
+        }
+      }).catch(console.error);
+    }
+  }, [route?.id, selectedLocationId]);
 
   // Custom Map Controls state
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -202,7 +220,7 @@ export default function EmbedView() {
           onPoiClick={setSelectedPoi}
           highlightPosition={highlightPosition}
           flyToLocation={flyToLocation}
-          selectedCity={selectedCity}
+          selectedLocationId={selectedLocationId}
           onMapLoad={m => {
             mapRef.current = m;
           }}
@@ -229,8 +247,8 @@ export default function EmbedView() {
           onTourTypeChange={setTourType}
           selectedStage={selectedStage}
           onStageSelect={setSelectedStage}
-          selectedCity={selectedCity}
-          onCityChange={setSelectedCity}
+          selectedLocationId={selectedLocationId}
+          onLocationChange={setSelectedLocationId}
         />
         {/* <LocationFilter routeId={route.id} tourType={tourType} /> */}
       </div>
@@ -396,6 +414,7 @@ export default function EmbedView() {
             onPositionChange={handleElevationPositionChange}
             highlightDistance={highlightDistance}
             onPoiClick={handlePoiClick}
+            splitPoints={splitPoints?.[tourType]}
           />
           {/* Custom overlays for bottom panel could go here if needed */}
         </div>

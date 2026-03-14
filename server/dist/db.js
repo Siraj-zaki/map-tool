@@ -59,6 +59,7 @@ async function initializeDatabase() {
       start_point TEXT NOT NULL,
       end_point TEXT NOT NULL,
       route_geometry LONGTEXT,
+      elevation_data LONGTEXT,
       distance DECIMAL(10,2),
       duration INT,
       highest_point DECIMAL(10,2),
@@ -68,6 +69,15 @@ async function initializeDatabase() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
+    // Add elevation_data column if it doesn't exist (for existing databases)
+    try {
+        await pool.execute(`
+      ALTER TABLE routes ADD COLUMN IF NOT EXISTS elevation_data LONGTEXT
+    `);
+    }
+    catch (e) {
+        // Column may already exist
+    }
     // Waypoints table
     await pool.execute(`
     CREATE TABLE IF NOT EXISTS waypoints (
@@ -172,7 +182,7 @@ async function initializeDatabase() {
       stage_number INT NOT NULL DEFAULT 1,
       line_color VARCHAR(9) NOT NULL,
       line_opacity DECIMAL(3,2) DEFAULT 1.00,
-      area_color VARCHAR(9) DEFAULT NULL,
+      area_color VARCHAR(50) DEFAULT NULL,
       area_opacity DECIMAL(3,2) DEFAULT 0.25,
       UNIQUE KEY unique_tour_stage (tour_type, stage_number)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -203,6 +213,50 @@ async function initializeDatabase() {
          VALUES (?, ?, ?, ?, ?, ?)`, [tourType, stageNum, lineColor, lineOpacity, areaColor, areaOpacity]);
         }
         console.log('Default stage colors created');
+    }
+    // Route locations table (user-defined start locations)
+    await pool.execute(`
+    CREATE TABLE IF NOT EXISTS route_locations (
+      location_id INT AUTO_INCREMENT PRIMARY KEY,
+      route_id INT NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      lng DECIMAL(11,8) NOT NULL,
+      lat DECIMAL(10,8) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (route_id) REFERENCES routes(route_id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+    // Stage split points table (user-defined stage boundaries)
+    await pool.execute(`
+    CREATE TABLE IF NOT EXISTS stage_split_points (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      route_id INT NOT NULL,
+      location_id INT NULL,
+      start_location VARCHAR(255) NOT NULL DEFAULT 'Wernigerode',
+      tour_type ENUM('bronze', 'silver', 'gold') NOT NULL,
+      stage_number INT NOT NULL,
+      location_name VARCHAR(255) NOT NULL,
+      lng DECIMAL(11,8) NOT NULL,
+      lat DECIMAL(10,8) NOT NULL,
+      distance_km DECIMAL(8,3) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (route_id) REFERENCES routes(route_id) ON DELETE CASCADE,
+      FOREIGN KEY (location_id) REFERENCES route_locations(location_id) ON DELETE SET NULL,
+      UNIQUE KEY unique_route_start_tour_stage (route_id, start_location, tour_type, stage_number)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+    // Add location_id column to stage_split_points if it doesn't exist
+    try {
+        await pool.execute(`
+      ALTER TABLE stage_split_points ADD COLUMN IF NOT EXISTS location_id INT NULL AFTER route_id
+    `);
+        await pool.execute(`
+      ALTER TABLE stage_split_points ADD CONSTRAINT fk_split_location 
+      FOREIGN KEY IF NOT EXISTS (location_id) REFERENCES route_locations(location_id) ON DELETE SET NULL
+    `);
+    }
+    catch (e) {
+        // Constraint or column may already exist
     }
     // Create default admin user if not exists
     const [adminRows] = await pool.execute('SELECT id FROM users WHERE username = ?', ['admin']);

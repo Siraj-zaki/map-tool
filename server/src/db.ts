@@ -249,11 +249,25 @@ export async function initializeDatabase() {
     console.log('Default stage colors created');
   }
 
+  // Route locations table (user-defined start locations)
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS route_locations (
+      location_id INT AUTO_INCREMENT PRIMARY KEY,
+      route_id INT NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      lng DECIMAL(11,8) NOT NULL,
+      lat DECIMAL(10,8) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (route_id) REFERENCES routes(route_id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
   // Stage split points table (user-defined stage boundaries)
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS stage_split_points (
       id INT AUTO_INCREMENT PRIMARY KEY,
       route_id INT NOT NULL,
+      location_id INT NULL,
       start_location VARCHAR(255) NOT NULL DEFAULT 'Wernigerode',
       tour_type ENUM('bronze', 'silver', 'gold') NOT NULL,
       stage_number INT NOT NULL,
@@ -263,39 +277,22 @@ export async function initializeDatabase() {
       distance_km DECIMAL(8,3) NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (route_id) REFERENCES routes(route_id) ON DELETE CASCADE,
+      FOREIGN KEY (location_id) REFERENCES route_locations(location_id) ON DELETE SET NULL,
       UNIQUE KEY unique_route_start_tour_stage (route_id, start_location, tour_type, stage_number)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
-  // Allow 'gold' tour_type for existing databases
+  // Add location_id column to stage_split_points if it doesn't exist
   try {
     await pool.execute(`
-      ALTER TABLE stage_split_points MODIFY COLUMN tour_type ENUM('bronze', 'silver', 'gold') NOT NULL;
+      ALTER TABLE stage_split_points ADD COLUMN IF NOT EXISTS location_id INT NULL AFTER route_id
     `);
-  } catch (e) {
-    console.error('Failed to alter stage_split_points tour_type:', e);
-  }
-
-  // Add start_location column if it doesn't exist (for existing databases)
-  try {
     await pool.execute(`
-      ALTER TABLE stage_split_points ADD COLUMN IF NOT EXISTS start_location VARCHAR(255) NOT NULL DEFAULT 'Wernigerode'
+      ALTER TABLE stage_split_points ADD CONSTRAINT fk_split_location 
+      FOREIGN KEY IF NOT EXISTS (location_id) REFERENCES route_locations(location_id) ON DELETE SET NULL
     `);
-
-    // Also try to drop the old constraint and add the new one, this may fail if it was already updated
-    // Catching the error is safe here for iterative boots
-    try {
-      await pool.execute(
-        'ALTER TABLE stage_split_points DROP INDEX unique_route_tour_stage;'
-      );
-      await pool.execute(
-        'ALTER TABLE stage_split_points ADD UNIQUE INDEX unique_route_start_tour_stage (route_id, start_location, tour_type, stage_number);'
-      );
-    } catch (e) {
-      /* constraint likely already exists or replaced */
-    }
   } catch (e) {
-    // Column may already exist
+    // Constraint or column may already exist
   }
 
   // Create default admin user if not exists

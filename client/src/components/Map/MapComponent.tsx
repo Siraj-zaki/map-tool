@@ -1,10 +1,10 @@
 import mapboxgl from 'mapbox-gl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 // import difficultyImage from '../../../public/images/difficulty.png';
-import HighlightImage from '../../../public/images/highlight-marker.png';
-import HotelImage from '../../../public/images/hotel-marker.png';
-import SummitImage from '../../../public/images/mountain-marker.png';
-import RestaurantImage from '../../../public/images/resturant-marker.png';
+const HighlightImage = '/images/highlight-marker.png';
+const HotelImage = '/images/hotel-marker.png';
+const SummitImage = '/images/mountain-marker.png';
+const RestaurantImage = '/images/resturant-marker.png';
 import type { POI, Route, SplitPoint } from '../../api';
 import { splitPointsApi } from '../../api';
 import { POI_ICON_FALLBACK, ROUTE_STYLES } from '../../constants/routeStyles';
@@ -13,14 +13,8 @@ import { useColorSettings } from '../../contexts/ColorSettingsContext';
 mapboxgl.accessToken =
   'pk.eyJ1IjoicHVuY2hpbmdtYW4iLCJhIjoiY2p1cjcyMmh2M3NpZDQ5bnEwMDV6ZTE1OSJ9.ef8y6l9fsKFMX91m_Rt2ng';
 
-// Tour type stage configuration
+// Tour type
 type TourType = 'gold' | 'silver' | 'bronze';
-
-const stageConfig: Record<TourType, { stages: number }> = {
-  gold: { stages: 1 },
-  silver: { stages: 2 },
-  bronze: { stages: 3 },
-};
 
 // Haversine distance calculation (returns meters)
 function haversineDistance(
@@ -35,9 +29,9 @@ function haversineDistance(
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -73,7 +67,7 @@ interface MapComponentProps {
   highlightPosition?: { lng: number; lat: number } | null;
   flyToLocation?: { lng: number; lat: number } | null;
   onMapLoad?: (map: mapboxgl.Map) => void;
-  selectedCity?: string;
+  selectedLocationId?: number | null;
 }
 
 export default function MapComponent({
@@ -85,7 +79,7 @@ export default function MapComponent({
   highlightPosition,
   flyToLocation,
   onMapLoad,
-  selectedCity = 'Wernigerode',
+  selectedLocationId = null,
 }: MapComponentProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -160,7 +154,9 @@ export default function MapComponent({
 
     const fetchSplitPoints = async () => {
       try {
-        const result = await splitPointsApi.getByRoute(route.id, selectedCity);
+        const startLocation = selectedLocationId ? undefined : 'Route Start';
+        const locationId = selectedLocationId || undefined;
+        const result = await splitPointsApi.getByRoute(route.id, startLocation, locationId);
         if (result.success) {
           setSplitPoints(result.splitPoints);
         }
@@ -170,7 +166,7 @@ export default function MapComponent({
     };
 
     fetchSplitPoints();
-  }, [route?.id, selectedCity]);
+  }, [route?.id, selectedLocationId]);
 
   // Create arrow SVG for route direction indicators - matching original main.js
   const createArrowImage = useCallback(() => {
@@ -239,7 +235,7 @@ export default function MapComponent({
               currentPoint[1],
               currentPoint[0]
             ) >
-              minDistance / 2)
+            minDistance / 2)
         ) {
           arrowFeatures.push({
             type: 'Feature',
@@ -417,7 +413,9 @@ export default function MapComponent({
   useEffect(() => {
     if (!map.current || !isLoaded || !route) return;
 
-    const config = stageConfig[tourType];
+    // Calculate number of stages dynamically based on split points
+    const relevantSplitPoints = splitPoints?.[tourType as 'silver' | 'bronze'] || [];
+    const numStages = relevantSplitPoints.length + 1;
 
     // Clear existing markers
     markersRef.current.forEach(m => m.remove());
@@ -438,8 +436,8 @@ export default function MapComponent({
       }
     });
 
-    // Remove old sources
-    for (let i = 0; i < 3; i++) {
+    // Remove old sources (dynamic based on max possible stages)
+    for (let i = 0; i < 10; i++) {
       if (map.current.getSource(`route-stage-${i}`)) {
         map.current.removeSource(`route-stage-${i}`);
       }
@@ -477,7 +475,7 @@ export default function MapComponent({
 
     const stageSegments = getStageSegments(
       coordinates,
-      config.stages,
+      numStages,
       tourType
     );
 
@@ -1106,13 +1104,15 @@ export default function MapComponent({
     )
       return;
 
-    const config = stageConfig[tourType];
+    // Calculate number of stages dynamically based on split points
+    const relevantSplitPoints = splitPoints?.[tourType as 'silver' | 'bronze'] || [];
+    const numStages = relevantSplitPoints.length + 1;
 
     // Only process if we have multiple stages and valid selection
     if (
-      config.stages <= 1 ||
+      numStages <= 1 ||
       selectedStage < 1 ||
-      selectedStage > config.stages
+      selectedStage > numStages
     )
       return;
 
@@ -1130,7 +1130,7 @@ export default function MapComponent({
     // Calculate stage segment
     const stageSegments = getStageSegments(
       coordinates,
-      config.stages,
+      numStages,
       tourType
     );
     const stageIndex = selectedStage - 1; // Convert to 0-indexed

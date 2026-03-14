@@ -7,8 +7,10 @@ import {
   getDirections,
   routesApi,
   splitPointsApi,
+  locationsApi,
   type Route,
   type SplitPoint,
+  type RouteLocation,
 } from '../api';
 import ElevationProfile from '../components/ElevationProfile/ElevationProfileVisx';
 import POIModal, { type POIData } from '../components/POI/POIModal';
@@ -64,13 +66,17 @@ export default function Editor() {
   const [elevationData, setElevationData] = useState<
     { elevation: number; distance: number }[] | null
   >(null);
+  // Alternative routes from Directions API
+  const [alternativeRoutes, setAlternativeRoutes] = useState<
+    { geometry: [number, number][]; distance: number }[]
+  >([]);
   const [pois, setPois] = useState<any[]>([]);
   const [editMode, setEditMode] = useState<
     'start' | 'end' | 'waypoint' | 'poi' | 'splitpoint'
   >('start');
 
   // Routing profile state (Fix for picking up trails)
-  const [routingProfile, setRoutingProfile] = useState<'walking' | 'cycling'>(
+  const [routingProfile] = useState<'walking' | 'cycling'>(
     'walking'
   );
 
@@ -121,6 +127,8 @@ export default function Editor() {
     'Frankfurt',
   ];
   const [selectedCity, setSelectedCity] = useState(citiesList[0]);
+  const [locations, setLocations] = useState<RouteLocation[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null);
 
   // Bi-directional sync between map and elevation profile
   // Note: highlightDistance is used for map→elevation sync (not yet implemented in Editor's ad-hoc map)
@@ -297,187 +305,24 @@ export default function Editor() {
           setStartPoint(coord);
         } else if (!endPoint && waypoints.length === 0) {
           // No waypoints yet and no end point - add as first waypoint
+          setRouteGeometry(null);
+          setIsGpxRoute(false);
           setWaypoints([coord]);
         } else {
-          // For GPX routes: check if click is ON the route or OFF the route
-          if (isGpxRoute && routeGeometry && routeGeometry.length > 0) {
-            // Find the closest point on the GPX route to the clicked location
-            let minDist = Infinity;
-            let closestPointOnRoute = coord;
-            let closestIndex = 0;
+          // Always append new waypoints to the end of the list.
+          // The "closest segment" insertion was broken for routes that loop
+          // near themselves — it would insert a new point at the wrong position
+          // (e.g., waypoint 13 becoming position 8 because the route passes
+          // near an earlier segment). Sequential append is correct for manual
+          // route building where users add points in order.
+          setIsGpxRoute(false);
+          setRouteGeometry(null);
+          setElevationData(null);
+          setWaypoints(prev => [...prev, coord]);
 
-            for (let i = 0; i < routeGeometry.length; i++) {
-              const rc = routeGeometry[i];
-              const d = Math.sqrt(
-                Math.pow(coord[0] - rc[0], 2) + Math.pow(coord[1] - rc[1], 2)
-              );
-              if (d < minDist) {
-                minDist = d;
-                closestPointOnRoute = rc;
-                closestIndex = i;
-              }
-            }
-
-            // Distance threshold: ~0.001 degrees ≈ 100 meters
-            // If click is within threshold, add waypoint ON the existing route
-            // If click is farther, recalculate route through the new waypoint
-            const DISTANCE_THRESHOLD = 0.001; // ~100 meters
-
-            if (minDist <= DISTANCE_THRESHOLD) {
-              // ON THE ROUTE: Add waypoint at closest point, preserve GPX data
-              console.log(
-                `[Editor] Click is ON route (${(minDist * 111000).toFixed(
-                  0
-                )}m from route), adding marker`
-              );
-
-              // Find the correct position in waypoints array based on route order
-              const waypointIndices = waypoints.map(wp => {
-                let bestIdx = 0;
-                let bestDist = Infinity;
-                for (let i = 0; i < routeGeometry.length; i++) {
-                  const d = Math.sqrt(
-                    Math.pow(wp[0] - routeGeometry[i][0], 2) +
-                    Math.pow(wp[1] - routeGeometry[i][1], 2)
-                  );
-                  if (d < bestDist) {
-                    bestDist = d;
-                    bestIdx = i;
-                  }
-                }
-                return bestIdx;
-              });
-
-              // Find insert position based on route order
-              let insertIndex = 0;
-              for (let i = 0; i < waypointIndices.length; i++) {
-                if (closestIndex > waypointIndices[i]) {
-                  insertIndex = i + 1;
-                }
-              }
-
-              // Add waypoint at closest point on the route (preserving GPX geometry)
-              setWaypoints(prev => {
-                const newWaypoints = [...prev];
-                newWaypoints.splice(insertIndex, 0, closestPointOnRoute);
-                return newWaypoints;
-              });
-
-              console.log(
-                `[Editor] GPX mode: Added waypoint at closest route point, waypoint #${insertIndex + 1
-                }`
-              );
-              // GPX geometry and elevation data are PRESERVED
-            } else {
-              // OFF THE ROUTE (new road): Recalculate entire route through this waypoint
-              console.log(
-                `[Editor] Click is OFF route (${(minDist * 111000).toFixed(
-                  0
-                )}m from route), recalculating via Directions API`
-              );
-
-              // Find insert position based on route order
-              const waypointIndices = waypoints.map(wp => {
-                let bestIdx = 0;
-                let bestDist = Infinity;
-                for (let i = 0; i < routeGeometry.length; i++) {
-                  const d = Math.sqrt(
-                    Math.pow(wp[0] - routeGeometry[i][0], 2) +
-                    Math.pow(wp[1] - routeGeometry[i][1], 2)
-                  );
-                  if (d < bestDist) {
-                    bestDist = d;
-                    bestIdx = i;
-                  }
-                }
-                return bestIdx;
-              });
-
-              let insertIndex = 0;
-              for (let i = 0; i < waypointIndices.length; i++) {
-                if (closestIndex > waypointIndices[i]) {
-                  insertIndex = i + 1;
-                }
-              }
-
-              // Clear GPX mode and trigger recalculation
-              setIsGpxRoute(false);
-              setRouteGeometry(null);
-              setElevationData(null);
-              setWaypoints(prev => {
-                const newWaypoints = [...prev];
-                newWaypoints.splice(insertIndex, 0, coord);
-                return newWaypoints;
-              });
-
-              console.log(
-                `[Editor] Route will be recalculated through new waypoint at position ${insertIndex + 1
-                }`
-              );
-            }
-          } else {
-            // Non-GPX route: use the original smart insertion logic
-            // Build the full path: start -> waypoints -> end (if exists)
-            const fullPath: [number, number][] = [startPoint];
-            waypoints.forEach(wp => fullPath.push(wp));
-            if (endPoint) fullPath.push(endPoint);
-
-            // Find the closest segment
-            let bestInteriorDist = Infinity;
-            let insertIndex = waypoints.length; // Default to append to the end
-            const INSERTION_THRESHOLD = 0.005; // ~500 meters roughly in degrees
-
-            if (fullPath.length > 1) {
-              for (let i = 0; i < fullPath.length - 1; i++) {
-                const segStart = fullPath[i];
-                const segEnd = fullPath[i + 1];
-
-                const dx = segEnd[0] - segStart[0];
-                const dy = segEnd[1] - segStart[1];
-                const lengthSq = dx * dx + dy * dy;
-
-                let dist = 0;
-                let t = 0;
-
-                if (lengthSq === 0) {
-                  dist = Math.sqrt(
-                    Math.pow(coord[0] - segStart[0], 2) +
-                    Math.pow(coord[1] - segStart[1], 2)
-                  );
-                } else {
-                  t = ((coord[0] - segStart[0]) * dx + (coord[1] - segStart[1]) * dy) / lengthSq;
-                  const clampedT = Math.max(0, Math.min(1, t));
-                  const projX = segStart[0] + clampedT * dx;
-                  const projY = segStart[1] + clampedT * dy;
-                  dist = Math.sqrt(
-                    Math.pow(coord[0] - projX, 2) + Math.pow(coord[1] - projY, 2)
-                  );
-                }
-
-                // Strictly require the click to project ONTO the interior of the segment (0 <= t <= 1)
-                // This prevents points clicked "past" the end of the route from being erroneously inserted
-                // between previous points (which caused the route to build backwards).
-                if (t >= 0 && t <= 1 && dist < INSERTION_THRESHOLD && dist < bestInteriorDist) {
-                  bestInteriorDist = dist;
-                  insertIndex = i;
-                }
-              }
-            }
-
-            // Insert the waypoint at the correct position
-            // Clear GPX mode since we're modifying a non-GPX route
-            setIsGpxRoute(false);
-            setRouteGeometry(null);
-            setWaypoints(prev => {
-              const newWaypoints = [...prev];
-              newWaypoints.splice(insertIndex, 0, coord);
-              return newWaypoints;
-            });
-
-            console.log(
-              `[Editor] Inserted waypoint at index ${insertIndex} (will be waypoint #${insertIndex + 1})`
-            );
-          }
+          console.log(
+            `[Editor] Appended waypoint #${waypoints.length + 1}`
+          );
         }
       }
     };
@@ -506,23 +351,19 @@ export default function Editor() {
         const el = document.createElement('div');
         el.innerHTML =
           '<i class="fa-solid fa-play" style="color: white; font-size: 0.75rem;"></i>';
-        el.className = isGpxRoute
-          ? 'w-8 h-8 bg-green-500 rounded-full flex items-center justify-center border-2 border-white pl-0.5'
-          : 'w-8 h-8 bg-green-500 rounded-full flex items-center justify-center border-2 border-white cursor-move pl-0.5';
-        // Only allow dragging in non-GPX mode
+        el.className = 'w-8 h-8 bg-green-500 rounded-full flex items-center justify-center border-2 border-white cursor-move pl-0.5';
         const marker = new mapboxgl.Marker({
           element: el,
-          draggable: !isGpxRoute,
+          draggable: true,
         })
           .setLngLat(startPoint)
           .addTo(map.current);
-        if (!isGpxRoute) {
-          marker.on('dragend', () => {
-            setIsGpxRoute(false);
-            setRouteGeometry(null);
-            setStartPoint([marker.getLngLat().lng, marker.getLngLat().lat]);
-          });
-        }
+        marker.on('dragend', () => {
+          setIsGpxRoute(false);
+          setRouteGeometry(null);
+          setElevationData(null);
+          setStartPoint([marker.getLngLat().lng, marker.getLngLat().lat]);
+        });
         markersRef.current.push(marker);
       }
 
@@ -579,65 +420,15 @@ export default function Editor() {
             marker.getLngLat().lat,
           ] as [number, number];
 
-          // In GPX mode: check if dragged ON route or OFF route
-          if (isGpxRoute && routeGeometry && routeGeometry.length > 0) {
-            let minDist = Infinity;
-            let closestPoint = draggedLngLat;
-
-            for (const rc of routeGeometry) {
-              const d = Math.sqrt(
-                Math.pow(draggedLngLat[0] - rc[0], 2) +
-                Math.pow(draggedLngLat[1] - rc[1], 2)
-              );
-              if (d < minDist) {
-                minDist = d;
-                closestPoint = rc;
-              }
-            }
-
-            // Distance threshold: ~0.001 degrees ≈ 100 meters
-            const DISTANCE_THRESHOLD = 0.001;
-
-            if (minDist <= DISTANCE_THRESHOLD) {
-              // ON THE ROUTE: Snap to closest point, preserve GPX data
-              console.log(
-                `[Editor] Waypoint dragged ON route (${(
-                  minDist * 111000
-                ).toFixed(0)}m), snapping`
-              );
-              marker.setLngLat(closestPoint);
-              setWaypoints(prev => {
-                const newWp = [...prev];
-                newWp[index] = closestPoint;
-                return newWp;
-              });
-              // GPX geometry preserved!
-            } else {
-              // OFF THE ROUTE: Recalculate route through new location
-              console.log(
-                `[Editor] Waypoint dragged OFF route (${(
-                  minDist * 111000
-                ).toFixed(0)}m), recalculating via Directions API`
-              );
-              setIsGpxRoute(false);
-              setRouteGeometry(null);
-              setElevationData(null);
-              setWaypoints(prev => {
-                const newWp = [...prev];
-                newWp[index] = draggedLngLat;
-                return newWp;
-              });
-            }
-          } else {
-            // Non-GPX mode: recalculate route via Directions API
-            setIsGpxRoute(false);
-            setRouteGeometry(null);
-            setWaypoints(prev => {
-              const newWp = [...prev];
-              newWp[index] = draggedLngLat;
-              return newWp;
-            });
-          }
+          // Always clear stored geometry and recalculate route
+          setIsGpxRoute(false);
+          setRouteGeometry(null);
+          setElevationData(null);
+          setWaypoints(prev => {
+            const newWp = [...prev];
+            newWp[index] = draggedLngLat;
+            return newWp;
+          });
         });
         markersRef.current.push(marker);
       });
@@ -647,23 +438,19 @@ export default function Editor() {
         const el = document.createElement('div');
         el.innerHTML =
           '<i class="fa-solid fa-flag-checkered" style="color: white; font-size: 0.75rem;"></i>';
-        el.className = isGpxRoute
-          ? 'w-8 h-8 bg-red-500 rounded-full flex items-center justify-center border-2 border-white'
-          : 'w-8 h-8 bg-red-500 rounded-full flex items-center justify-center border-2 border-white cursor-move';
-        // Only allow dragging in non-GPX mode
+        el.className = 'w-8 h-8 bg-red-500 rounded-full flex items-center justify-center border-2 border-white cursor-move';
         const marker = new mapboxgl.Marker({
           element: el,
-          draggable: !isGpxRoute,
+          draggable: true,
         })
           .setLngLat(endPoint)
           .addTo(map.current!);
-        if (!isGpxRoute) {
-          marker.on('dragend', () => {
-            setIsGpxRoute(false);
-            setRouteGeometry(null);
-            setEndPoint([marker.getLngLat().lng, marker.getLngLat().lat]);
-          });
-        }
+        marker.on('dragend', () => {
+          setIsGpxRoute(false);
+          setRouteGeometry(null);
+          setElevationData(null);
+          setEndPoint([marker.getLngLat().lng, marker.getLngLat().lat]);
+        });
         markersRef.current.push(marker);
       }
 
@@ -716,10 +503,12 @@ export default function Editor() {
           return;
         }
 
-        // If route came from GPX upload, use existing geometry directly (skip API)
-        if (isGpxRoute && routeGeometry && routeGeometry.length > 0) {
+        // If we already have stored route geometry (from GPX upload or saved route),
+        // use it directly instead of calling the Directions API which would
+        // generate a different (wrong) path.
+        if (routeGeometry && routeGeometry.length > 0) {
           console.log(
-            '[Editor] GPX route - using existing geometry:',
+            '[Editor] Using existing stored geometry:',
             routeGeometry.length,
             'coordinates'
           );
@@ -754,7 +543,7 @@ export default function Editor() {
           return;
         }
 
-        // No existing geometry - calculate route via Mapbox Directions API
+        // Calculate route via Mapbox Directions API
         // The API has a limit of 25 waypoints total (including start/end)
         // For routes with more waypoints, we batch the calls and concatenate results
         const MAX_WAYPOINTS_PER_BATCH = 23; // Leave room for start and end in each batch
@@ -765,7 +554,7 @@ export default function Editor() {
 
         let fullGeometry: [number, number][] = [];
         let totalDistance = 0;
-        let totalDuration = 0;
+        let altRoutes: { geometry: [number, number][]; distance: number }[] = [];
 
         if (effectiveWaypoints.length <= MAX_WAYPOINTS_PER_BATCH) {
           // Simple case: single API call
@@ -781,7 +570,17 @@ export default function Editor() {
               number,
             ][];
             totalDistance = result.routes[0].distance;
-            totalDuration = result.routes[0].duration;
+
+            // Collect alternative routes (routes[1], routes[2], etc.)
+            for (let ri = 1; ri < result.routes.length; ri++) {
+              altRoutes.push({
+                geometry: result.routes[ri].geometry.coordinates as [number, number][],
+                distance: result.routes[ri].distance,
+              });
+            }
+            if (altRoutes.length > 0) {
+              console.log(`[Editor] ${altRoutes.length} alternative route(s) available`);
+            }
           }
         } else {
           // Complex case: batch API calls for many waypoints
@@ -859,7 +658,6 @@ export default function Editor() {
               }
 
               totalDistance += result.routes[0].distance;
-              totalDuration += result.routes[0].duration;
             }
           }
 
@@ -877,25 +675,29 @@ export default function Editor() {
             'coordinates'
           );
 
-          // Update distance and duration (elevation is calculated manually or before save)
+          // Update distance and duration (elevation will be auto-recalculated)
+          // Duration always based on fixed 10.86 km/h average speed
+          const distanceKm = Number((totalDistance / 1000).toFixed(2));
+          const durationMinutes = Math.round((distanceKm / 10.86) * 60);
           setRouteStats(prev => ({
             ...prev,
-            distance: Number((totalDistance / 1000).toFixed(2)),
-            duration: Math.round(totalDuration / 60),
-            // Reset elevation stats since route changed - will be recalculated
-            highestPoint: 0,
-            lowestPoint: 0,
-            totalAscent: 0,
-            totalDescent: 0,
+            distance: distanceKm,
+            duration: durationMinutes,
           }));
 
-          // Clear elevation data since route changed - user needs to recalculate
+          // Clear elevation data since route changed — auto-calculate effect will re-populate
           setElevationData(null);
 
-          // Clean up existing layers/sources
+          // Clean up existing layers/sources (main route + alternatives)
           if (map.current!.getLayer('route')) map.current!.removeLayer('route');
           if (map.current!.getSource('route'))
             map.current!.removeSource('route');
+          // Clean up alternative route layers
+          for (let ai = 0; ai < 5; ai++) {
+            const altId = `route-alt-${ai}`;
+            if (map.current!.getLayer(altId)) map.current!.removeLayer(altId);
+            if (map.current!.getSource(altId)) map.current!.removeSource(altId);
+          }
 
           map.current!.addSource('route', {
             type: 'geojson',
@@ -919,6 +721,81 @@ export default function Editor() {
               'line-width': routeSettings.lineWidth,
             },
           });
+
+          // Draw alternative routes as dashed lines
+          if (altRoutes.length > 0) {
+            setAlternativeRoutes(altRoutes);
+            altRoutes.forEach((alt, idx) => {
+              const altId = `route-alt-${idx}`;
+              map.current!.addSource(altId, {
+                type: 'geojson',
+                data: {
+                  type: 'Feature',
+                  properties: { index: idx },
+                  geometry: {
+                    type: 'LineString',
+                    coordinates: alt.geometry,
+                  },
+                },
+              });
+              map.current!.addLayer({
+                id: altId,
+                type: 'line',
+                source: altId,
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: {
+                  'line-color': '#888888',
+                  'line-width': routeSettings.lineWidth - 1,
+                  'line-dasharray': [3, 2],
+                  'line-opacity': 0.7,
+                },
+              });
+
+              // Click handler to select this alternative
+              map.current!.on('click', altId, () => {
+                console.log(`[Editor] User selected alternative route ${idx}`);
+                // Set the alternative as the main route
+                setRouteGeometry(alt.geometry);
+                const altDistKm = Number((alt.distance / 1000).toFixed(2));
+                const altDurMin = Math.round((altDistKm / 10.86) * 60);
+                setRouteStats(prev => ({
+                  ...prev,
+                  distance: altDistKm,
+                  duration: altDurMin,
+                }));
+                setElevationData(null);
+                setAlternativeRoutes([]);
+
+                // Redraw: swap the main route to the selected alternative
+                if (map.current!.getSource('route')) {
+                  (map.current!.getSource('route') as any).setData({
+                    type: 'Feature',
+                    properties: {},
+                    geometry: {
+                      type: 'LineString',
+                      coordinates: alt.geometry,
+                    },
+                  });
+                }
+                // Remove all alternative layers
+                for (let ri = 0; ri < 5; ri++) {
+                  const rAltId = `route-alt-${ri}`;
+                  if (map.current!.getLayer(rAltId)) map.current!.removeLayer(rAltId);
+                  if (map.current!.getSource(rAltId)) map.current!.removeSource(rAltId);
+                }
+              });
+
+              // Show pointer cursor on hover
+              map.current!.on('mouseenter', altId, () => {
+                if (map.current) map.current.getCanvas().style.cursor = 'pointer';
+              });
+              map.current!.on('mouseleave', altId, () => {
+                if (map.current) map.current.getCanvas().style.cursor = '';
+              });
+            });
+          } else {
+            setAlternativeRoutes([]);
+          }
         }
       } catch (error) {
         console.error('Failed to calculate route:', error);
@@ -967,7 +844,11 @@ export default function Editor() {
           setWaypoints(result.route.waypoints || []);
           setRouteGeometry(result.route.routeGeometry || null);
           setElevationData(result.route.elevationData || null); // Restore stored elevation data
-          setIsGpxRoute(!!(result.route.routeGeometry && result.route.routeGeometry.length > 0));
+          // Set isGpxRoute=true when route has stored geometry & elevation, to preserve
+          // the route path and elevation stats from being overwritten by Mapbox API
+          setIsGpxRoute(
+            !!(result.route.routeGeometry?.length && result.route.elevationData?.length)
+          );
           setPois(result.route.pois || []);
           setRouteStats({
             distance: parseFloat(String(result.route.distance || 0)),
@@ -981,11 +862,22 @@ export default function Editor() {
           });
           setEditMode('waypoint');
 
-          // Fetch split points
+          // Fetch locations for this route
+          try {
+            const locResult = await locationsApi.getByRoute(Number(id));
+            if (locResult.success) {
+              setLocations(locResult.data);
+            }
+          } catch (locError) {
+            console.error('Failed to load locations:', locError);
+          }
+
+          // Fetch split points (default/generic)
           try {
             const spResult = await splitPointsApi.getByRoute(
               Number(id),
-              selectedCity
+              'Route Start',
+              undefined
             );
             if (spResult.success) {
               setSplitPoints(spResult.splitPoints);
@@ -1094,24 +986,24 @@ export default function Editor() {
     const timer = setTimeout(async () => {
       setCalculatingElevation(true);
       try {
-        const elevData = await getMapboxElevation(map.current!, routeGeometry);
-        console.log('[Editor] Auto-elevation result:', elevData);
+        // getMapboxElevation now:
+        // - fits map to route & waits for terrain tiles
+        // - computes actual Haversine distances per point
+        // - smooths elevation data
+        // - returns full elevationData[] with coordinates
+        const elevResult = await getMapboxElevation(map.current!, routeGeometry);
+        console.log('[Editor] Auto-elevation result:', elevResult);
 
-        // Create elevation data array
-        const distanceKm = routeStats.distance;
-        const elevationDataArray = elevData.elevations.map((elev, i) => ({
-          elevation: elev,
-          distance:
-            i === 0 ? 0 : (distanceKm * i) / (elevData.elevations.length - 1),
-        }));
-        setElevationData(elevationDataArray);
+        // Use the pre-computed elevationData directly (no more linear interpolation)
+        setElevationData(elevResult.elevationData);
 
         setRouteStats(prev => ({
           ...prev,
-          highestPoint: elevData.highestPoint,
-          lowestPoint: elevData.lowestPoint,
-          totalAscent: elevData.totalAscent,
-          totalDescent: elevData.totalDescent,
+          distance: elevResult.totalDistanceKm || prev.distance,
+          highestPoint: elevResult.highestPoint,
+          lowestPoint: elevResult.lowestPoint,
+          totalAscent: elevResult.totalAscent,
+          totalDescent: elevResult.totalDescent,
         }));
       } catch (error) {
         console.error('[Editor] Auto-elevation calculation failed:', error);
@@ -1121,7 +1013,7 @@ export default function Editor() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [routeGeometry, isGpxRoute, mapLoaded]);
+  }, [routeGeometry, isGpxRoute, mapLoaded, elevationData, calculatingElevation]);
 
   // Handler for elevation profile hover - updates map marker
   const handleElevationPositionChange = (
@@ -1184,12 +1076,10 @@ export default function Editor() {
   // Calculate elevation data manually (called from button or before save)
   const calculateElevation = async () => {
     // If we already have accurate elevation data from GPX, don't overwrite it
+    // GPX data from Komoot/Strava is more accurate than Mapbox DEM
     if (elevationData && elevationData.length > 0 && isGpxRoute) {
       console.log(
         '[Editor] Using existing GPX elevation data, skipping Mapbox calculation'
-      );
-      alert(
-        'Elevation data already available from GPX file. No recalculation needed.'
       );
       return;
     }
@@ -1211,24 +1101,19 @@ export default function Editor() {
         routeGeometry.length,
         'coordinates'
       );
-      const elevData = await getMapboxElevation(map.current, routeGeometry);
-      console.log('[Editor] Elevation data:', elevData);
+      const elevResult = await getMapboxElevation(map.current, routeGeometry);
+      console.log('[Editor] Elevation data:', elevResult);
 
-      // Store elevation data for saving - create array of {elevation, distance} pairs
-      const distanceKm = routeStats.distance;
-      const elevationDataArray = elevData.elevations.map((elev, i) => ({
-        elevation: elev,
-        distance:
-          i === 0 ? 0 : (distanceKm * i) / (elevData.elevations.length - 1),
-      }));
-      setElevationData(elevationDataArray);
+      // Use pre-computed elevationData with real Haversine distances & coordinates
+      setElevationData(elevResult.elevationData);
 
       setRouteStats(prev => ({
         ...prev,
-        highestPoint: elevData.highestPoint,
-        lowestPoint: elevData.lowestPoint,
-        totalAscent: elevData.totalAscent,
-        totalDescent: elevData.totalDescent,
+        distance: elevResult.totalDistanceKm || prev.distance,
+        highestPoint: elevResult.highestPoint,
+        lowestPoint: elevResult.lowestPoint,
+        totalAscent: elevResult.totalAscent,
+        totalDescent: elevResult.totalDescent,
       }));
 
       console.log('[Editor] Elevation calculated successfully');
@@ -1272,36 +1157,19 @@ export default function Editor() {
           return;
         }
 
-        const elevData = await getMapboxElevation(map.current, routeGeometry);
+        const elevResult = await getMapboxElevation(map.current, routeGeometry);
 
-        const distanceKm = routeStats.distance;
-        finalElevationData = elevData.elevations.map((elev, i) => ({
-          elevation: elev,
-          distance:
-            i === 0 ? 0 : (distanceKm * i) / (elevData.elevations.length - 1),
-        }));
+        // Use pre-computed elevationData with real Haversine distances
+        finalElevationData = elevResult.elevationData;
 
-        // PRESERVE user-edited stats - only use calculated values if user hasn't edited them
-        // A value of 0 indicates it hasn't been edited (or user explicitly set to 0)
+        // Always use freshly calculated stats — no stale preservation
         finalRouteStats = {
           ...routeStats,
-          // Use user-edited values if they exist, otherwise use calculated
-          highestPoint:
-            routeStats.highestPoint > 0
-              ? routeStats.highestPoint
-              : elevData.highestPoint,
-          lowestPoint:
-            routeStats.lowestPoint > 0
-              ? routeStats.lowestPoint
-              : elevData.lowestPoint,
-          totalAscent:
-            routeStats.totalAscent > 0
-              ? routeStats.totalAscent
-              : elevData.totalAscent,
-          totalDescent:
-            routeStats.totalDescent > 0
-              ? routeStats.totalDescent
-              : elevData.totalDescent,
+          distance: elevResult.totalDistanceKm || routeStats.distance,
+          highestPoint: elevResult.highestPoint,
+          lowestPoint: elevResult.lowestPoint,
+          totalAscent: elevResult.totalAscent,
+          totalDescent: elevResult.totalDescent,
         };
 
         console.log('[Editor] Saving with stats:', finalRouteStats);
@@ -1599,10 +1467,10 @@ export default function Editor() {
     if (gpxInputRef.current) gpxInputRef.current.value = '';
   };
 
-  // Calculate duration based on fixed 23 km/h average speed
+  // Calculate duration based on fixed 10.86 km/h average speed
   const calculateRealisticDuration = () => {
     const distanceKm = routeStats.distance;
-    const AVERAGE_SPEED_KMH = 23;
+    const AVERAGE_SPEED_KMH = 10.86;
     const totalTimeHours = distanceKm / AVERAGE_SPEED_KMH;
     return Math.round(totalTimeHours * 60);
   };
@@ -1750,36 +1618,7 @@ export default function Editor() {
             </button>
           </div>
 
-          {/* Routing Profile Selector */}
-          <div className="bg-[#0b1215] border border-[#1e2a33] rounded-lg p-3">
-            <h4 className="text-[#088d95] text-xs uppercase mb-2 font-semibold">
-              {t('routingProfile') || 'Routing Profile'}
-            </h4>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setRoutingProfile('walking')}
-                className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm transition-all ${routingProfile === 'walking'
-                  ? 'bg-[#088d95] text-white'
-                  : 'bg-[#0b1215] border border-[#1e2a33] text-gray-400 hover:border-[#088d95]'
-                  }`}
-              >
-                <i className="fas fa-hiking"></i> {t('walking') || 'Walking'}
-              </button>
-              <button
-                onClick={() => setRoutingProfile('cycling')}
-                className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm transition-all ${routingProfile === 'cycling'
-                  ? 'bg-[#088d95] text-white'
-                  : 'bg-[#0b1215] border border-[#1e2a33] text-gray-400 hover:border-[#088d95]'
-                  }`}
-              >
-                <i className="fas fa-bicycle"></i> {t('cycling') || 'Cycling'}
-              </button>
-            </div>
-            <p className="text-[0.625rem] text-gray-500 mt-2">
-              {t('routingProfileHint') ||
-                'Use Cycling to snap to trails/gravel roads that Walking might miss.'}
-            </p>
-          </div>
+
 
           {/* Action Buttons */}
           <button
@@ -1845,8 +1684,8 @@ export default function Editor() {
             </button>
           </div>
 
-          {/* Split Point Editor - only show when editing existing route */}
-          {isEditing && routeGeometry && (
+          {/* Split Point Editor - temporarily removed in edit mode as per new flow requirements */}
+          {false && isEditing && routeGeometry && (
             <SplitPointEditor
               routeId={id ? Number(id) : null}
               routeGeometry={routeGeometry}
@@ -1868,8 +1707,10 @@ export default function Editor() {
                 }
               }}
               splitPoints={splitPoints}
-              selectedCity={selectedCity}
+              locations={locations}
+              selectedLocationId={selectedLocationId}
               onSplitPointChange={setSplitPoints}
+              onLocationChange={setSelectedLocationId}
             />
           )}
 
@@ -2026,22 +1867,24 @@ export default function Editor() {
               </h3>
             </div>
 
-            <div className="bg-[#0b1215] border border-[#1e2a33] rounded-lg p-3 lg:col-span-2">
-              <h4 className="text-[#088d95] text-xs uppercase mb-1 font-semibold">
-                Start Location
-              </h4>
-              <select
-                value={selectedCity}
-                onChange={e => setSelectedCity(e.target.value)}
-                className="w-full bg-[#080e11] text-white border border-[#1e2a33] rounded p-1 text-sm focus:outline-none focus:border-[#088d95]"
-              >
-                {citiesList.map(city => (
-                  <option key={city} value={city}>
-                    {city}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* {!isEditing && (
+              <div className="bg-[#0b1215] border border-[#1e2a33] rounded-lg p-3 lg:col-span-2">
+                <h4 className="text-[#088d95] text-xs uppercase mb-1 font-semibold">
+                  Start Location
+                </h4>
+                <select
+                  value={selectedCity}
+                  onChange={e => setSelectedCity(e.target.value)}
+                  className="w-full bg-[#080e11] text-white border border-[#1e2a33] rounded p-1 text-sm focus:outline-none focus:border-[#088d95]"
+                >
+                  {citiesList.map(city => (
+                    <option key={city} value={city}>
+                      {city}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )} */}
           </div>
 
           {/* Stats - Editable */}

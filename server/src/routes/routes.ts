@@ -382,22 +382,26 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
 router.get('/:id/split-points', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { tourType, startLocation } = req.query;
+    const { tourType, startLocation, locationId } = req.query;
 
     let sql = `
       SELECT id, tour_type as tourType, stage_number as stageNumber, 
-             location_name as locationName, lng, lat, distance_km as distanceKm
+             location_name as locationName, lng, lat, distance_km as distanceKm,
+             location_id as locationId, start_location as startLocation
       FROM stage_split_points 
       WHERE route_id = ?
     `;
     const params: any[] = [id];
 
-    if (startLocation) {
+    if (locationId) {
+      sql += ' AND location_id = ?';
+      params.push(locationId);
+    } else if (startLocation !== undefined) {
       sql += ' AND start_location = ?';
       params.push(startLocation);
     } else {
-      // Fallback for backwards compatibility if no startLocation is provided
-      sql += " AND start_location = 'Wernigerode'";
+      // Fallback for backwards compatibility
+      sql += " AND (start_location = 'Wernigerode' OR start_location = 'Route Start') AND location_id IS NULL";
     }
 
     if (tourType) {
@@ -442,7 +446,7 @@ router.put(
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const { tourType, splitPoints, startLocation } = req.body;
+      const { tourType, splitPoints, startLocation, locationId } = req.body;
 
       if (!tourType || !['silver', 'bronze', 'gold'].includes(tourType)) {
         return res.status(400).json({
@@ -451,29 +455,38 @@ router.put(
         });
       }
 
-      if (!startLocation) {
+      // We need either a startLocation (string, can be empty) or a locationId (number)
+      if (startLocation === undefined && !locationId) {
         return res.status(400).json({
           success: false,
-          error: 'Start location is required to save split points.',
+          error: 'Start location or Location ID is required to save split points.',
         });
       }
 
-      // Delete existing split points for this route, tour type, and start location
-      await run(
-        'DELETE FROM stage_split_points WHERE route_id = ? AND tour_type = ? AND start_location = ?',
-        [id, tourType, startLocation]
-      );
+      // Delete existing split points for this route, tour type, and location
+      if (locationId) {
+        await run(
+          'DELETE FROM stage_split_points WHERE route_id = ? AND tour_type = ? AND location_id = ?',
+          [id, tourType, locationId]
+        );
+      } else {
+        await run(
+          'DELETE FROM stage_split_points WHERE route_id = ? AND tour_type = ? AND location_id IS NULL',
+          [id, tourType]
+        );
+      }
 
       // Insert new split points
       if (splitPoints && splitPoints.length > 0) {
         for (const sp of splitPoints) {
           await run(
             `INSERT INTO stage_split_points 
-           (route_id, start_location, tour_type, stage_number, location_name, lng, lat, distance_km)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+           (route_id, location_id, start_location, tour_type, stage_number, location_name, lng, lat, distance_km)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               id,
-              startLocation,
+              locationId || null,
+              locationId ? '' : (startLocation || 'Wernigerode'),
               tourType,
               sp.stageNumber,
               sp.locationName,

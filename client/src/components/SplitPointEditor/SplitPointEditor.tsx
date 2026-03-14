@@ -1,7 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { splitPointsApi, type SplitPoint } from '../../api';
-import { useColorSettings } from '../../contexts/ColorSettingsContext';
+import { splitPointsApi, type SplitPoint, type RouteLocation } from '../../api';
 import './SplitPointEditor.css';
 
 type TourType = 'gold' | 'silver' | 'bronze';
@@ -11,8 +10,11 @@ interface SplitPointEditorProps {
   routeGeometry: [number, number][] | null;
   totalDistance: number;
   splitPoints: Record<TourType, SplitPoint[]>;
-  selectedCity: string;
+  locations: RouteLocation[];
+  selectedLocationId: number | null;
   onSplitPointChange: (splitPoints: Record<TourType, SplitPoint[]>) => void;
+  onLocationChange: (locationId: number | null) => void;
+  onTourTypeChange?: (tourType: TourType) => void;
   onSetSplitPointMode?: (
     active: boolean,
     tourType: TourType,
@@ -21,337 +23,235 @@ interface SplitPointEditorProps {
   ) => void;
 }
 
-// Calculate distance between coordinates in km
-function haversineDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-    Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+const TOUR_CONFIG = {
+  gold: { label: 'Gold', color: '#FFD700', icon: 'fa-crown', maxStages: 1 },
+  silver: { label: 'Silver', color: '#C0C0C0', icon: 'fa-medal', maxStages: 2 },
+  bronze: { label: 'Bronze', color: '#CD7F32', icon: 'fa-award', maxStages: 3 },
+} as const;
 
 export default function SplitPointEditor({
   routeId,
   routeGeometry,
-  totalDistance: _totalDistance,
   splitPoints,
-  selectedCity,
+  locations,
+  selectedLocationId,
   onSplitPointChange,
+  onLocationChange,
+  onTourTypeChange,
   onSetSplitPointMode,
 }: SplitPointEditorProps) {
   const { t } = useTranslation();
-  const { getStageColor } = useColorSettings();
   const [selectedTourType, setSelectedTourType] = useState<TourType>('silver');
   const [saving, setSaving] = useState(false);
   const [editingStage, setEditingStage] = useState<number | null>(null);
+  const [showLocDropdown, setShowLocDropdown] = useState(false);
+
+  const config = TOUR_CONFIG[selectedTourType];
+  const points = splitPoints[selectedTourType] || [];
+
+  const currentLocation = selectedLocationId 
+    ? locations.find(l => l.id === selectedLocationId)
+    : null;
+
+  const progress = useMemo(() => ({
+    completed: points.filter(sp => sp.lng && sp.lat).length,
+    total: config.maxStages,
+  }), [points, config.maxStages]);
 
   const handleSave = async () => {
     if (!routeId) return;
     setSaving(true);
     try {
-      // Save all tour types based on current props state
-      await splitPointsApi.save(
-        routeId,
-        'gold',
-        splitPoints.gold || [],
-        selectedCity
-      );
-      await splitPointsApi.save(
-        routeId,
-        'silver',
-        splitPoints.silver || [],
-        selectedCity
-      );
-      await splitPointsApi.save(
-        routeId,
-        'bronze',
-        splitPoints.bronze || [],
-        selectedCity
-      );
+      // For generic/default: pass 'Route Start' as startLocation, no locationId
+      // For specific location: pass locationId and empty string for startLocation
+      const startLoc = selectedLocationId ? '' : 'Route Start';
+      const locId = selectedLocationId || undefined;
+      
+      await Promise.all([
+        splitPointsApi.save(routeId, 'gold', splitPoints.gold || [], startLoc, locId),
+        splitPointsApi.save(routeId, 'silver', splitPoints.silver || [], startLoc, locId),
+        splitPointsApi.save(routeId, 'bronze', splitPoints.bronze || [], startLoc, locId),
+      ]);
     } catch (error) {
-      console.error('Failed to save split points:', error);
+      console.error('Failed to save:', error);
     } finally {
       setSaving(false);
     }
   };
 
-  const updateSplitPoint = (
-    tourType: TourType,
-    stageNumber: number,
-    updates: Partial<SplitPoint>
-  ) => {
+  const updatePoint = (tourType: TourType, stageNum: number, updates: Partial<SplitPoint>) => {
     const prev = splitPoints;
-    const points = prev[tourType] || [];
-    const existing = points.find(sp => sp.stageNumber === stageNumber);
-    let newPoints: SplitPoint[];
+    const pts = prev[tourType] || [];
+    const exists = pts.find(sp => sp.stageNumber === stageNum);
+    let newPts: SplitPoint[];
 
-    if (existing) {
-      newPoints = points.map(sp =>
-        sp.stageNumber === stageNumber ? { ...sp, ...updates } : sp
-      );
+    if (exists) {
+      newPts = pts.map(sp => sp.stageNumber === stageNum ? { ...sp, ...updates } : sp);
     } else {
-      newPoints = [
-        ...points,
-        {
-          stageNumber,
-          locationName: '',
-          lng: 0,
-          lat: 0,
-          distanceKm: 0,
-          ...updates,
-        },
-      ];
+      newPts = [...pts, { stageNumber: stageNum, locationName: '', lng: 0, lat: 0, distanceKm: 0, ...updates }];
     }
 
     if ('distanceKm' in updates) {
-      // Sort points by distance and re-assign contiguous stage numbers
-      newPoints.sort((a, b) => a.distanceKm - b.distanceKm);
-      newPoints = newPoints.map((sp, idx) => ({ ...sp, stageNumber: idx + 1 }));
+      newPts.sort((a, b) => a.distanceKm - b.distanceKm);
+      newPts = newPts.map((sp, i) => ({ ...sp, stageNumber: i + 1 }));
     }
 
-    onSplitPointChange({ ...prev, [tourType]: newPoints });
+    onSplitPointChange({ ...prev, [tourType]: newPts });
   };
 
-  const removeSplitPoint = (tourType: TourType, stageNumber: number) => {
+  const removePoint = (tourType: TourType, stageNum: number) => {
     const prev = splitPoints;
-    const points = prev[tourType] || [];
-    let newPoints = points.filter(sp => sp.stageNumber !== stageNumber);
-
-    // Sort and re-number appropriately 
-    newPoints.sort((a, b) => a.distanceKm - b.distanceKm);
-    newPoints = newPoints.map((sp, idx) => ({ ...sp, stageNumber: idx + 1 }));
-
-    onSplitPointChange({ ...prev, [tourType]: newPoints });
+    let newPts = (prev[tourType] || []).filter(sp => sp.stageNumber !== stageNum);
+    newPts.sort((a, b) => a.distanceKm - b.distanceKm);
+    newPts = newPts.map((sp, i) => ({ ...sp, stageNumber: i + 1 }));
+    onSplitPointChange({ ...prev, [tourType]: newPts });
   };
 
-  // Called when user clicks on map to set split point
-  const handleMapClick = (lng: number, lat: number) => {
-    if (editingStage === null || !routeGeometry) return;
+  const handleAdd = () => {
+    const maxStage = points.length > 0 ? Math.max(...points.map(p => p.stageNumber)) : 0;
+    const newNum = maxStage + 1;
+    setEditingStage(newNum);
 
-    // Find distance along route for this point
-    let distanceKm = 0;
-    let minDist = Infinity;
-    let closestCoord: [number, number] = [lng, lat];
-    let accumulatedDistance = 0;
-
-    for (let i = 0; i < routeGeometry.length; i++) {
-      const coord = routeGeometry[i];
-      const d = haversineDistance(lat, lng, coord[1], coord[0]);
-
-      if (i > 0) {
-        accumulatedDistance += haversineDistance(
-          routeGeometry[i - 1][1],
-          routeGeometry[i - 1][0],
-          coord[1],
-          coord[0]
-        );
-      }
-
-      if (d < minDist) {
-        minDist = d;
-        closestCoord = coord;
-        distanceKm = accumulatedDistance;
-      }
-    }
-
-    updateSplitPoint(selectedTourType, editingStage, {
-      lng: closestCoord[0],
-      lat: closestCoord[1],
-      distanceKm,
-    });
-
-    setEditingStage(null);
-    onSetSplitPointMode?.(false, selectedTourType, editingStage, null);
-  };
-
-  // Expose handleMapClick for parent to call
-  (window as any).__splitPointMapClick = handleMapClick;
-
-  const handleAddSplitPoint = () => {
-    const currentPoints = splitPoints[selectedTourType] || [];
-    const maxStage = currentPoints.length > 0
-      ? Math.max(...currentPoints.map(p => p.stageNumber))
-      : 0;
-    const newStageNum = maxStage + 1;
-
-    setEditingStage(newStageNum);
-
-    const callback = (lng: number, lat: number, distanceKm: number) => {
-      updateSplitPoint(selectedTourType, newStageNum, {
-        lng,
-        lat,
-        distanceKm,
-      });
+    onSetSplitPointMode?.(true, selectedTourType, newNum, (lng, lat, distanceKm) => {
+      updatePoint(selectedTourType, newNum, { lng, lat, distanceKm });
       setEditingStage(null);
-    };
-
-    onSetSplitPointMode?.(true, selectedTourType, newStageNum, callback);
+    });
   };
 
-  const currentTypePoints = splitPoints[selectedTourType] || [];
+  const handleEdit = (stageNum: number) => {
+    if (editingStage === stageNum) {
+      setEditingStage(null);
+      onSetSplitPointMode?.(false, selectedTourType, stageNum, null);
+    } else {
+      setEditingStage(stageNum);
+      onSetSplitPointMode?.(true, selectedTourType, stageNum, (lng, lat, distanceKm) => {
+        updatePoint(selectedTourType, stageNum, { lng, lat, distanceKm });
+        setEditingStage(null);
+      });
+    }
+  };
 
   return (
-    <div className="split-point-editor">
-      <div className="split-point-header">
-        <i className="fas fa-scissors"></i>
-        <span>{t('stageSplitPoints') || 'Stage Split Points'}</span>
+    <div className="spe-container">
+      {/* Compact Header */}
+      <div className="spe-header-compact">
+        <i className="fas fa-route"></i>
+        <span>Stage Manager</span>
       </div>
 
-      {/* Tour Type Selector */}
-      <div className="tour-type-tabs">
-        {(['gold', 'silver', 'bronze'] as TourType[]).map(type => (
-          <button
-            key={type}
-            onClick={() => setSelectedTourType(type)}
-            className={`tour-tab ${selectedTourType === type ? 'active' : ''}`}
-            style={{
-              borderColor:
-                selectedTourType === type ? getStageColor(type, 0) : undefined,
-            }}
-          >
-            {t(type, { defaultValue: type.charAt(0).toUpperCase() + type.slice(1) })}
-            <span className="stage-count">
-              {(splitPoints[type]?.length || 0) + 1} {t('stages') || 'stages'}
-            </span>
-          </button>
-        ))}
+      {/* Location Selector - Compact */}
+      <div className="spe-loc-bar">
+        <div className="spe-loc-label">Location</div>
+        <button className="spe-loc-select" onClick={() => setShowLocDropdown(!showLocDropdown)}>
+          <i className="fas fa-map-marker-alt"></i>
+          <span>{currentLocation?.name || 'Route Start'}</span>
+          <i className={`fas fa-chevron-${showLocDropdown ? 'up' : 'down'}`}></i>
+        </button>
+        
+        {showLocDropdown && (
+          <div className="spe-loc-dropdown">
+            <button className={!selectedLocationId ? 'active' : ''} onClick={() => { onLocationChange(null); setShowLocDropdown(false); }}>
+              <i className="fas fa-route"></i> Route Start
+            </button>
+            {locations.map(loc => (
+              <button key={loc.id} className={selectedLocationId === loc.id ? 'active' : ''} onClick={() => { onLocationChange(loc.id); setShowLocDropdown(false); }}>
+                <i className="fas fa-city"></i> {loc.name}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Split Points List */}
-      <div className="split-points-list">
-        {currentTypePoints.map(splitPoint => {
-          const splitNum = splitPoint.stageNumber;
-          const isEditing = editingStage === splitNum;
-
+      {/* Tour Tabs - Compact */}
+      <div className="spe-tabs">
+        {(Object.keys(TOUR_CONFIG) as TourType[]).map(type => {
+          const cfg = TOUR_CONFIG[type];
+          const isActive = selectedTourType === type;
+          const pct = Math.round(((splitPoints[type]?.filter(s => s.lng).length || 0) / cfg.maxStages) * 100);
+          
           return (
-            <div key={splitNum} className="split-point-item">
-              <div
-                className="split-point-badge"
-                style={{
-                  backgroundColor: getStageColor(selectedTourType, splitNum),
-                }}
-              >
-                {splitNum}↔{splitNum + 1}
+            <button key={type} className={`spe-tab ${isActive ? 'active' : ''}`} onClick={() => { setSelectedTourType(type); setEditingStage(null); onTourTypeChange?.(type); }}>
+              <div className="spe-tab-icon" style={{ color: cfg.color }}>
+                <i className={`fas ${cfg.icon}`}></i>
               </div>
-
-              <div className="split-point-content">
-                <input
-                  type="text"
-                  placeholder={`${t('location') || 'Location'} (e.g., City name)`}
-                  value={splitPoint.locationName || ''}
-                  onChange={e =>
-                    updateSplitPoint(selectedTourType, splitNum, {
-                      locationName: e.target.value,
-                    })
-                  }
-                  className="split-point-input"
-                />
-
-                {splitPoint.distanceKm ? (
-                  <span className="split-point-distance">
-                    {splitPoint.distanceKm.toFixed(1)} km
-                  </span>
-                ) : null}
+              <div className="spe-tab-info">
+                <span>{cfg.label}</span>
+                <div className="spe-tab-bar"><div style={{ width: `${pct}%`, background: cfg.color }} /></div>
               </div>
-
-              <div className="split-point-actions">
-                <button
-                  onClick={() => {
-                    if (isEditing) {
-                      setEditingStage(null);
-                      onSetSplitPointMode?.(
-                        false,
-                        selectedTourType,
-                        splitNum,
-                        null
-                      );
-                    } else {
-                      setEditingStage(splitNum);
-                      const callback = (
-                        lng: number,
-                        lat: number,
-                        distanceKm: number
-                      ) => {
-                        updateSplitPoint(selectedTourType, splitNum, {
-                          lng,
-                          lat,
-                          distanceKm,
-                        });
-                        setEditingStage(null);
-                      };
-                      onSetSplitPointMode?.(
-                        true,
-                        selectedTourType,
-                        splitNum,
-                        callback
-                      );
-                    }
-                  }}
-                  className={`action-btn ${isEditing ? 'active' : ''}`}
-                  title={t('clickOnMap') || 'Click on map to set'}
-                >
-                  <i
-                    className={`fas ${isEditing ? 'fa-crosshairs' : 'fa-map-pin'
-                      }`}
-                  ></i>
-                </button>
-
-                {splitPoint && (
-                  <button
-                    onClick={() => removeSplitPoint(selectedTourType, splitNum)}
-                    className="action-btn delete"
-                    title={t('remove') || 'Remove'}
-                  >
-                    <i className="fas fa-times"></i>
-                  </button>
-                )}
-              </div>
-            </div>
+            </button>
           );
         })}
-
-        {/* Add Split Point Button */}
-        <button
-          onClick={handleAddSplitPoint}
-          className="w-full flex items-center justify-center gap-2 py-2.5 mt-2 bg-[#1e2a33]/50 hover:bg-[#1e2a33] text-gray-300 border focus:outline-none border-dashed border-[#088d95]/50 hover:border-[#088d95] rounded-lg transition-all"
-        >
-          <i className="fas fa-plus text-[#088d95]"></i> {t('addSplitPoint') || 'Add Split Point'}
-        </button>
       </div>
 
-      {/* Save Button */}
-      {routeId && (
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="save-split-points-btn"
+      {/* Points List */}
+      <div className="spe-list">
+        <div className="spe-list-header">
+          <span>{config.label} Split Points</span>
+          <span className="spe-count">{progress.completed}/{progress.total}</span>
+        </div>
+
+        {points.length === 0 ? (
+          <div className="spe-empty">
+            <i className="fas fa-map-marker-alt"></i>
+            <span>No split points</span>
+          </div>
+        ) : (
+          points.map((sp, idx) => {
+            const isEditing = editingStage === sp.stageNumber;
+            const isSet = sp.lng && sp.lat;
+            
+            return (
+              <div key={sp.stageNumber} className={`spe-item ${isEditing ? 'editing' : ''} ${isSet ? 'set' : ''}`}>
+                <div className="spe-item-num" style={{ borderColor: config.color }}>
+                  {isSet ? <i className="fas fa-check" style={{ color: config.color }}></i> : sp.stageNumber}
+                </div>
+                <div className="spe-item-body">
+                  <input
+                    type="text"
+                    placeholder="Stage name"
+                    value={sp.locationName || ''}
+                    onChange={(e) => updatePoint(selectedTourType, sp.stageNumber, { locationName: e.target.value })}
+                  />
+                  {sp.distanceKm > 0 && (
+                    <span className="spe-dist">{Number(sp.distanceKm).toFixed(1)} km</span>
+                  )}
+                </div>
+                <div className="spe-item-actions">
+                  <button 
+                    className={isEditing ? 'active' : ''} 
+                    onClick={() => handleEdit(sp.stageNumber)}
+                    title={isEditing ? 'Cancel' : 'Set on map'}
+                  >
+                    <i className={`fas ${isEditing ? 'fa-times' : isSet ? 'fa-sync-alt' : 'fa-map-pin'}`}></i>
+                  </button>
+                  <button className="del" onClick={() => removePoint(selectedTourType, sp.stageNumber)}>
+                    <i className="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+
+        {/* Add Button */}
+        <button 
+          className={`spe-add ${editingStage ? 'picking' : ''}`} 
+          onClick={handleAdd} 
+          disabled={editingStage !== null}
         >
-          {saving ? (
-            <i className="fas fa-spinner fa-spin"></i>
+          {editingStage ? (
+            <><i className="fas fa-crosshairs fa-spin"></i> Click on route...</>
           ) : (
-            <i className="fas fa-save"></i>
+            <><i className="fas fa-plus"></i> Add Split Point</>
           )}
-          {t('saveSplitPoints') || 'Save Split Points'}
         </button>
-      )}
-
-      {/* Info */}
-      <div className="split-point-info">
-        <i className="fas fa-info-circle"></i>
-        <span>
-          {t('splitPointInfo') ||
-            'Click "Add Split Point" and then click on the route line to set stage boundaries. You can add as many as you need.'}
-        </span>
       </div>
+
+      {/* Save */}
+      <button className="spe-save" onClick={handleSave} disabled={saving}>
+        {saving ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-save"></i>}
+        Save
+      </button>
     </div>
   );
 }

@@ -54,9 +54,9 @@ export function calculateDistance(p1: GPXPoint, p2: GPXPoint): number {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((p1.lat * Math.PI) / 180) *
-      Math.cos((p2.lat * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos((p2.lat * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -164,8 +164,8 @@ export function getGPXRouteName(gpxText: string): string | null {
  */
 export function createElevationDataFromGPX(
   points: GPXPoint[]
-): { elevation: number; distance: number }[] {
-  const elevationData: { elevation: number; distance: number }[] = [];
+): { elevation: number; distance: number; coordinates?: [number, number] }[] {
+  const elevationData: { elevation: number; distance: number; coordinates?: [number, number] }[] = [];
   let accumulatedDistance = 0;
 
   for (let i = 0; i < points.length; i++) {
@@ -175,6 +175,7 @@ export function createElevationDataFromGPX(
     elevationData.push({
       elevation: Math.round(points[i].ele),
       distance: Math.round(accumulatedDistance * 100) / 100,
+      coordinates: [points[i].lon, points[i].lat],
     });
   }
 
@@ -193,7 +194,7 @@ export interface GPXAccurateStats {
   totalAscentM: number;
   totalDescentM: number;
   coordinates: [number, number][];
-  elevationData: { elevation: number; distance: number }[];
+  elevationData: { elevation: number; distance: number; coordinates?: [number, number] }[];
 }
 
 /**
@@ -216,8 +217,9 @@ function formatDurationHHMMSS(totalHours: number): string {
  * Key features:
  * - Parses ALL track points (no sampling/simplification)
  * - Uses Haversine formula for 2D distance
- * - Calculates elevation stats WITHOUT smoothing/hysteresis to capture micro-terrain
- * - Duration based on fixed 23 km/h average speed
+ * - No hysteresis filtering on GPX elevation data — data from routing engines
+ *   (Komoot, Strava, etc.) is already smoothed/cleaned by the source app's DEM
+ * - Duration based on fixed 10.9 km/h average speed
  *
  * @param gpxText Raw GPX XML string
  * @returns Accurate route statistics
@@ -235,14 +237,22 @@ export function processGPXWithAccurateStats(gpxText: string): GPXAccurateStats {
     totalDistanceKm += calculateDistance(points[i - 1], points[i]);
   }
 
-  // Calculate duration at fixed 23 km/h
-  const AVERAGE_SPEED_KMH = 23;
+  // Calculate duration at fixed 10.9 km/h
+  const AVERAGE_SPEED_KMH = 10.86;
   const durationHours = totalDistanceKm / AVERAGE_SPEED_KMH;
   const durationMinutes = Math.round(durationHours * 60);
   const durationFormatted = formatDurationHHMMSS(durationHours);
 
-  // Calculate elevation statistics WITHOUT smoothing/hysteresis
-  // This captures micro-terrain for accurate elevation gain
+  // Calculate elevation statistics from GPX elevation data.
+  //
+  // GPX files exported from routing engines (Komoot, Strava, etc.) contain
+  // elevation data that is already smoothed/cleaned by the source app's DEM.
+  // Unlike raw GPS sensor data or Mapbox DEM tiles, this data does NOT need
+  // hysteresis filtering — applying one would under-count real elevation.
+  //
+  // Note: The GPX export may contain slightly less elevation gain than what
+  // the source app shows internally, because export simplifies the track.
+
   let highestPointM = points[0].ele;
   let lowestPointM = points[0].ele;
   let totalAscentM = 0;
@@ -257,7 +267,7 @@ export function processGPXWithAccurateStats(gpxText: string): GPXAccurateStats {
     if (currentEle > highestPointM) highestPointM = currentEle;
     if (currentEle < lowestPointM) lowestPointM = currentEle;
 
-    // Accumulate ascent/descent - NO threshold/hysteresis
+    // Count all elevation changes — GPX data is already clean
     if (eleDiff > 0) {
       totalAscentM += eleDiff;
     } else if (eleDiff < 0) {
@@ -269,7 +279,7 @@ export function processGPXWithAccurateStats(gpxText: string): GPXAccurateStats {
   const coordinates: [number, number][] = points.map(p => [p.lon, p.lat]);
 
   // Create elevation data array with distances
-  const elevationData: { elevation: number; distance: number }[] = [];
+  const elevationData: { elevation: number; distance: number; coordinates?: [number, number] }[] = [];
   let accumulatedDistance = 0;
   for (let i = 0; i < points.length; i++) {
     if (i > 0) {
@@ -278,6 +288,7 @@ export function processGPXWithAccurateStats(gpxText: string): GPXAccurateStats {
     elevationData.push({
       elevation: Math.round(points[i].ele),
       distance: Math.round(accumulatedDistance * 100) / 100,
+      coordinates: [points[i].lon, points[i].lat],
     });
   }
 

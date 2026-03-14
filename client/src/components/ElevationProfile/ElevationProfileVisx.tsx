@@ -1,6 +1,7 @@
 // @ts-ignore
 import { AxisBottom, AxisLeft } from '@visx/axis';
 import { Brush } from '@visx/brush';
+// @ts-ignore
 import type { BaseBrush, Bounds, BrushHandleRenderProps } from '@visx/brush/lib/types';
 import { curveMonotoneX } from '@visx/curve';
 import { localPoint } from '@visx/event';
@@ -12,6 +13,7 @@ import { AreaClosed, LinePath } from '@visx/shape';
 import { useTooltip } from '@visx/tooltip';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import mapboxgl from 'mapbox-gl';
 import type { POI, Route } from '../../api';
 import { useColorSettings } from '../../contexts/ColorSettingsContext';
 import './ElevationProfileVisx.css';
@@ -27,6 +29,14 @@ const POI_ICON_FALLBACK = '/images/highlight-ico.png';
 const POI_ICON_SIZE = 34;
 
 // --- Interfaces ---
+interface SplitPoint {
+  stageNumber: number;
+  locationName: string;
+  lng: number;
+  lat: number;
+  distanceKm: number;
+}
+
 interface ElevationProfileVisxProps {
   route: Route | null;
   pois?: POI[];
@@ -34,6 +44,7 @@ interface ElevationProfileVisxProps {
   onPositionChange?: (pos: any) => void;
   highlightDistance?: number;
   onPoiClick?: (poi: POI) => void;
+  splitPoints?: SplitPoint[];
 }
 
 interface ElevationPoint {
@@ -77,6 +88,8 @@ const selectedBrushStyle = {
   fill: 'rgba(8, 141, 149, 0.15)',
   stroke: '#088d95',
   strokeWidth: 1,
+  rx: 10,
+  ry: 10,
 };
 
 // --- Main Chart Component ---
@@ -89,6 +102,7 @@ function ElevationChart({
   highlightDistance,
   onPoiClick,
   tourType = 'gold',
+  splitPoints = [],
 }: {
   width: number;
   height: number;
@@ -98,9 +112,10 @@ function ElevationChart({
   highlightDistance?: number;
   onPoiClick?: (poi: POI) => void;
   tourType?: 'gold' | 'silver' | 'bronze';
+  splitPoints?: SplitPoint[];
 }) {
   // Bounds
-  const margin = { top: 20, right: 0, bottom: 30, left: 40 };
+  const margin = { top: 20, right: 0, bottom: 30, left: 60 };
   const HEADER_HEIGHT =
     typeof window !== 'undefined' && window.innerWidth < 768 ? 85 : 60;
   const graphHeight = height - HEADER_HEIGHT;
@@ -230,6 +245,47 @@ function ElevationChart({
     tooltipLeft,
     tooltipTop,
   } = useTooltip<ElevationPoint>();
+
+  const [trailInfo, setTrailInfo] = useState<{ condition: string; type: string } | null>(null);
+
+  // Fetch surface data from Mapbox when hovering
+  useEffect(() => {
+    if (!tooltipOpen || !tooltipData) {
+      setTrailInfo(null);
+      return;
+    }
+
+    const { coordinates } = tooltipData;
+    // Don't fetch if coordinates are empty [0,0]
+    if (!coordinates || (coordinates[0] === 0 && coordinates[1] === 0)) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        const url = `https://api.mapbox.com/v4/mapbox.mapbox-streets-v8/tilequery/${coordinates[0]},${coordinates[1]}.json?radius=50&layers=road&access_token=${mapboxgl.accessToken}`;
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        let condition = 'Unknown';
+        let type = 'Unknown';
+
+        if (data && data.features && data.features.length > 0) {
+          const props = data.features[0].properties;
+          condition = props.surface || 'Paved';
+          type = props.class || 'Path';
+
+          condition = condition.charAt(0).toUpperCase() + condition.slice(1);
+          type = type.charAt(0).toUpperCase() + type.slice(1);
+        }
+
+        setTrailInfo({ condition, type });
+      } catch (e) {
+        console.error('Tilequery error:', e);
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timer);
+  }, [tooltipOpen, tooltipData]);
 
   const handleMouseMove = useCallback(
     (event: React.MouseEvent | React.TouchEvent) => {
@@ -678,49 +734,99 @@ function ElevationChart({
             ))}
 
             {/* Per-Stage Area & Line */}
-            {Array.from({ length: numStages }).map((_, stageIdx) => {
-              const stageColor = getStageColor(tourType, stageIdx);
-              const gradId = `stage-gradient-${stageIdx}`;
-              const stageFraction = 1 / numStages;
-              const maxDist =
-                data.length > 0 ? data[data.length - 1].distance : 1;
-              const stageStart = stageIdx * stageFraction * maxDist;
-              const stageEnd = (stageIdx + 1) * stageFraction * maxDist;
-              const stageData = data.filter(
-                d =>
-                  d.distance >= (stageIdx === 0 ? 0 : stageStart - 0.01) &&
-                  d.distance <=
-                  (stageIdx === numStages - 1 ? maxDist + 1 : stageEnd + 0.01)
-              );
-              if (stageData.length < 2) return null;
-              return (
-                <g key={stageIdx}>
-                  <defs>
-                    <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={stageColor} stopOpacity={0.7} />
-                      <stop offset="100%" stopColor={stageColor} stopOpacity={0.0} />
-                    </linearGradient>
-                  </defs>
-                  <AreaClosed
-                    data={stageData}
-                    x={d => xScale(d.distance)}
-                    y={d => yScale(d.elevation)}
-                    yScale={yScale}
-                    curve={curveMonotoneX}
-                    fill={`url(#${gradId})`}
-                    stroke="transparent"
-                  />
-                  <LinePath
-                    data={stageData}
-                    x={d => xScale(d.distance)}
-                    y={d => yScale(d.elevation)}
-                    curve={curveMonotoneX}
-                    stroke={stageColor}
-                    strokeWidth={2}
-                  />
-                </g>
-              );
-            })}
+            {(() => {
+              const maxDist = data.length > 0 ? data[data.length - 1].distance : 1;
+              
+              // Calculate stage boundaries based on split points
+              let stageBoundaries: number[] = [];
+              if (splitPoints && splitPoints.length > 0) {
+                // Sort split points by distance
+                const sortedPoints = [...splitPoints].sort((a, b) => a.distanceKm - b.distanceKm);
+                stageBoundaries = sortedPoints.map(p => p.distanceKm);
+              }
+              
+              // Build stage ranges
+              const stageRanges: { start: number; end: number; index: number }[] = [];
+              const numStagesActual = stageBoundaries.length + 1;
+              
+              for (let i = 0; i < numStagesActual; i++) {
+                const stageStart = i === 0 ? 0 : stageBoundaries[i - 1];
+                const stageEnd = i === numStagesActual - 1 ? maxDist : stageBoundaries[i];
+                stageRanges.push({ start: stageStart, end: stageEnd, index: i });
+              }
+              
+              return stageRanges.map(({ start, end, index }) => {
+                const stageColor = getStageColor(tourType, index);
+                const gradId = `stage-gradient-${index}`;
+                const stageData = data.filter(
+                  d => d.distance >= start - 0.01 && d.distance <= end + 0.01
+                );
+                if (stageData.length < 2) return null;
+                
+                return (
+                  <g key={index}>
+                    <defs>
+                      <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={stageColor} stopOpacity={0.7} />
+                        <stop offset="100%" stopColor={stageColor} stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <AreaClosed
+                      data={stageData}
+                      x={d => xScale(d.distance)}
+                      y={d => yScale(d.elevation)}
+                      yScale={yScale}
+                      curve={curveMonotoneX}
+                      fill={`url(#${gradId})`}
+                      stroke="transparent"
+                    />
+                    <LinePath
+                      data={stageData}
+                      x={d => xScale(d.distance)}
+                      y={d => yScale(d.elevation)}
+                      curve={curveMonotoneX}
+                      stroke={stageColor}
+                      strokeWidth={2}
+                    />
+                  </g>
+                );
+              });
+            })()}
+            
+            {/* Stage Divider Lines */}
+            {splitPoints && splitPoints.length > 0 && (
+              <>
+                {splitPoints.map((point, idx) => {
+                  const x = xScale(point.distanceKm);
+                  if (x < 0 || x > innerWidth) return null;
+                  return (
+                    <g key={`divider-${idx}`}>
+                      <line
+                        x1={x}
+                        x2={x}
+                        y1={0}
+                        y2={innerHeight}
+                        stroke="#ffffff"
+                        strokeWidth={2}
+                        strokeDasharray="5 3"
+                        opacity={0.6}
+                      />
+                      {/* Stage number label */}
+                      <text
+                        x={x + 5}
+                        y={15}
+                        fill="#ffffff"
+                        fontSize={10}
+                        fontWeight="bold"
+                        opacity={0.8}
+                      >
+                        S{idx + 1}
+                      </text>
+                    </g>
+                  );
+                })}
+              </>
+            )}
 
             {/* Axes */}
             <AxisBottom
@@ -843,16 +949,16 @@ function ElevationChart({
                     <span className="text-white font-bold text-sm font-['Roboto']">
                       {tooltipData.distance.toFixed(1)} km{' '}
                       <span className="text-gray-500 font-normal">
-                        ({tooltipData.elevation.toFixed(0)}m)
+                        ({tooltipData.cumulativeGain !== undefined
+                          ? tooltipData.cumulativeGain.toFixed(0)
+                          : '--'}{' '}   m )
                       </span>
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>Elevation gain:</span>
                     <span className="text-gray-200 font-['Roboto']">
-                      {tooltipData.cumulativeGain !== undefined
-                        ? tooltipData.cumulativeGain.toFixed(0)
-                        : '--'}{' '}
+                      {tooltipData.elevation.toFixed(0)}
                       m
                     </span>
                   </div>
@@ -867,11 +973,11 @@ function ElevationChart({
                   </div>
                   <div className="flex justify-between items-center">
                     <span>Trail condition:</span>
-                    <span className="text-gray-200 font-['Roboto']">Choose</span>
+                    <span className="text-gray-200 font-['Roboto']">{trailInfo ? trailInfo.condition : '...'}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>Trail Type:</span>
-                    <span className="text-gray-200 font-['Roboto']">Trail</span>
+                    <span className="text-gray-200 font-['Roboto']">{trailInfo ? trailInfo.type : '...'}</span>
                   </div>
                 </div>
               </div>
@@ -891,6 +997,7 @@ export default function ElevationProfileVisx({
   onPositionChange,
   onPoiClick,
   tourType = 'gold',
+  splitPoints,
 }: ElevationProfileVisxProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -928,7 +1035,8 @@ export default function ElevationProfileVisx({
           distance: d.distance,
           elevation: d.elevation,
           index: i,
-          coordinates: [0, 0] as [number, number],
+          // Fall back gracefully to routeGeometry if d.coordinates is undefined
+          coordinates: d.coordinates || (route.routeGeometry && route.routeGeometry[i] ? route.routeGeometry[i] : ([0, 0] as [number, number])),
           grade,
           cumulativeGain: cumGain,
         };
@@ -950,7 +1058,7 @@ export default function ElevationProfileVisx({
           distance: i * step,
           elevation,
           index: i,
-          coordinates: [0, 0],
+          coordinates: route.routeGeometry && route.routeGeometry[i] ? route.routeGeometry[i] : ([0, 0] as [number, number]),
           grade,
           cumulativeGain: cumGain,
         });
@@ -977,6 +1085,7 @@ export default function ElevationProfileVisx({
             highlightDistance={highlightDistance}
             onPoiClick={onPoiClick}
             tourType={tourType}
+            splitPoints={splitPoints}
           />
         )}
       </ParentSize>

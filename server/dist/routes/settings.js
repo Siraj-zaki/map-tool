@@ -67,7 +67,7 @@ router.get('/stages', async (_req, res) => {
         res.status(500).json({ success: false, message: 'Server error' });
     }
 });
-// PUT /api/settings/stages/:tourType/:stageNumber - Update a stage color
+// PUT /api/settings/stages/:tourType/:stageNumber - Update or create a stage color
 router.put('/stages/:tourType/:stageNumber', async (req, res) => {
     try {
         const { tourType, stageNumber } = req.params;
@@ -78,18 +78,25 @@ router.put('/stages/:tourType/:stageNumber', async (req, res) => {
                 .status(400)
                 .json({ success: false, message: 'Invalid tour type' });
         }
-        const result = await (0, db_js_1.run)(`UPDATE stage_colors 
-       SET line_color = ?, line_opacity = ?, area_color = ?, area_opacity = ?
-       WHERE tour_type = ? AND stage_number = ?`, [lineColor, lineOpacity, areaColor, areaOpacity, tourType, stageNumber]);
-        if (result.affectedRows === 0) {
+        // Validate stage number (1-10)
+        const stageNum = parseInt(stageNumber, 10);
+        if (isNaN(stageNum) || stageNum < 1 || stageNum > 10) {
             return res
-                .status(404)
-                .json({ success: false, message: 'Stage not found' });
+                .status(400)
+                .json({ success: false, message: 'Stage number must be between 1 and 10' });
         }
-        res.json({ success: true, message: 'Stage color updated' });
+        // Use INSERT ... ON DUPLICATE KEY UPDATE to create or update
+        await (0, db_js_1.run)(`INSERT INTO stage_colors (tour_type, stage_number, line_color, line_opacity, area_color, area_opacity)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           line_color = VALUES(line_color),
+           line_opacity = VALUES(line_opacity),
+           area_color = VALUES(area_color),
+           area_opacity = VALUES(area_opacity)`, [tourType, stageNum, lineColor, lineOpacity, areaColor || null, areaOpacity || 0.3]);
+        res.json({ success: true, message: 'Stage color saved' });
     }
     catch (error) {
-        console.error('Error updating stage color:', error);
+        console.error('Error saving stage color:', error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 });

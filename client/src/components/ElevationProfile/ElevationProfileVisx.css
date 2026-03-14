@@ -97,6 +97,7 @@
     opacity: 0;
     transform: translateX(-50%) translateY(0.25rem);
   }
+
   to {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
@@ -104,10 +105,12 @@
 }
 
 @keyframes bounce {
+
   0%,
   100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-0.3125rem);
   }
@@ -122,6 +125,8 @@
 
 .elevation-chart-visx .visx-brush-selection {
   fill-opacity: 0.2;
+  rx: 10px;
+  ry: 10px;
 }
 
 /* Further reduce brush visibility on mobile */

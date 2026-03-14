@@ -9,6 +9,7 @@ const EmbedView = lazy(() => import('./pages/EmbedView'));
 const Login = lazy(() => import('./pages/Login'));
 const PublicView = lazy(() => import('./pages/PublicView'));
 const Settings = lazy(() => import('./pages/Settings'));
+const StageManager = lazy(() => import('./pages/StageManager'));
 
 // Loading fallback component
 function LoadingFallback() {
@@ -39,21 +40,19 @@ function App() {
       {showLanguageToggle && (
         <div className="fixed top-3 left-3 z-[1000] flex gap-1">
           <button
-            className={`px-2 py-1 text-xs rounded border transition-all ${
-              i18n.language === 'de'
+            className={`px-2 py-1 text-xs rounded border transition-all ${i18n.language === 'de'
                 ? 'bg-[#088d95] border-[#088d95] text-white'
                 : 'bg-transparent border-[#1e2a33] text-gray-400 hover:border-[#088d95]'
-            }`}
+              }`}
             onClick={() => toggleLanguage('de')}
           >
             DE
           </button>
           <button
-            className={`px-2 py-1 text-xs rounded border transition-all ${
-              i18n.language === 'en'
+            className={`px-2 py-1 text-xs rounded border transition-all ${i18n.language === 'en'
                 ? 'bg-[#088d95] border-[#088d95] text-white'
                 : 'bg-transparent border-[#1e2a33] text-gray-400 hover:border-[#088d95]'
-            }`}
+              }`}
             onClick={() => toggleLanguage('en')}
           >
             EN
@@ -76,6 +75,7 @@ function App() {
           <Route path="/admin/edit" element={<Editor />} />
           <Route path="/admin/edit/:id" element={<Editor />} />
           <Route path="/admin/settings" element={<Settings />} />
+          <Route path="/admin/stages/:id" element={<StageManager />} />
         </Routes>
       </Suspense>
     </>

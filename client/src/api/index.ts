@@ -11,7 +11,7 @@ export interface Route {
   endPoint: [number, number];
   waypoints: [number, number][];
   routeGeometry?: [number, number][];
-  elevationData?: { elevation: number; distance: number }[];
+  elevationData?: { elevation: number; distance: number; coordinates?: [number, number] }[];
   distance: number;
   duration: number;
   highestPoint: number;
@@ -165,23 +165,39 @@ export interface SplitPointsResponse {
   };
 }
 
+export interface RouteLocation {
+  id: number;
+  name: string;
+  lng: number;
+  lat: number;
+  created_at?: string;
+}
+
 // Split Points API
 export const splitPointsApi = {
   getByRoute: async (
     routeId: number,
-    startLocation?: string
+    startLocation?: string,
+    locationId?: number
   ): Promise<SplitPointsResponse> => {
+    const key = locationId
+      ? `splitPoints:${routeId}:loc:${locationId}`
+      : `splitPoints:${routeId}:${startLocation || 'Wernigerode'}`;
+
     return cachedFetch(
-      `splitPoints:${routeId}:${startLocation || 'Wernigerode'}`,
+      key,
       async () => {
         let url = `${API_BASE}/routes/${routeId}/split-points`;
-        if (startLocation) {
-          url += `?startLocation=${encodeURIComponent(startLocation)}`;
-        }
+        const params = new URLSearchParams();
+        if (locationId) params.append('locationId', locationId.toString());
+        else if (startLocation !== undefined) params.append('startLocation', startLocation);
+
+        if (params.toString()) url += `?${params}`;
+
         const res = await fetch(url);
         return res.json();
       },
-      5 * 60 * 1000 // 5 minute cache
+      5 * 60 * 1000
     );
   },
 
@@ -189,17 +205,21 @@ export const splitPointsApi = {
     routeId: number,
     tourType: 'silver' | 'bronze' | 'gold',
     splitPoints: SplitPoint[],
-    startLocation: string
+    startLocation?: string,
+    locationId?: number
   ) => {
     const res = await fetch(`${API_BASE}/routes/${routeId}/split-points`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ tourType, splitPoints, startLocation }),
+      body: JSON.stringify({ tourType, splitPoints, startLocation, locationId }),
     });
     // Invalidate caches
-    clearCache(`splitPoints:${routeId}:${startLocation}`);
-    clearCache(`splitPoints:${routeId}:Wernigerode`);
+    if (locationId) {
+      clearCache(`splitPoints:${routeId}:loc:${locationId}`);
+    } else {
+      clearCache(`splitPoints:${routeId}:${startLocation || 'Wernigerode'}`);
+    }
     return res.json();
   },
 };
@@ -262,7 +282,7 @@ export const getDirections = async (
   return cachedFetch(
     cacheKey,
     async () => {
-      const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coords}?geometries=geojson&access_token=${MAPBOX_TOKEN}&overview=full`;
+      const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coords}?geometries=geojson&access_token=${MAPBOX_TOKEN}&overview=full&alternatives=true`;
       const res = await fetch(url);
       return res.json();
     },
@@ -487,6 +507,40 @@ export const settingsApi = {
         body: JSON.stringify(colors),
       }
     );
+    return res.json();
+  },
+};
+
+// Locations API
+export const locationsApi = {
+  getByRoute: async (routeId: number): Promise<{ success: boolean; data: RouteLocation[] }> => {
+    return cachedFetch(
+      `locations:${routeId}`,
+      async () => {
+        const res = await fetch(`${API_BASE}/locations/${routeId}`);
+        return res.json();
+      },
+      5 * 60 * 1000
+    );
+  },
+
+  create: async (location: Omit<RouteLocation, 'id'> & { route_id: number }) => {
+    const res = await fetch(`${API_BASE}/locations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(location),
+    });
+    clearCache(`locations:${location.route_id}`);
+    return res.json();
+  },
+
+  delete: async (id: number, routeId: number) => {
+    const res = await fetch(`${API_BASE}/locations/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    clearCache(`locations:${routeId}`);
     return res.json();
   },
 };

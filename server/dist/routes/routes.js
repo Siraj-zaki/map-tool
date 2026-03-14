@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const db_js_1 = require("../db.js");
+const fileUpload_js_1 = require("../utils/fileUpload.js");
 const auth_js_1 = require("./auth.js");
 const router = (0, express_1.Router)();
 // GET /api/routes - List all routes
@@ -42,7 +43,7 @@ router.get('/:id', async (req, res) => {
         const { id } = req.params;
         const route = await (0, db_js_1.queryOne)(`
       SELECT route_id as id, name, description, start_point, end_point,
-             route_geometry, distance, duration, highest_point, lowest_point,
+             route_geometry, elevation_data, distance, duration, highest_point, lowest_point,
              total_ascent, total_descent, created_at
       FROM routes WHERE route_id = ?
     `, [id]);
@@ -79,6 +80,9 @@ router.get('/:id', async (req, res) => {
                 routeGeometry: route.route_geometry
                     ? JSON.parse(route.route_geometry)
                     : null,
+                elevationData: route.elevation_data
+                    ? JSON.parse(route.elevation_data)
+                    : null,
                 waypoints: waypoints.map((wp) => JSON.parse(wp.location)),
                 pois: poisWithDetails,
                 highestPoint: route.highest_point,
@@ -96,7 +100,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/routes - Create new route (protected)
 router.post('/', auth_js_1.requireAuth, async (req, res) => {
     try {
-        const { name, description, startPoint, endPoint, routeGeometry, waypoints, distance, duration, highestPoint, lowestPoint, totalAscent, totalDescent, pois, } = req.body;
+        const { name, description, startPoint, endPoint, routeGeometry, elevationData, waypoints, distance, duration, highestPoint, lowestPoint, totalAscent, totalDescent, pois, } = req.body;
         if (!name || !startPoint || !endPoint) {
             return res.status(400).json({
                 success: false,
@@ -105,15 +109,16 @@ router.post('/', auth_js_1.requireAuth, async (req, res) => {
         }
         // Insert route
         const result = await (0, db_js_1.run)(`
-      INSERT INTO routes (name, description, start_point, end_point, route_geometry, distance, duration,
+      INSERT INTO routes (name, description, start_point, end_point, route_geometry, elevation_data, distance, duration,
                           highest_point, lowest_point, total_ascent, total_descent)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
             name,
             description || null,
             JSON.stringify(startPoint),
             JSON.stringify(endPoint),
             routeGeometry ? JSON.stringify(routeGeometry) : null,
+            elevationData ? JSON.stringify(elevationData) : null,
             distance || null,
             duration || null,
             highestPoint || null,
@@ -143,9 +148,13 @@ router.post('/', auth_js_1.requireAuth, async (req, res) => {
                     poi.best_time || null,
                 ]);
                 const poiId = poiResult.insertId;
-                if (poi.images) {
+                if (poi.images && Array.isArray(poi.images)) {
                     for (const img of poi.images) {
-                        await (0, db_js_1.run)('INSERT INTO poi_images (poi_id, image_path) VALUES (?, ?)', [poiId, img]);
+                        // Save base64 image to disk
+                        const imagePath = (0, fileUpload_js_1.saveBase64Image)(img);
+                        if (imagePath) {
+                            await (0, db_js_1.run)('INSERT INTO poi_images (poi_id, image_path) VALUES (?, ?)', [poiId, imagePath]);
+                        }
                     }
                 }
                 if (poi.amenities) {
@@ -166,7 +175,7 @@ router.post('/', auth_js_1.requireAuth, async (req, res) => {
 router.put('/:id', auth_js_1.requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, description, startPoint, endPoint, routeGeometry, waypoints, distance, duration, highestPoint, lowestPoint, totalAscent, totalDescent, pois, } = req.body;
+        const { name, description, startPoint, endPoint, routeGeometry, elevationData, waypoints, distance, duration, highestPoint, lowestPoint, totalAscent, totalDescent, pois, } = req.body;
         // Check if route exists
         const existing = await (0, db_js_1.queryOne)('SELECT route_id FROM routes WHERE route_id = ?', [id]);
         if (!existing) {
@@ -175,7 +184,7 @@ router.put('/:id', auth_js_1.requireAuth, async (req, res) => {
         // Update route
         await (0, db_js_1.run)(`
       UPDATE routes SET 
-        name = ?, description = ?, start_point = ?, end_point = ?, route_geometry = ?,
+        name = ?, description = ?, start_point = ?, end_point = ?, route_geometry = ?, elevation_data = ?,
         distance = ?, duration = ?, highest_point = ?, lowest_point = ?,
         total_ascent = ?, total_descent = ?
       WHERE route_id = ?
@@ -185,6 +194,7 @@ router.put('/:id', auth_js_1.requireAuth, async (req, res) => {
             JSON.stringify(startPoint),
             JSON.stringify(endPoint),
             routeGeometry ? JSON.stringify(routeGeometry) : null,
+            elevationData ? JSON.stringify(elevationData) : null,
             distance,
             duration,
             highestPoint,
@@ -210,7 +220,7 @@ router.put('/:id', auth_js_1.requireAuth, async (req, res) => {
           INSERT INTO pois (route_id, name, description, location, type, best_time)
           VALUES (?, ?, ?, ?, ?, ?)
         `, [
-                    id,
+                    id, // Use existing route id
                     poi.name,
                     poi.description || null,
                     JSON.stringify(poi.lngLat),
@@ -218,9 +228,13 @@ router.put('/:id', auth_js_1.requireAuth, async (req, res) => {
                     poi.best_time || null,
                 ]);
                 const poiId = poiResult.insertId;
-                if (poi.images) {
+                if (poi.images && Array.isArray(poi.images)) {
                     for (const img of poi.images) {
-                        await (0, db_js_1.run)('INSERT INTO poi_images (poi_id, image_path) VALUES (?, ?)', [poiId, img]);
+                        // Save base64 image to disk
+                        const imagePath = (0, fileUpload_js_1.saveBase64Image)(img);
+                        if (imagePath) {
+                            await (0, db_js_1.run)('INSERT INTO poi_images (poi_id, image_path) VALUES (?, ?)', [poiId, imagePath]);
+                        }
                     }
                 }
                 if (poi.amenities) {
@@ -250,6 +264,113 @@ router.delete('/:id', auth_js_1.requireAuth, async (req, res) => {
     catch (error) {
         console.error('Delete route error:', error);
         res.status(500).json({ success: false, error: 'Failed to delete route' });
+    }
+});
+// GET /api/routes/:id/split-points - Get split points for a route
+router.get('/:id/split-points', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { tourType, startLocation, locationId } = req.query;
+        let sql = `
+      SELECT id, tour_type as tourType, stage_number as stageNumber, 
+             location_name as locationName, lng, lat, distance_km as distanceKm,
+             location_id as locationId, start_location as startLocation
+      FROM stage_split_points 
+      WHERE route_id = ?
+    `;
+        const params = [id];
+        if (locationId) {
+            sql += ' AND location_id = ?';
+            params.push(locationId);
+        }
+        else if (startLocation !== undefined) {
+            sql += ' AND start_location = ?';
+            params.push(startLocation);
+        }
+        else {
+            // Fallback for backwards compatibility
+            sql += " AND (start_location = 'Wernigerode' OR start_location = 'Route Start') AND location_id IS NULL";
+        }
+        if (tourType) {
+            sql += ' AND tour_type = ?';
+            params.push(tourType);
+        }
+        sql += ' ORDER BY tour_type, stage_number';
+        const splitPoints = await (0, db_js_1.query)(sql, params);
+        // Group by tour type
+        const grouped = {
+            silver: [],
+            bronze: [],
+            gold: [],
+        };
+        splitPoints.forEach((sp) => {
+            grouped[sp.tourType].push({
+                stageNumber: sp.stageNumber,
+                locationName: sp.locationName,
+                lng: parseFloat(sp.lng),
+                lat: parseFloat(sp.lat),
+                distanceKm: parseFloat(sp.distanceKm),
+            });
+        });
+        res.json({ success: true, splitPoints: grouped });
+    }
+    catch (error) {
+        console.error('Get split points error:', error);
+        res
+            .status(500)
+            .json({ success: false, error: 'Failed to fetch split points' });
+    }
+});
+// PUT /api/routes/:id/split-points - Save split points for a route (protected)
+router.put('/:id/split-points', auth_js_1.requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { tourType, splitPoints, startLocation, locationId } = req.body;
+        if (!tourType || !['silver', 'bronze', 'gold'].includes(tourType)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid tour type. Must be bronze, silver, or gold.',
+            });
+        }
+        // We need either a startLocation (string, can be empty) or a locationId (number)
+        if (startLocation === undefined && !locationId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Start location or Location ID is required to save split points.',
+            });
+        }
+        // Delete existing split points for this route, tour type, and location
+        if (locationId) {
+            await (0, db_js_1.run)('DELETE FROM stage_split_points WHERE route_id = ? AND tour_type = ? AND location_id = ?', [id, tourType, locationId]);
+        }
+        else {
+            await (0, db_js_1.run)('DELETE FROM stage_split_points WHERE route_id = ? AND tour_type = ? AND location_id IS NULL', [id, tourType]);
+        }
+        // Insert new split points
+        if (splitPoints && splitPoints.length > 0) {
+            for (const sp of splitPoints) {
+                await (0, db_js_1.run)(`INSERT INTO stage_split_points 
+           (route_id, location_id, start_location, tour_type, stage_number, location_name, lng, lat, distance_km)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+                    id,
+                    locationId || null,
+                    locationId ? '' : (startLocation || 'Wernigerode'),
+                    tourType,
+                    sp.stageNumber,
+                    sp.locationName,
+                    sp.lng,
+                    sp.lat,
+                    sp.distanceKm,
+                ]);
+            }
+        }
+        res.json({ success: true, message: 'Split points saved' });
+    }
+    catch (error) {
+        console.error('Save split points error:', error);
+        res
+            .status(500)
+            .json({ success: false, error: 'Failed to save split points' });
     }
 });
 exports.default = router;

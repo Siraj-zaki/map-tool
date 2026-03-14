@@ -16,6 +16,7 @@ const gpx_js_1 = __importDefault(require("./routes/gpx.js"));
 const pois_js_1 = __importDefault(require("./routes/pois.js"));
 const routes_js_1 = __importDefault(require("./routes/routes.js"));
 const settings_js_1 = __importDefault(require("./routes/settings.js"));
+const locations_js_1 = __importDefault(require("./routes/locations.js"));
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 3001;
 // Middleware
@@ -27,8 +28,8 @@ app.use((0, cors_1.default)({
     ],
     credentials: true,
 }));
-app.use(express_1.default.json({ limit: '50mb' }));
-app.use(express_1.default.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express_1.default.json({ limit: '150mb' }));
+app.use(express_1.default.urlencoded({ extended: true, limit: '150mb' }));
 // Session middleware
 app.use((0, express_session_1.default)({
     secret: process.env.SESSION_SECRET || 'harterbrocken-secret-key',
@@ -50,6 +51,7 @@ app.use('/api/routes', routes_js_1.default);
 app.use('/api/pois', pois_js_1.default);
 app.use('/api/gpx', gpx_js_1.default);
 app.use('/api/settings', settings_js_1.default);
+app.use('/api/locations', locations_js_1.default);
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
