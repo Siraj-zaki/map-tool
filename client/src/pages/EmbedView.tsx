@@ -2,12 +2,41 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { routesApi, splitPointsApi, type POI, type Route, type SplitPoint } from '../api';
+
 import ElevationProfile from '../components/ElevationProfile/ElevationProfileVisx';
 import MapComponent from '../components/Map/MapComponent';
 import POISidebar from '../components/POI/POISidebar';
 import PremiumModal from '../components/Premium/PremiumModal';
 import RouteStatsBar from '../components/RouteStatsBar/RouteStatsBar';
 import TourStagePanel from '../components/TourStagePanel/TourStagePanel';
+
+// Debug logger utility
+const DEBUG = true;
+const log = {
+  info: (msg: string, data?: any) => {
+    if (DEBUG) {
+      console.log(`%c[EmbedView] ${msg}`, 'color: #088d95; font-weight: bold;', data ?? '');
+    }
+  },
+  warn: (msg: string, data?: any) => {
+    if (DEBUG) {
+      console.warn(`%c[EmbedView] ⚠️ ${msg}`, 'color: #f59e0b; font-weight: bold;', data ?? '');
+    }
+  },
+  error: (msg: string, data?: any) => {
+    if (DEBUG) {
+      console.error(`%c[EmbedView] ❌ ${msg}`, 'color: #ef4444; font-weight: bold;', data ?? '');
+    }
+  },
+  compare: (label: string, apiValue: any, displayValue: any) => {
+    if (DEBUG) {
+      console.log(`%c[EmbedView] COMPARE: ${label}`, 'color: #8b5cf6; font-weight: bold;');
+      console.log('  API Value:', apiValue);
+      console.log('  Display Value:', displayValue);
+      console.log('  Match:', JSON.stringify(apiValue) === JSON.stringify(displayValue) ? '✅ YES' : '❌ NO');
+    }
+  }
+};
 
 export default function EmbedView() {
   const { t, i18n } = useTranslation();
@@ -44,17 +73,79 @@ export default function EmbedView() {
     silver: SplitPoint[];
     bronze: SplitPoint[];
   } | null>(null);
+  
+  // Ref to track previous split points for comparison
+  const prevSplitPointsRef = useRef(splitPoints);
+  const apiResponseRef = useRef<any>(null);
+  const fetchTimestampRef = useRef<number>(0);
 
   // Fetch split points when location changes
   useEffect(() => {
     if (route?.id) {
       const startLocation = selectedLocationId ? undefined : 'Route Start';
       const locId = selectedLocationId || undefined;
+      
+      // Generate unique fetch ID to handle race conditions
+      const currentFetchId = Date.now();
+      fetchTimestampRef.current = currentFetchId;
+      
+      log.info('🔄 FETCHING SPLIT POINTS', {
+        routeId: route.id,
+        selectedLocationId,
+        startLocation,
+        locationId: locId,
+        fetchId: currentFetchId,
+        timestamp: new Date().toISOString()
+      });
+      
       splitPointsApi.getByRoute(route.id, startLocation, locId).then(res => {
-        if (res.success) {
-          setSplitPoints(res.splitPoints);
+        // Ignore stale responses
+        if (currentFetchId !== fetchTimestampRef.current) {
+          log.warn('⚠️ Ignoring stale API response', { 
+            fetchId: currentFetchId, 
+            current: fetchTimestampRef.current 
+          });
+          return;
         }
-      }).catch(console.error);
+        
+        if (res.success) {
+          apiResponseRef.current = res.splitPoints;
+          
+          log.info('✅ API RESPONSE RECEIVED - USING THESE VALUES DIRECTLY', {
+            fetchId: currentFetchId,
+            locationContext: locId ? `Location ${locId}` : startLocation,
+            gold: res.splitPoints.gold?.length || 0,
+            silver: res.splitPoints.silver?.length || 0,
+            bronze: res.splitPoints.bronze?.length || 0,
+            goldPoints: res.splitPoints.gold,
+            silverPoints: res.splitPoints.silver,
+            bronzePoints: res.splitPoints.bronze
+          });
+          
+          // Detailed logging of each split point with coordinates
+          (['gold', 'silver', 'bronze'] as const).forEach(tourType => {
+            const points = res.splitPoints[tourType] || [];
+            if (points.length > 0) {
+              log.info(`📍 ${tourType.toUpperCase()} Split Points Details:`,
+                points.map((sp, idx) => ({
+                  stage: sp.stageNumber,
+                  name: sp.locationName,
+                  coords: { lng: sp.lng, lat: sp.lat },
+                  distanceKm: sp.distanceKm
+                }))
+              );
+            }
+          });
+          
+          // Note: prevSplitPointsRef tracks previous values for debugging only
+          prevSplitPointsRef.current = res.splitPoints;
+          setSplitPoints(res.splitPoints);
+        } else {
+          log.error('API returned error', res);
+        }
+      }).catch(err => {
+        log.error('Failed to fetch split points', err);
+      });
     }
   }, [route?.id, selectedLocationId]);
 
@@ -69,7 +160,103 @@ export default function EmbedView() {
     }
   }, [lang, i18n]);
 
+  // Expose debug helpers to window for console debugging
   useEffect(() => {
+    (window as any).__EMBEDVIEW_DEBUG__ = {
+      getCurrentState: () => ({
+        routeId,
+        route,
+        tourType,
+        selectedStage,
+        selectedLocationId,
+        splitPoints,
+        apiResponse: apiResponseRef.current
+      }),
+      getSplitPoints: () => splitPoints,
+      getApiResponse: () => apiResponseRef.current,
+      compareSplitPoints: () => {
+        if (!apiResponseRef.current || !splitPoints) {
+          console.log('No data to compare');
+          return;
+        }
+        console.log('%c=== SPLIT POINTS COMPARISON ===', 'color: #8b5cf6; font-size: 14px; font-weight: bold;');
+        (['gold', 'silver', 'bronze'] as const).forEach(type => {
+          const api = apiResponseRef.current[type] || [];
+          const state = splitPoints[type] || [];
+          console.log(`\n%c${type.toUpperCase()}:`, 'color: #088d95; font-weight: bold;');
+          console.log('  API Response:', api.length, 'points');
+          console.log('  Current State:', state.length, 'points');
+          console.log('  Match:', api.length === state.length ? '✅' : '❌');
+          if (api.length > 0) {
+            console.log('  Points:');
+            api.forEach((sp: SplitPoint, i: number) => {
+              console.log(`    [${i + 1}] Stage ${sp.stageNumber}: "${sp.locationName}" @ [${sp.lng.toFixed(6)}, ${sp.lat.toFixed(6)}] - ${sp.distanceKm.toFixed(2)}km`);
+            });
+          }
+        });
+      },
+      checkMapCoordinates: () => {
+        if (!route?.routeGeometry) {
+          console.log('No route geometry available');
+          return;
+        }
+        console.log('%c=== ROUTE GEOMETRY ===', 'color: #10b981; font-size: 14px; font-weight: bold;');
+        console.log('Total points:', route.routeGeometry.length);
+        console.log('Start:', route.routeGeometry[0]);
+        console.log('End:', route.routeGeometry[route.routeGeometry.length - 1]);
+        
+        if (splitPoints) {
+          console.log('%c\n=== SPLIT POINTS ON MAP ===', 'color: #10b981; font-size: 14px; font-weight: bold;');
+          (['gold', 'silver', 'bronze'] as const).forEach(type => {
+            const points = splitPoints[type] || [];
+            if (points.length > 0) {
+              console.log(`\n%c${type.toUpperCase()} Split Points on Map:`, 'color: #088d95; font-weight: bold;');
+              points.forEach((sp, i) => {
+                // Find closest point on route geometry
+                let minDist = Infinity;
+                let closestIdx = -1;
+                route.routeGeometry?.forEach((coord, idx) => {
+                  const dist = Math.sqrt(
+                    Math.pow(coord[0] - sp.lng, 2) + Math.pow(coord[1] - sp.lat, 2)
+                  );
+                  if (dist < minDist) {
+                    minDist = dist;
+                    closestIdx = idx;
+                  }
+                });
+                
+                const closestCoord = closestIdx >= 0 ? route.routeGeometry?.[closestIdx] : null;
+                console.log(`  [${i + 1}] Stage ${sp.stageNumber}:`, {
+                  splitPoint: [sp.lng.toFixed(6), sp.lat.toFixed(6)],
+                  closestRoutePoint: closestCoord ? [closestCoord[0].toFixed(6), closestCoord[1].toFixed(6)] : 'N/A',
+                  distanceFromRoute: (minDist * 111000).toFixed(2) + 'm', // Approximate meters
+                  indexOnRoute: closestIdx
+                });
+              });
+            }
+          });
+        }
+      },
+      refreshSplitPoints: () => {
+        if (route?.id) {
+          const startLocation = selectedLocationId ? undefined : 'Route Start';
+          const locId = selectedLocationId || undefined;
+          log.info('🔄 Manually refreshing split points');
+          return splitPointsApi.getByRoute(route.id, startLocation, locId);
+        }
+      }
+    };
+    
+    console.log('%c🔧 Debug helpers available! Try:', 'color: #088d95; font-size: 12px;');
+    console.log('  window.__EMBEDVIEW_DEBUG__.getCurrentState()');
+    console.log('  window.__EMBEDVIEW_DEBUG__.compareSplitPoints()');
+    console.log('  window.__EMBEDVIEW_DEBUG__.checkMapCoordinates()');
+    console.log('  window.__EMBEDVIEW_DEBUG__.refreshSplitPoints()  - Refetches split points');
+  }, [route, splitPoints, selectedLocationId]);
+
+  useEffect(() => {
+    log.info('🚀 COMPONENT MOUNTED', { routeId, lang, url: window.location.href });
+    
     if (!routeId) {
       setError('No route ID provided. Use ?route=ID');
       setLoading(false);
@@ -78,15 +265,26 @@ export default function EmbedView() {
 
     const loadRoute = async () => {
       try {
+        log.info('📡 Fetching route...', { routeId: Number(routeId) });
         const result = await routesApi.getById(Number(routeId));
         if (result.success) {
+          log.info('✅ Route loaded', {
+            routeId: result.route.id,
+            name: result.route.name,
+            distance: result.route.distance,
+            hasGeometry: !!result.route.routeGeometry,
+            geometryPoints: result.route.routeGeometry?.length || 0,
+            startPoint: result.route.startPoint,
+            endPoint: result.route.endPoint
+          });
           setRoute(result.route);
         } else {
+          log.error('Route not found', result);
           setError('Route not found');
         }
       } catch (err) {
+        log.error('Failed to load route', err);
         setError('Failed to load route');
-        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -170,9 +368,7 @@ export default function EmbedView() {
   const handleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(err => {
-        console.error(
-          `Error attempting to enable full-screen mode: ${err.message} (${err.name})`
-        );
+        log.error('Fullscreen error', err);
       });
     } else {
       if (document.exitFullscreen) {
@@ -180,6 +376,53 @@ export default function EmbedView() {
       }
     }
   }, []);
+
+  // Handler for tour type changes with logging
+  const handleTourTypeChange = useCallback((type: 'gold' | 'silver' | 'bronze') => {
+    log.info('🏆 Tour type changed', {
+      from: tourType,
+      to: type,
+      availableSplitPoints: splitPoints?.[type]?.length || 0
+    });
+    
+    // Log the current split points for this tour type
+    const points = splitPoints?.[type] || [];
+    if (points.length > 0) {
+      log.info(`📍 Current ${type.toUpperCase()} split points:`,
+        points.map(sp => ({
+          stage: sp.stageNumber,
+          name: sp.locationName,
+          coords: [sp.lng, sp.lat],
+          distance: sp.distanceKm
+        }))
+      );
+    } else {
+      log.warn(`No split points found for ${type} tour type`);
+    }
+    
+    setTourType(type);
+  }, [tourType, splitPoints]);
+
+  // Handler for stage selection with logging
+  const handleStageSelect = useCallback((stage: number | null) => {
+    log.info('🎯 Stage selected', {
+      stage,
+      tourType,
+      totalStages: (splitPoints?.[tourType]?.length || 0) + 1,
+      splitPointForStage: stage && stage > 1 ? splitPoints?.[tourType]?.[stage - 2] : null
+    });
+    setSelectedStage(stage);
+  }, [tourType, splitPoints]);
+
+  // Handler for location changes with logging
+  const handleLocationChange = useCallback((locationId: number | null) => {
+    log.info('🗺️ Location selection changed', {
+      from: selectedLocationId,
+      to: locationId,
+      locationName: locationId ? 'Specific Location' : 'Route Start'
+    });
+    setSelectedLocationId(locationId);
+  }, [selectedLocationId]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -212,6 +455,19 @@ export default function EmbedView() {
     <div className="relative w-full h-screen overflow-hidden bg-black font-sans">
       {/* 1. Background Map */}
       <div className="absolute inset-0 md:inset-0 bottom-[360px] md:bottom-0 z-0">
+        {(() => {
+          log.info('🗺️ RENDERING MapComponent with props:', {
+            tourType,
+            selectedStage,
+            selectedLocationId,
+            splitPointsAvailable: {
+              gold: splitPoints?.gold?.length || 0,
+              silver: splitPoints?.silver?.length || 0,
+              bronze: splitPoints?.bronze?.length || 0
+            }
+          });
+          return null;
+        })()}
         <MapComponent
           route={route}
           tourType={tourType}
@@ -221,8 +477,10 @@ export default function EmbedView() {
           highlightPosition={highlightPosition}
           flyToLocation={flyToLocation}
           selectedLocationId={selectedLocationId}
+          splitPoints={splitPoints}
           onMapLoad={m => {
             mapRef.current = m;
+            log.info('✅ Map loaded successfully');
           }}
         />
       </div>
@@ -241,14 +499,23 @@ export default function EmbedView() {
 
       {/* 3. Left Floating Panel (Tour Stages) */}
       <div className="static md:absolute md:top-18 md:left-5 z-60 flex flex-col gap-4 md:transform md:origin-top-left md:scale-90 lg:scale-100 transition-all">
+        {(() => {
+          log.info('📋 RENDERING TourStagePanel with externalSplitPoints:', {
+            gold: splitPoints?.gold?.length || 0,
+            silver: splitPoints?.silver?.length || 0,
+            bronze: splitPoints?.bronze?.length || 0
+          });
+          return null;
+        })()}
         <TourStagePanel
           route={route}
           tourType={tourType}
-          onTourTypeChange={setTourType}
+          onTourTypeChange={handleTourTypeChange}
           selectedStage={selectedStage}
-          onStageSelect={setSelectedStage}
+          onStageSelect={handleStageSelect}
           selectedLocationId={selectedLocationId}
-          onLocationChange={setSelectedLocationId}
+          onLocationChange={handleLocationChange}
+          externalSplitPoints={splitPoints}
         />
         {/* <LocationFilter routeId={route.id} tourType={tourType} /> */}
       </div>
@@ -407,6 +674,19 @@ export default function EmbedView() {
       {/* 5. Bottom Elevation Profile Panel */}
       <div className="absolute bottom-[92px] md:bottom-4 left-0 md:left-4 right-0 md:right-4 h-[280px] md:h-56 z-50 bg-black md:bg-[#020617] rounded-t-[20px] md:rounded-2xl overflow-hidden shadow-2xl border-t border-cyan-950 md:border-gray-800 transition-all duration-300">
         <div className="h-full w-full relative">
+          {(() => {
+            const currentSplitPoints = splitPoints?.[tourType] || [];
+            log.info('📈 RENDERING ElevationProfile with splitPoints:', {
+              tourType,
+              count: currentSplitPoints.length,
+              points: currentSplitPoints.map(sp => ({
+                stage: sp.stageNumber,
+                distanceKm: sp.distanceKm,
+                coords: [sp.lng, sp.lat]
+              }))
+            });
+            return null;
+          })()}
           <ElevationProfile
             route={route}
             pois={route.pois}

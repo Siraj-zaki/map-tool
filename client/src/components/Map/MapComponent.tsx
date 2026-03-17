@@ -6,7 +6,6 @@ const HotelImage = '/images/hotel-marker.png';
 const SummitImage = '/images/mountain-marker.png';
 const RestaurantImage = '/images/resturant-marker.png';
 import type { POI, Route, SplitPoint } from '../../api';
-import { splitPointsApi } from '../../api';
 import { POI_ICON_FALLBACK, ROUTE_STYLES } from '../../constants/routeStyles';
 import { useColorSettings } from '../../contexts/ColorSettingsContext';
 
@@ -68,6 +67,12 @@ interface MapComponentProps {
   flyToLocation?: { lng: number; lat: number } | null;
   onMapLoad?: (map: mapboxgl.Map) => void;
   selectedLocationId?: number | null;
+  // External split points from parent (EmbedView/PublicView)
+  splitPoints?: {
+    gold: SplitPoint[];
+    silver: SplitPoint[];
+    bronze: SplitPoint[];
+  } | null;
 }
 
 export default function MapComponent({
@@ -80,6 +85,7 @@ export default function MapComponent({
   flyToLocation,
   onMapLoad,
   selectedLocationId = null,
+  splitPoints: externalSplitPoints,
 }: MapComponentProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -90,10 +96,9 @@ export default function MapComponent({
   const routeCoordinatesRef = useRef<[number, number][]>([]);
   const onPoiClickRef = useRef(onPoiClick);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [splitPoints, setSplitPoints] = useState<{
-    silver: SplitPoint[];
-    bronze: SplitPoint[];
-  } | null>(null);
+  
+  // Use external split points from parent - ensures consistency across components
+  const splitPoints = externalSplitPoints;
 
   // Keep ref updated with latest callback
   useEffect(() => {
@@ -145,28 +150,26 @@ export default function MapComponent({
     []
   );
 
-  // Fetch split points when route changes
+  // Log split points for debugging
   useEffect(() => {
-    if (!route?.id) {
-      setSplitPoints(null);
-      return;
+    if (splitPoints) {
+      console.log('[MapComponent] ✅ USING EXTERNAL SPLIT POINTS FROM PARENT (EmbedView):', {
+        gold: splitPoints.gold?.length || 0,
+        silver: splitPoints.silver?.length || 0,
+        bronze: splitPoints.bronze?.length || 0,
+        currentTourType: tourType,
+        pointsForCurrentTour: splitPoints[tourType]?.map(p => ({
+          stage: p.stageNumber,
+          name: p.locationName,
+          lng: p.lng.toFixed(6),
+          lat: p.lat.toFixed(6),
+          distanceKm: p.distanceKm.toFixed(2)
+        }))
+      });
+    } else {
+      console.log('[MapComponent] ⚠️ No external split points provided - will use even distribution');
     }
-
-    const fetchSplitPoints = async () => {
-      try {
-        const startLocation = selectedLocationId ? undefined : 'Route Start';
-        const locationId = selectedLocationId || undefined;
-        const result = await splitPointsApi.getByRoute(route.id, startLocation, locationId);
-        if (result.success) {
-          setSplitPoints(result.splitPoints);
-        }
-      } catch (err) {
-        console.error('Failed to fetch split points:', err);
-      }
-    };
-
-    fetchSplitPoints();
-  }, [route?.id, selectedLocationId]);
+  }, [splitPoints, tourType]);
 
   // Create arrow SVG for route direction indicators - matching original main.js
   const createArrowImage = useCallback(() => {
@@ -330,13 +333,14 @@ export default function MapComponent({
       numStages: number,
       tourType: TourType
     ) => {
-      // Default even split if no custom points or Gold tour
+      // Default even split if no custom points available
       if (
-        tourType === 'gold' ||
         !splitPoints ||
-        (tourType === 'silver' && splitPoints.silver.length === 0) ||
-        (tourType === 'bronze' && splitPoints.bronze.length === 0)
+        (tourType === 'gold' && (!splitPoints.gold || splitPoints.gold.length === 0)) ||
+        (tourType === 'silver' && (!splitPoints.silver || splitPoints.silver.length === 0)) ||
+        (tourType === 'bronze' && (!splitPoints.bronze || splitPoints.bronze.length === 0))
       ) {
+        console.log(`[MapComponent] Using even split for ${tourType}: no custom split points`);
         const segments: [number, number][][] = [];
         const pointsPerStage = Math.ceil(coordinates.length / numStages);
 
@@ -352,7 +356,7 @@ export default function MapComponent({
       }
 
       // Use custom split points
-      const relevantSplitPoints = splitPoints[tourType as 'silver' | 'bronze'];
+      const relevantSplitPoints = splitPoints[tourType];
       // Sort points by stage number just in case
       const sortedSplitPoints = [...relevantSplitPoints].sort(
         (a, b) => a.stageNumber - b.stageNumber
@@ -414,7 +418,7 @@ export default function MapComponent({
     if (!map.current || !isLoaded || !route) return;
 
     // Calculate number of stages dynamically based on split points
-    const relevantSplitPoints = splitPoints?.[tourType as 'silver' | 'bronze'] || [];
+    const relevantSplitPoints = splitPoints?.[tourType] || [];
     const numStages = relevantSplitPoints.length + 1;
 
     // Clear existing markers
@@ -1105,7 +1109,7 @@ export default function MapComponent({
       return;
 
     // Calculate number of stages dynamically based on split points
-    const relevantSplitPoints = splitPoints?.[tourType as 'silver' | 'bronze'] || [];
+    const relevantSplitPoints = splitPoints?.[tourType] || [];
     const numStages = relevantSplitPoints.length + 1;
 
     // Only process if we have multiple stages and valid selection

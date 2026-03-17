@@ -50,8 +50,10 @@ export default function PublicView() {
     if (route?.id) {
       const startLocation = selectedLocationId ? undefined : 'Route Start';
       const locId = selectedLocationId || undefined;
+      console.log('[PublicView] Fetching split points:', { routeId: route.id, startLocation, locId });
       splitPointsApi.getByRoute(route.id, startLocation, locId).then(res => {
         if (res.success) {
+          console.log('[PublicView] Received split points:', res.splitPoints);
           setSplitPoints(res.splitPoints);
         }
       }).catch(console.error);
@@ -242,6 +244,7 @@ export default function PublicView() {
           onStageSelect={setSelectedStage}
           selectedLocationId={selectedLocationId}
           onLocationChange={setSelectedLocationId}
+          externalSplitPoints={splitPoints}
         />
         {/* <LocationFilter routeId={route.id} tourType={tourType} /> */}
       </div>

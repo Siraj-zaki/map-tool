@@ -505,11 +505,7 @@ function ElevationChart({
   if (width < 10) return null;
 
   // --- Minimap with Brush ---
-  // Single Brush instance rendered once. On desktop it shows in the header,
-  // on mobile in the mobile controls section. CSS hides the inactive one but
-  // since React renders both, we only attach brushRef to one via key-based
-  // conditional. Actually, we use a single render call placed in a portal-like
-  // pattern — but simplest: render it once and place it.
+  // Renders the same stage colors as the main graph
   const minimapContent = (
     <div
       className="relative bg-[#0b1215] border border-[#2a4e58] shadow-xl overflow-hidden shrink-0 mx-auto md:mx-0 rounded-[10px]"
@@ -517,27 +513,101 @@ function ElevationChart({
     >
       <svg width={brushWidth} height={brushHeight}>
         <defs>
+          {/* Static fallback gradient */}
           <linearGradient
-            id="minimap-gradient"
+            id="minimap-gradient-fallback"
             x1="0" y1="0" x2="0" y2="1"
           >
             <stop offset="0%" stopColor="#088d95" stopOpacity={0.8} />
             <stop offset="100%" stopColor="#088d95" stopOpacity={0.2} />
           </linearGradient>
+          
+          {/* Per-stage gradients - same as main graph */}
+          {(() => {
+            const maxDist = data.length > 0 ? data[data.length - 1].distance : 1;
+            let stageBoundaries: number[] = [];
+            if (splitPoints && splitPoints.length > 0) {
+              const sortedPoints = [...splitPoints].sort((a, b) => a.distanceKm - b.distanceKm);
+              stageBoundaries = sortedPoints.map(p => p.distanceKm);
+            }
+            const numStages = stageBoundaries.length + 1;
+            
+            return Array.from({ length: numStages }).map((_, index) => {
+              const stageColor = getStageColor(tourType, index);
+              return (
+                <linearGradient 
+                  key={`minimap-grad-${index}`}
+                  id={`minimap-stage-gradient-${index}`}
+                  x1="0" y1="0" x2="0" y2="1"
+                >
+                  <stop offset="0%" stopColor={stageColor} stopOpacity={0.8} />
+                  <stop offset="100%" stopColor={stageColor} stopOpacity={0.2} />
+                </linearGradient>
+              );
+            });
+          })()}
         </defs>
 
-        {/* Full elevation profile as background */}
-        <AreaClosed
-          data={data}
-          x={d => brushXScale(d.distance)}
-          y={d => brushYScale(d.elevation)}
-          yScale={brushYScale}
-          fill="url(#minimap-gradient)"
-          stroke="#088d95"
-          strokeOpacity={0.6}
-          strokeWidth={1}
-          pointerEvents="none"
-        />
+        {/* Per-Stage Areas - same coloring as main graph */}
+        {(() => {
+          const maxDist = data.length > 0 ? data[data.length - 1].distance : 1;
+          let stageBoundaries: number[] = [];
+          if (splitPoints && splitPoints.length > 0) {
+            const sortedPoints = [...splitPoints].sort((a, b) => a.distanceKm - b.distanceKm);
+            stageBoundaries = sortedPoints.map(p => p.distanceKm);
+          }
+          
+          const stageRanges: { start: number; end: number; index: number }[] = [];
+          const numStagesActual = stageBoundaries.length + 1;
+          
+          for (let i = 0; i < numStagesActual; i++) {
+            const stageStart = i === 0 ? 0 : stageBoundaries[i - 1];
+            const stageEnd = i === numStagesActual - 1 ? maxDist : stageBoundaries[i];
+            stageRanges.push({ start: stageStart, end: stageEnd, index: i });
+          }
+          
+          // If no split points, use single static gradient
+          if (stageRanges.length === 0) {
+            return (
+              <AreaClosed
+                data={data}
+                x={d => brushXScale(d.distance)}
+                y={d => brushYScale(d.elevation)}
+                yScale={brushYScale}
+                fill="url(#minimap-gradient-fallback)"
+                stroke="#088d95"
+                strokeOpacity={0.6}
+                strokeWidth={1}
+                pointerEvents="none"
+              />
+            );
+          }
+          
+          // Render each stage with its color
+          return stageRanges.map(({ start, end, index }) => {
+            const stageColor = getStageColor(tourType, index);
+            const stageData = data.filter(
+              d => d.distance >= start - 0.01 && d.distance <= end + 0.01
+            );
+            if (stageData.length < 2) return null;
+            
+            return (
+              <g key={`minimap-stage-${index}`}>
+                <AreaClosed
+                  data={stageData}
+                  x={d => brushXScale(d.distance)}
+                  y={d => brushYScale(d.elevation)}
+                  yScale={brushYScale}
+                  fill={`url(#minimap-stage-gradient-${index})`}
+                  stroke={stageColor}
+                  strokeOpacity={0.8}
+                  strokeWidth={1}
+                  pointerEvents="none"
+                />
+              </g>
+            );
+          });
+        })()}
 
         {/* The single Brush instance — handles drag, resize, selection */}
         <Brush

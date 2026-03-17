@@ -22,9 +22,9 @@ const resources = {
       lowestPoint: 'Lowest Point',
 
       // Tour types
-      gold: 'Gold (1 Day)',
-      silver: 'Silver (2 Days)',
-      bronze: 'Bronze (3 Days)',
+      gold: 'Gold',
+      silver: 'Silver',
+      bronze: 'Bronze',
       goldLabel: '1 Day - Complete Route',
       silverLabel: '2 Days - 2 Stages',
       bronzeLabel: '3 Days - 3 Stages',
@@ -32,8 +32,14 @@ const resources = {
       silverSimple: 'Silver',
       bronzeSimple: 'Bronze',
       tourStages: 'Tour Stages',
+      tourStagesMobileLine1: 'Tour',
+      tourStagesMobileLine2: 'Stages',
       days: 'Days',
+      day: 'Day',
       difficultyLevel: 'Difficulty Level',
+      expand: 'Expand',
+      collapse: 'Collapse',
+      routeStart: 'Route Start',
 
       // Actions
       download: 'Download',
@@ -231,9 +237,9 @@ const resources = {
       lowestPoint: 'Tiefster Punkt',
 
       // Tour types
-      gold: 'Gold (1 Tag)',
-      silver: 'Silber (2 Tage)',
-      bronze: 'Bronze (3 Tage)',
+      gold: 'Gold',
+      silver: 'Silber',
+      bronze: 'Bronze',
       goldLabel: '1 Tag - Komplette Route',
       silverLabel: '2 Tage - 2 Etappen',
       bronzeLabel: '3 Tage - 3 Etappen',
@@ -241,8 +247,14 @@ const resources = {
       silverSimple: 'Silber',
       bronzeSimple: 'Bronze',
       tourStages: 'Etappen-Planer',
+      tourStagesMobileLine1: 'Etappen-',
+      tourStagesMobileLine2: 'Planer',
       days: 'Tage',
+      day: 'Tag',
       difficultyLevel: 'Schwierigkeitsgrad',
+      expand: 'Aufklappen',
+      collapse: 'Zuklappen',
+      routeStart: 'Routenstart',
 
       // Actions
       download: 'Herunterladen',

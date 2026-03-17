@@ -17,11 +17,14 @@ export async function cachedFetch<T>(
   const cached = cache.get(key);
 
   if (cached && cached.expiry > Date.now()) {
+    console.log(`[Cache] HIT for key: ${key}`);
     return cached.data as T;
   }
 
+  console.log(`[Cache] MISS for key: ${key}`);
   const data = await fetcher();
   cache.set(key, { data, expiry: Date.now() + ttlMs });
+  console.log(`[Cache] SET for key: ${key}`);
 
   return data;
 }

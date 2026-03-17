@@ -173,32 +173,29 @@ export interface RouteLocation {
   created_at?: string;
 }
 
-// Split Points API
+// Split Points API - NO CACHE
 export const splitPointsApi = {
   getByRoute: async (
     routeId: number,
     startLocation?: string,
     locationId?: number
   ): Promise<SplitPointsResponse> => {
-    const key = locationId
-      ? `splitPoints:${routeId}:loc:${locationId}`
-      : `splitPoints:${routeId}:${startLocation || 'Wernigerode'}`;
+    let url = `${API_BASE}/routes/${routeId}/split-points`;
+    const params = new URLSearchParams();
+    if (locationId) params.append('locationId', locationId.toString());
+    else if (startLocation !== undefined) params.append('startLocation', startLocation);
 
-    return cachedFetch(
-      key,
-      async () => {
-        let url = `${API_BASE}/routes/${routeId}/split-points`;
-        const params = new URLSearchParams();
-        if (locationId) params.append('locationId', locationId.toString());
-        else if (startLocation !== undefined) params.append('startLocation', startLocation);
+    if (params.toString()) url += `?${params}`;
 
-        if (params.toString()) url += `?${params}`;
-
-        const res = await fetch(url);
-        return res.json();
-      },
-      5 * 60 * 1000
-    );
+    console.log(`[API] Fetching from server (NO CACHE): ${url}`);
+    const res = await fetch(url);
+    const data = await res.json();
+    console.log(`[API] Server response:`, {
+      gold: data.splitPoints?.gold?.length || 0,
+      silver: data.splitPoints?.silver?.length || 0,
+      bronze: data.splitPoints?.bronze?.length || 0
+    });
+    return data;
   },
 
   save: async (
