@@ -44,10 +44,10 @@ export default function TourStagePanel({
     silver: [],
     bronze: [],
   });
-  
+
   // Use external split points if provided, otherwise use fetched ones
   const splitPoints = externalSplitPoints || fetchedSplitPoints;
-  
+
   // Log which source we're using
   useEffect(() => {
     if (externalSplitPoints) {
@@ -87,9 +87,9 @@ export default function TourStagePanel({
     if (route?.id && !externalSplitPoints) {
       const startLocation = selectedLocationId ? undefined : 'Route Start';
       const locationId = selectedLocationId || undefined;
-      
+
       console.log('[TourStagePanel] Fetching split points:', { routeId: route.id, startLocation, locationId });
-      
+
       splitPointsApi.getByRoute(route.id, startLocation, locationId).then(res => {
         if (res.success && res.splitPoints) {
           console.log('[TourStagePanel] Received split points:', res.splitPoints);
@@ -109,63 +109,63 @@ export default function TourStagePanel({
   // Calculate stats for a specific stage based on actual split point distances
   const getStageStats = (stageIndex: number, totalStages: number) => {
     if (!route) return null;
-    
+
     const points = splitPoints[tourType] || [];
     const totalDistance = parseFloat(String(route.distance || 0));
     const totalAscent = parseFloat(String(route.totalAscent || 0));
     const totalDescent = parseFloat(String(route.totalDescent || 0));
-    
+
     // Sort points by distance to ensure correct ordering
     const sortedPoints = [...points].sort((a, b) => a.distanceKm - b.distanceKm);
-    
+
     // Calculate stage start and end distances
     const stageStartDistance = stageIndex === 0 ? 0 : sortedPoints[stageIndex - 1]?.distanceKm || 0;
-    const stageEndDistance = stageIndex === totalStages - 1 
-      ? totalDistance 
+    const stageEndDistance = stageIndex === totalStages - 1
+      ? totalDistance
       : sortedPoints[stageIndex]?.distanceKm || totalDistance;
-    
+
     // Calculate actual stage distance
     const dist = Math.max(0, stageEndDistance - stageStartDistance);
-    
+
     // Calculate elevation stats for this stage using elevation data
     let asc = 0;
     let desc = 0;
     let minEle = route.lowestPoint || 0;
     let maxEle = route.highestPoint || 0;
-    
+
     if (route.elevationData && route.elevationData.length > 0) {
       const elevationData = route.elevationData;
-      
+
       // Find indices that fall within this stage's distance range
       const startIdx = elevationData.findIndex((p, i) => {
         const prevDist = i > 0 ? elevationData[i - 1].distance : 0;
         return p.distance >= stageStartDistance || prevDist >= stageStartDistance;
       });
-      
+
       const endIdx = elevationData.findIndex(p => p.distance >= stageEndDistance);
       const effectiveEndIdx = endIdx === -1 ? elevationData.length - 1 : endIdx;
       const effectiveStartIdx = startIdx === -1 ? 0 : startIdx;
-      
+
       // Calculate elevation gain/loss for this stage
       if (effectiveStartIdx < effectiveEndIdx) {
         let stageMin = elevationData[effectiveStartIdx].elevation;
         let stageMax = elevationData[effectiveStartIdx].elevation;
-        
+
         for (let i = effectiveStartIdx + 1; i <= effectiveEndIdx; i++) {
           const prevEle = elevationData[i - 1].elevation;
           const currEle = elevationData[i].elevation;
           const diff = currEle - prevEle;
-          
+
           if (diff > 0) {
             asc += diff;
           } else {
             desc += Math.abs(diff);
           }
-          
+
           if (currEle < stageMin) stageMin = currEle;
           if (currEle > stageMax) stageMax = currEle;
         }
-        
+
         minEle = stageMin;
         maxEle = stageMax;
       }
@@ -177,11 +177,11 @@ export default function TourStagePanel({
     }
 
     // Use split point locations if available
-    const prevPoint = stageIndex === 0 
-      ? (selectedLocation?.name || t('start', 'Start')) 
+    const prevPoint = stageIndex === 0
+      ? (selectedLocation?.name || t('start', 'Start'))
       : (sortedPoints[stageIndex - 1]?.locationName || `Point ${stageIndex}`);
-    const endPoint = stageIndex === totalStages - 1 
-      ? t('end', 'End') 
+    const endPoint = stageIndex === totalStages - 1
+      ? t('end', 'End')
       : (sortedPoints[stageIndex]?.locationName || `Point ${stageIndex + 1}`);
 
     return {
@@ -329,24 +329,32 @@ export default function TourStagePanel({
             </div>
 
             {/* Points row */}
-            <div className="absolute left-[21px] top-[24px] text-white text-[10px] font-normal">
-              {stats.start}
-            </div>
-            <svg
-              className="absolute left-[62px] top-[27px] w-[9px] h-[9px] text-teal-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2.5"
-                d="M14 5l7 7m0 0l-7 7m7-7H3"
-              ></path>
-            </svg>
-            <div className="absolute left-[80px] top-[24px] text-white text-[10px] font-normal">
-              {stats.end}
+            <div className="absolute left-[21px] right-[10px] top-[24px] flex items-center h-[14px]">
+              <div
+                className="text-white text-[10px] font-normal truncate max-w-[45%]"
+                title={stats.start}
+              >
+                {stats.start}
+              </div>
+              <svg
+                className="w-[11px] h-[11px] text-teal-400 mx-1.5 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2.5"
+                  d="M14 5l7 7m0 0l-7 7m7-7H3"
+                ></path>
+              </svg>
+              <div
+                className="text-white text-[10px] font-normal truncate flex-1"
+                title={stats.end}
+              >
+                {stats.end}
+              </div>
             </div>
 
             {/* Dividers */}
@@ -450,12 +458,12 @@ export default function TourStagePanel({
                   {t('tourStagesMobileLine2', 'Stages')}
                 </span>
               </div>
-              
+
               {/* Middle: Tour types with days */}
               <span className="text-white/70 text-[10px] font-normal font-['Roboto'] text-center leading-tight">
                 ({t('bronzeSimple', 'Bronze')} ({(splitPoints.bronze?.length || 0) + 1} {t('days', 'Days')}), {t('silverSimple', 'Silver')} ({(splitPoints.silver?.length || 0) + 1} {t('days', 'Days')}), {t('goldSimple', 'Gold')} ({(splitPoints.gold?.length || 0) + 1} {t('day', 'Day')}))
               </span>
-              
+
               {/* Right: Arrow */}
               <svg
                 className="w-4 h-4 text-white flex-shrink-0"

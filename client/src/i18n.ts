@@ -216,6 +216,7 @@ const resources = {
       benefitNavigation: 'Perfect for navigation, planning, and device sync',
       purchaseTour: 'Purchase the tour to unlock all GPS data',
       downloadApp: 'Download the app to access stage GPX files',
+      comingSoon: 'Coming Soon',
     },
   },
   de: {
@@ -434,6 +435,7 @@ const resources = {
       benefitNavigation: 'Ideal für Navigation, Tagesplanung und Geräte-Import',
       purchaseTour: 'Tour kaufen, um alle GPS-Daten freizuschalten',
       downloadApp: 'App herunterladen, um Etappen-GPX zu nutzen',
+      comingSoon: 'Demnächst',
     },
   },
 };

@@ -493,6 +493,37 @@ function ElevationChart({
     isTouchPanning.current = false;
   }, []);
 
+  // --- Mobile Minimap Brush Fix ---
+  // @visx/brush only listens to window.mousemove/up for useWindowMoveEvents,
+  // so touch drags on the minimap are ignored. Proxy window touch events to
+  // BaseBrush's internal handlers so dragging / resizing works on phones.
+  useEffect(() => {
+    const handleTouchMove = (event: TouchEvent) => {
+      if (!brushRef.current?.state?.isBrushing) return;
+      if (event.touches.length !== 1) return;
+      event.preventDefault();
+      const touch = event.touches[0];
+      brushRef.current?.handleWindowPointerMove?.({
+        pageX: touch.pageX,
+        pageY: touch.pageY,
+      } as MouseEvent);
+    };
+
+    const handleTouchEnd = () => {
+      brushRef.current?.handleWindowPointerUp?.();
+    };
+
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd);
+    window.addEventListener('touchcancel', handleTouchEnd);
+
+    return () => {
+      window.removeEventListener('touchmove', handleTouchMove as any);
+      window.removeEventListener('touchend', handleTouchEnd as any);
+      window.removeEventListener('touchcancel', handleTouchEnd as any);
+    };
+  }, []);
+
   // Derived Values for UI
   const currentSpan = zoomDomain ? zoomDomain[1] - zoomDomain[0] : maxDistance;
   const zoomPercentage = Math.round((maxDistance / currentSpan) * 100);
@@ -509,7 +540,7 @@ function ElevationChart({
   const minimapContent = (
     <div
       className="relative bg-[#0b1215] border border-[#2a4e58] shadow-xl overflow-hidden shrink-0 mx-auto md:mx-0 rounded-[10px]"
-      style={{ width: brushWidth, height: brushHeight + 2 }}
+      style={{ width: brushWidth, height: brushHeight + 2, touchAction: 'none' }}
     >
       <svg width={brushWidth} height={brushHeight}>
         <defs>
@@ -521,7 +552,7 @@ function ElevationChart({
             <stop offset="0%" stopColor="#088d95" stopOpacity={0.8} />
             <stop offset="100%" stopColor="#088d95" stopOpacity={0.2} />
           </linearGradient>
-          
+
           {/* Per-stage gradients - same as main graph */}
           {(() => {
             const maxDist = data.length > 0 ? data[data.length - 1].distance : 1;
@@ -531,11 +562,11 @@ function ElevationChart({
               stageBoundaries = sortedPoints.map(p => p.distanceKm);
             }
             const numStages = stageBoundaries.length + 1;
-            
+
             return Array.from({ length: numStages }).map((_, index) => {
               const stageColor = getStageColor(tourType, index);
               return (
-                <linearGradient 
+                <linearGradient
                   key={`minimap-grad-${index}`}
                   id={`minimap-stage-gradient-${index}`}
                   x1="0" y1="0" x2="0" y2="1"
@@ -556,16 +587,16 @@ function ElevationChart({
             const sortedPoints = [...splitPoints].sort((a, b) => a.distanceKm - b.distanceKm);
             stageBoundaries = sortedPoints.map(p => p.distanceKm);
           }
-          
+
           const stageRanges: { start: number; end: number; index: number }[] = [];
           const numStagesActual = stageBoundaries.length + 1;
-          
+
           for (let i = 0; i < numStagesActual; i++) {
             const stageStart = i === 0 ? 0 : stageBoundaries[i - 1];
             const stageEnd = i === numStagesActual - 1 ? maxDist : stageBoundaries[i];
             stageRanges.push({ start: stageStart, end: stageEnd, index: i });
           }
-          
+
           // If no split points, use single static gradient
           if (stageRanges.length === 0) {
             return (
@@ -582,7 +613,7 @@ function ElevationChart({
               />
             );
           }
-          
+
           // Render each stage with its color
           return stageRanges.map(({ start, end, index }) => {
             const stageColor = getStageColor(tourType, index);
@@ -590,7 +621,7 @@ function ElevationChart({
               d => d.distance >= start - 0.01 && d.distance <= end + 0.01
             );
             if (stageData.length < 2) return null;
-            
+
             return (
               <g key={`minimap-stage-${index}`}>
                 <AreaClosed
@@ -806,7 +837,7 @@ function ElevationChart({
             {/* Per-Stage Area & Line */}
             {(() => {
               const maxDist = data.length > 0 ? data[data.length - 1].distance : 1;
-              
+
               // Calculate stage boundaries based on split points
               let stageBoundaries: number[] = [];
               if (splitPoints && splitPoints.length > 0) {
@@ -814,17 +845,17 @@ function ElevationChart({
                 const sortedPoints = [...splitPoints].sort((a, b) => a.distanceKm - b.distanceKm);
                 stageBoundaries = sortedPoints.map(p => p.distanceKm);
               }
-              
+
               // Build stage ranges
               const stageRanges: { start: number; end: number; index: number }[] = [];
               const numStagesActual = stageBoundaries.length + 1;
-              
+
               for (let i = 0; i < numStagesActual; i++) {
                 const stageStart = i === 0 ? 0 : stageBoundaries[i - 1];
                 const stageEnd = i === numStagesActual - 1 ? maxDist : stageBoundaries[i];
                 stageRanges.push({ start: stageStart, end: stageEnd, index: i });
               }
-              
+
               return stageRanges.map(({ start, end, index }) => {
                 const stageColor = getStageColor(tourType, index);
                 const gradId = `stage-gradient-${index}`;
@@ -832,7 +863,7 @@ function ElevationChart({
                   d => d.distance >= start - 0.01 && d.distance <= end + 0.01
                 );
                 if (stageData.length < 2) return null;
-                
+
                 return (
                   <g key={index}>
                     <defs>
@@ -862,7 +893,7 @@ function ElevationChart({
                 );
               });
             })()}
-            
+
             {/* Stage Divider Lines */}
             {splitPoints && splitPoints.length > 0 && (
               <>

@@ -73,6 +73,7 @@ export default function PremiumModal({ isOpen, onClose }: PremiumModalProps) {
               <span>
                 {t('benefitStageGps', 'Individual GPS files for each stage')}
               </span>
+              <span className="coming-soon-badge">{t('comingSoon', 'Coming Soon')}</span>
             </div>
             <div className="benefit-item">
               <i className="fas fa-cloud-download-alt"></i>
@@ -82,6 +83,7 @@ export default function PremiumModal({ isOpen, onClose }: PremiumModalProps) {
                   'Easy stage-by-stage downloads inside the app'
                 )}
               </span>
+              <span className="coming-soon-badge">{t('comingSoon', 'Coming Soon')}</span>
             </div>
             <div className="benefit-item">
               <i className="fas fa-compass"></i>
@@ -91,6 +93,7 @@ export default function PremiumModal({ isOpen, onClose }: PremiumModalProps) {
                   'Perfect for navigation, planning, and device sync'
                 )}
               </span>
+              <span className="coming-soon-badge">{t('comingSoon', 'Coming Soon')}</span>
             </div>
           </div>
         </div>
