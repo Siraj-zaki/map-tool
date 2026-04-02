@@ -56,7 +56,10 @@ export default function Editor() {
 
   const [startPoint, setStartPoint] = useState<[number, number] | null>(null);
   const [endPoint, setEndPoint] = useState<[number, number] | null>(null);
-  const [waypoints, setWaypoints] = useState<[number, number][]>([]);
+  // Updated waypoints to track routing mode for each point
+  const [waypoints, setWaypoints] = useState<{ lngLat: [number, number]; mode: 'auto' | 'manual' }[]>([]);
+  // Drawing mode: 'auto' snaps to trails, 'manual' draws direct lines
+  const [drawingMode, setDrawingMode] = useState<'auto' | 'manual'>('auto');
   const [routeGeometry, setRouteGeometry] = useState<[number, number][] | null>(
     null
   );
@@ -74,6 +77,12 @@ export default function Editor() {
   const [editMode, setEditMode] = useState<
     'start' | 'end' | 'waypoint' | 'poi' | 'splitpoint'
   >('start');
+
+  // Drawing mode labels
+  const drawingModeLabels: Record<'auto' | 'manual', string> = {
+    auto: t('snapToTrail') || 'Snap to Trail',
+    manual: t('directLine') || 'Direct Line',
+  };
 
   // Routing profile state (Fix for picking up trails)
   const [routingProfile] = useState<'walking' | 'cycling'>(
@@ -157,6 +166,42 @@ export default function Editor() {
     poi: t('clickToAddPoi'),
     splitpoint:
       t('clickToSetSplitPoint') || 'Click on route to set stage boundary',
+  };
+
+  // Haversine distance calculation (in meters)
+  const haversineDistance = (coord1: [number, number], coord2: [number, number]): number => {
+    const R = 6371e3; // Earth radius in meters
+    const φ1 = (coord1[1] * Math.PI) / 180;
+    const φ2 = (coord2[1] * Math.PI) / 180;
+    const Δφ = ((coord2[1] - coord1[1]) * Math.PI) / 180;
+    const Δλ = ((coord2[0] - coord1[0]) * Math.PI) / 180;
+
+    const a =
+      Math.sin(Δφ / 2) ** 2 +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+  };
+
+  // Interpolate points along a straight line for accurate elevation data
+  const interpolateLine = (
+    start: [number, number],
+    end: [number, number],
+    spacingMeters: number = 20
+  ): [number, number][] => {
+    const totalDistance = haversineDistance(start, end);
+    const numPoints = Math.max(2, Math.ceil(totalDistance / spacingMeters));
+    const points: [number, number][] = [];
+
+    for (let i = 0; i < numPoints; i++) {
+      const t = i / (numPoints - 1);
+      const lng = start[0] + (end[0] - start[0]) * t;
+      const lat = start[1] + (end[1] - start[1]) * t;
+      points.push([lng, lat]);
+    }
+
+    return points;
   };
 
   // Check auth
@@ -307,7 +352,8 @@ export default function Editor() {
           // No waypoints yet and no end point - add as first waypoint
           setRouteGeometry(null);
           setIsGpxRoute(false);
-          setWaypoints([coord]);
+          // Store waypoint with current drawing mode
+          setWaypoints([{ lngLat: coord, mode: drawingMode }]);
         } else {
           // Always append new waypoints to the end of the list.
           // The "closest segment" insertion was broken for routes that loop
@@ -318,10 +364,11 @@ export default function Editor() {
           setIsGpxRoute(false);
           setRouteGeometry(null);
           setElevationData(null);
-          setWaypoints(prev => [...prev, coord]);
+          // Store waypoint with current drawing mode
+          setWaypoints(prev => [...prev, { lngLat: coord, mode: drawingMode }]);
 
           console.log(
-            `[Editor] Appended waypoint #${waypoints.length + 1}`
+            `[Editor] Appended waypoint #${waypoints.length + 1} (mode: ${drawingMode})`
           );
         }
       }
@@ -331,7 +378,7 @@ export default function Editor() {
     return () => {
       map.current?.off('click', handleClick);
     };
-  }, [mapLoaded, editMode, startPoint, endPoint, waypoints]);
+  }, [mapLoaded, editMode, startPoint, endPoint, waypoints, drawingMode]);
   // Update markers
   useEffect(() => {
     if (!map.current || !mapLoaded) return;
@@ -368,19 +415,26 @@ export default function Editor() {
       }
 
       // Waypoints
-      waypoints.forEach((wp: [number, number], index: number) => {
+      waypoints.forEach((wp, index: number) => {
         const el = document.createElement('div');
         el.textContent = String(index + 1);
         el.setAttribute('data-waypoint-index', String(index));
 
-        // Apply different styling based on selection state
+        // Apply different styling based on selection state and mode
         const isSelected = selectedWaypointIndex === index;
-        el.className = isSelected
-          ? 'w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center border-3 border-white text-white text-xs font-bold cursor-pointer shadow-lg ring-2 ring-yellow-300'
-          : 'w-7 h-7 bg-[#088d95] rounded-full flex items-center justify-center border-2 border-white text-white text-xs font-bold cursor-pointer';
+        const isManual = wp.mode === 'manual';
+        const baseClasses = isManual
+          ? 'border-dashed bg-orange-500' // Manual mode: dashed border, orange color
+          : 'bg-[#088d95]'; // Auto mode: solid border, teal color
+        const selectedClasses = isSelected
+          ? isManual
+            ? 'w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center border-3 border-white border-dashed text-white text-xs font-bold cursor-pointer shadow-lg ring-2 ring-orange-300'
+            : 'w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center border-3 border-white text-white text-xs font-bold cursor-pointer shadow-lg ring-2 ring-yellow-300'
+          : `w-7 h-7 ${baseClasses} rounded-full flex items-center justify-center border-2 border-white text-white text-xs font-bold cursor-pointer`;
+        el.className = selectedClasses;
 
         const marker = new mapboxgl.Marker({ element: el, draggable: true })
-          .setLngLat(wp)
+          .setLngLat(wp.lngLat)
           .addTo(map.current!);
 
         // Click handler for selection
@@ -393,7 +447,7 @@ export default function Editor() {
           // Zoom to the waypoint
           if (map.current) {
             map.current.flyTo({
-              center: wp,
+              center: wp.lngLat,
               zoom: 15,
               essential: true,
             });
@@ -426,7 +480,8 @@ export default function Editor() {
           setElevationData(null);
           setWaypoints(prev => {
             const newWp = [...prev];
-            newWp[index] = draggedLngLat;
+            // Preserve the mode when updating position
+            newWp[index] = { ...newWp[index], lngLat: draggedLngLat };
             return newWp;
           });
         });
@@ -543,128 +598,85 @@ export default function Editor() {
           return;
         }
 
-        // Calculate route via Mapbox Directions API
-        // The API has a limit of 25 waypoints total (including start/end)
-        // For routes with more waypoints, we batch the calls and concatenate results
-        const MAX_WAYPOINTS_PER_BATCH = 23; // Leave room for start and end in each batch
-        const effectiveEnd = endPoint || waypoints[waypoints.length - 1];
-        const effectiveWaypoints = endPoint
-          ? waypoints
-          : waypoints.slice(0, -1);
+        // Calculate route segment by segment based on waypoint modes
+        // Build ordered list of all nodes: Start -> Waypoints -> End
+        const nodes: { lngLat: [number, number]; mode: 'auto' | 'manual' }[] = [
+          { lngLat: startPoint, mode: 'auto' }, // Start is always auto
+          ...waypoints,
+        ];
+        if (endPoint) {
+          // End point uses mode from last waypoint if exists, otherwise auto
+          const endMode = waypoints.length > 0 ? waypoints[waypoints.length - 1].mode : 'auto';
+          nodes.push({ lngLat: endPoint, mode: endMode });
+        }
 
         let fullGeometry: [number, number][] = [];
         let totalDistance = 0;
         let altRoutes: { geometry: [number, number][]; distance: number }[] = [];
 
-        if (effectiveWaypoints.length <= MAX_WAYPOINTS_PER_BATCH) {
-          // Simple case: single API call
-          const result = await getDirections(
-            startPoint,
-            effectiveWaypoints,
-            effectiveEnd,
-            routingProfile
-          );
-          if (result.routes?.[0]) {
-            fullGeometry = result.routes[0].geometry.coordinates as [
-              number,
-              number,
-            ][];
-            totalDistance = result.routes[0].distance;
+        console.log(`[Editor] Calculating route with ${nodes.length} nodes`);
 
-            // Collect alternative routes (routes[1], routes[2], etc.)
-            for (let ri = 1; ri < result.routes.length; ri++) {
-              altRoutes.push({
-                geometry: result.routes[ri].geometry.coordinates as [number, number][],
-                distance: result.routes[ri].distance,
-              });
-            }
-            if (altRoutes.length > 0) {
-              console.log(`[Editor] ${altRoutes.length} alternative route(s) available`);
-            }
-          }
-        } else {
-          // Complex case: batch API calls for many waypoints
-          console.log(
-            `[Editor] Batching ${effectiveWaypoints.length} waypoints into multiple API calls`
-          );
+        // Process each segment based on the mode of the destination node
+        for (let i = 1; i < nodes.length; i++) {
+          const prevNode = nodes[i - 1];
+          const currNode = nodes[i];
 
-          // Split waypoints into batches, ensuring overlap at batch boundaries
-          const batches: {
-            start: [number, number];
-            waypoints: [number, number][];
-            end: [number, number];
-          }[] = [];
-          let currentIndex = 0;
+          console.log(`[Editor] Segment ${i}: ${prevNode.mode} -> ${currNode.mode} (${currNode.mode === 'manual' ? 'DIRECT LINE' : 'API'})`);
 
-          while (currentIndex < effectiveWaypoints.length) {
-            const batchStart =
-              currentIndex === 0
-                ? startPoint
-                : effectiveWaypoints[currentIndex - 1];
-            const remainingWaypoints = effectiveWaypoints.length - currentIndex;
-            const batchSize = Math.min(
-              MAX_WAYPOINTS_PER_BATCH,
-              remainingWaypoints
-            );
-            const batchWaypoints = effectiveWaypoints.slice(
-              currentIndex,
-              currentIndex + batchSize
-            );
+          if (currNode.mode === 'auto') {
+            // Auto mode: Call Directions API for this segment
+            try {
+              const result = await getDirections(
+                prevNode.lngLat,
+                [],
+                currNode.lngLat,
+                routingProfile
+              );
 
-            // Determine batch end
-            const isLastBatch =
-              currentIndex + batchSize >= effectiveWaypoints.length;
-            const batchEnd = isLastBatch
-              ? effectiveEnd
-              : batchWaypoints[batchWaypoints.length - 1];
+              if (result.routes?.[0]) {
+                const segmentGeometry = result.routes[0].geometry.coordinates as [number, number][];
+                totalDistance += result.routes[0].distance;
 
-            // For intermediate batches, don't include the last waypoint as a waypoint (it's the end)
-            const waypointsForApi = isLastBatch
-              ? batchWaypoints
-              : batchWaypoints.slice(0, -1);
+                // Append geometry (slice first point to avoid duplicates)
+                if (fullGeometry.length === 0) {
+                  fullGeometry = [...segmentGeometry];
+                } else {
+                  fullGeometry = [...fullGeometry, ...segmentGeometry.slice(1)];
+                }
 
-            batches.push({
-              start: batchStart,
-              waypoints: waypointsForApi,
-              end: batchEnd,
-            });
-
-            currentIndex += batchSize;
-          }
-
-          console.log(`[Editor] Split into ${batches.length} batches`);
-
-          // Execute all batch API calls
-          for (let i = 0; i < batches.length; i++) {
-            const batch = batches[i];
-            const result = await getDirections(
-              batch.start,
-              batch.waypoints,
-              batch.end,
-              routingProfile
-            );
-
-            if (result.routes?.[0]) {
-              const batchGeometry = result.routes[0].geometry.coordinates as [
-                number,
-                number,
-              ][];
-
-              // Skip first coordinate of subsequent batches to avoid duplicates
-              if (i > 0 && batchGeometry.length > 0) {
-                fullGeometry = [...fullGeometry, ...batchGeometry.slice(1)];
-              } else {
-                fullGeometry = [...fullGeometry, ...batchGeometry];
+                // Collect alternative routes from first segment only
+                if (i === 1) {
+                  for (let ri = 1; ri < result.routes.length; ri++) {
+                    altRoutes.push({
+                      geometry: result.routes[ri].geometry.coordinates as [number, number][],
+                      distance: result.routes[ri].distance,
+                    });
+                  }
+                }
               }
-
-              totalDistance += result.routes[0].distance;
+            } catch (error) {
+              console.error(`[Editor] Failed to get directions for segment ${i}:`, error);
             }
-          }
+          } else {
+            // Manual mode: Interpolate a straight line
+            const interpolatedPoints = interpolateLine(prevNode.lngLat, currNode.lngLat, 20);
 
-          console.log(
-            `[Editor] Combined geometry has ${fullGeometry.length} coordinates`
-          );
+            // Calculate Haversine distance for this segment (in meters)
+            const segmentDistanceMeters = haversineDistance(prevNode.lngLat, currNode.lngLat);
+            totalDistance += segmentDistanceMeters;
+
+            // Append interpolated points (slice first point to avoid duplicates)
+            if (fullGeometry.length === 0) {
+              fullGeometry = [...interpolatedPoints];
+            } else {
+              fullGeometry = [...fullGeometry, ...interpolatedPoints.slice(1)];
+            }
+
+            console.log(`[Editor] Manual segment: ${interpolatedPoints.length} points, ${(segmentDistanceMeters / 1000).toFixed(2)} km`);
+          }
         }
+
+        console.log(`[Editor] Combined geometry has ${fullGeometry.length} coordinates, total distance: ${(totalDistance / 1000).toFixed(2)} km`);
 
         if (fullGeometry.length > 0) {
           // Save the complete route geometry for storage
@@ -841,7 +853,12 @@ export default function Editor() {
           setDescription(result.route.description || '');
           setStartPoint(result.route.startPoint);
           setEndPoint(result.route.endPoint);
-          setWaypoints(result.route.waypoints || []);
+          // Handle both legacy format (array of coords) and new format (array of objects)
+          const loadedWaypoints = result.route.waypoints || [];
+          const normalizedWaypoints = loadedWaypoints.length > 0 && Array.isArray(loadedWaypoints[0])
+            ? (loadedWaypoints as [number, number][]).map(wp => ({ lngLat: wp, mode: 'auto' as const }))
+            : (loadedWaypoints as { lngLat: [number, number]; mode: 'auto' | 'manual' }[]);
+          setWaypoints(normalizedWaypoints);
           setRouteGeometry(result.route.routeGeometry || null);
           setElevationData(result.route.elevationData || null); // Restore stored elevation data
           // Set isGpxRoute=true when route has stored geometry & elevation, to preserve
@@ -1296,7 +1313,11 @@ export default function Editor() {
         accurateStats.coordinates[accurateStats.coordinates.length - 1][0],
         accurateStats.coordinates[accurateStats.coordinates.length - 1][1],
       ]);
-      setWaypoints(routeData.waypoints);
+      // Wrap GPX waypoints with default 'auto' mode for backward compatibility
+      setWaypoints(routeData.waypoints.map((wp: [number, number]) => ({
+        lngLat: wp,
+        mode: 'auto' as const
+      })));
       setRouteGeometry(accurateStats.coordinates);
       setPois([]);
 
@@ -1421,7 +1442,8 @@ export default function Editor() {
             setRouteGeometry(null);
             setWaypoints(prev => {
               const newWp = [...prev];
-              newWp[index] = [marker.getLngLat().lng, marker.getLngLat().lat];
+              // Preserve mode (auto) when updating position
+              newWp[index] = { lngLat: [marker.getLngLat().lng, marker.getLngLat().lat], mode: 'auto' };
               return newWp;
             });
           });
@@ -1455,7 +1477,7 @@ export default function Editor() {
         const bounds = new mapboxgl.LngLatBounds();
         bounds.extend(routeData.startPoint);
         bounds.extend(routeData.endPoint);
-        routeData.waypoints.forEach(wp => bounds.extend(wp));
+        routeData.waypoints.forEach((wp: [number, number]) => bounds.extend(wp));
         map.current.fitBounds(bounds, { padding: 50 });
       }
       setEditMode('waypoint');
@@ -1618,7 +1640,38 @@ export default function Editor() {
             </button>
           </div>
 
-
+          {/* Drawing Mode Toggle - Only show when in waypoint mode */}
+          {editMode === 'waypoint' && (
+            <div className="flex items-center gap-2 py-2 px-3 bg-[#0b1215] border border-[#1e2a33] rounded-lg">
+              <span className="text-xs text-gray-400">{t('routingMode') || 'Routing:'}</span>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setDrawingMode('auto')}
+                  className={`px-2 py-1 text-xs rounded transition-all ${
+                    drawingMode === 'auto'
+                      ? 'bg-[#088d95] text-white'
+                      : 'bg-[#1e2a33] text-gray-400 hover:text-white'
+                  }`}
+                  title={t('snapToTrailTooltip') || 'Follow trails and roads'}
+                >
+                  <i className="fas fa-route mr-1"></i>
+                  {t('snapToTrail') || 'Snap'}
+                </button>
+                <button
+                  onClick={() => setDrawingMode('manual')}
+                  className={`px-2 py-1 text-xs rounded transition-all ${
+                    drawingMode === 'manual'
+                      ? 'bg-orange-500 text-white'
+                      : 'bg-[#1e2a33] text-gray-400 hover:text-white'
+                  }`}
+                  title={t('directLineTooltip') || 'Draw straight line (for unmapped trails)'}
+                >
+                  <i className="fas fa-pen mr-1"></i>
+                  {t('directLine') || 'Direct'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Action Buttons */}
           <button
@@ -1797,7 +1850,7 @@ export default function Editor() {
                     // Zoom to waypoint on map
                     if (map.current) {
                       map.current.flyTo({
-                        center: wp,
+                        center: wp.lngLat,
                         zoom: 15,
                         essential: true,
                       });
@@ -1810,14 +1863,20 @@ export default function Editor() {
                 >
                   <span className="text-sm text-white flex items-center gap-2">
                     <span
-                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[0.6875rem] font-bold ${selectedWaypointIndex === idx
-                        ? 'bg-yellow-500'
-                        : 'bg-[#088d95]'
-                        }`}
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[0.6875rem] font-bold ${
+                        selectedWaypointIndex === idx
+                          ? 'bg-yellow-500'
+                          : wp.mode === 'manual'
+                          ? 'bg-orange-500 border border-dashed border-white'
+                          : 'bg-[#088d95]'
+                      }`}
                     >
                       {idx + 1}
                     </span>
                     {t('waypoint')} {idx + 1}
+                    {wp.mode === 'manual' && (
+                      <i className="fas fa-pen text-orange-500 text-xs" title="Direct line"></i>
+                    )}
                   </span>
                   <button
                     onClick={e => {

@@ -1102,16 +1102,66 @@ export default function ElevationProfileVisx({
 }: ElevationProfileVisxProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Haversine distance helper (in km)
+  const haversineDistanceKm = useCallback((coord1: [number, number], coord2: [number, number]): number => {
+    const R = 6371; // Earth radius in km
+    const dLat = ((coord2[1] - coord1[1]) * Math.PI) / 180;
+    const dLon = ((coord2[0] - coord1[0]) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((coord1[1] * Math.PI) / 180) *
+      Math.cos((coord2[1] * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }, []);
+
+  // Find closest point on route to POI coordinates
+  const findClosestRoutePoint = useCallback((poiLngLat: [number, number]): { distance: number; elevation: number } | null => {
+    if (!route?.elevationData || route.elevationData.length === 0) return null;
+    
+    let closestDist = Infinity;
+    let closestIndex = 0;
+    
+    // Check against route geometry if available
+    if (route.routeGeometry) {
+      route.routeGeometry.forEach((coord, index) => {
+        const dist = haversineDistanceKm(poiLngLat, coord);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestIndex = index;
+        }
+      });
+    }
+    
+    // Get elevation data at this index
+    const elevationPoint = route.elevationData[closestIndex] || route.elevationData[0];
+    return elevationPoint ? { distance: elevationPoint.distance, elevation: elevationPoint.elevation } : null;
+  }, [route, haversineDistanceKm]);
+
   const processedPois = useMemo(() => {
     if (!route || !pois) return [];
     return pois.map(marker => {
+      // Get POI coordinates - handle both array and object formats
+      let poiLngLat: [number, number];
+      if (Array.isArray(marker.lngLat)) {
+        poiLngLat = marker.lngLat;
+      } else if (marker.lngLat && typeof marker.lngLat === 'object') {
+        poiLngLat = [marker.lngLat.lng || marker.lngLat[0], marker.lngLat.lat || marker.lngLat[1]];
+      } else {
+        poiLngLat = [0, 0];
+      }
+      
+      // Find closest point on route
+      const routePoint = findClosestRoutePoint(poiLngLat);
+      
       return {
-        distance: Math.random() * (route?.distance || 100),
-        elevation: 500,
+        distance: routePoint?.distance ?? 0,
+        elevation: routePoint?.elevation ?? 0,
         poi: marker,
       };
     });
-  }, [route, pois]);
+  }, [route, pois, findClosestRoutePoint]);
 
   const chartData: ElevationPoint[] = useMemo(() => {
     if (!route) return [];

@@ -9,7 +9,7 @@ export interface Route {
   description?: string;
   startPoint: [number, number];
   endPoint: [number, number];
-  waypoints: [number, number][];
+  waypoints: { lngLat: [number, number]; mode: 'auto' | 'manual' }[];
   routeGeometry?: [number, number][];
   elevationData?: { elevation: number; distance: number; coordinates?: [number, number] }[];
   distance: number;

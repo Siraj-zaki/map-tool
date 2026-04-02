@@ -452,10 +452,10 @@ export default function TourStagePanel({
               {/* Left: Tour Stages (stacked) */}
               <div className="flex flex-col items-start">
                 <span className="text-white text-xs font-medium font-['Roboto'] leading-tight">
-                  {t('tourStagesMobileLine1', 'Tour')}
+                  {t('planYourStagesHereLine1', 'Plan your')}
                 </span>
                 <span className="text-white text-xs font-medium font-['Roboto'] leading-tight">
-                  {t('tourStagesMobileLine2', 'Stages')}
+                  {t('planYourStagesHereLine2', 'stages here')}
                 </span>
               </div>
 

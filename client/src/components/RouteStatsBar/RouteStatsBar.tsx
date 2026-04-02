@@ -113,8 +113,8 @@ export default function RouteStatsBar({
         {/* Right Section: Download */}
         <div className="stats-right">
           {showDownloadButton && onDownloadClick && (
-            <button className="download-btn" onClick={onDownloadClick}>
-              <span className="download-text">GPX herunterladen</span>
+            <button className="download-btn bg-[#088D95]" onClick={onDownloadClick}>
+              <span className="download-text ">GPX herunterladen</span>
               <img
                 src="/images/download-icon.svg"
                 alt="Download GPX"
@@ -126,18 +126,18 @@ export default function RouteStatsBar({
       </div>
 
       {/* --- MOBILE VIEW (visible only on mobile) --- */}
-      <div className="flex md:hidden h-[80px] flex-row w-full relative z-50 bg-black rounded-b-3xl mt-[-10px] pt-[10px] pb-4 px-5 items-center justify-between">
+      <div className="flex md:hidden h-[80px] flex-row w-full relative z-50 bg-black rounded-b-3xl mt-[-10px] pt-[20px] pb-4 px-5 items-center justify-between">
 
         {/* Left Section (Logo + Texts) */}
         <div className="flex items-center gap-2 h-full mt-1 w-full overflow-hidden">
           {/* Logo & Divider */}
           <div className="flex items-center h-full relative shrink-0">
             <img
-              className="w-[42px] h-[42px] ml-[-10px] object-contain"
+              className="w-[42px] h-[42px] ml-[0px] object-contain"
               src="/images/header-logo.svg"
               alt="Logo"
             />
-            <div className="h-[40px] w-[1px] bg-[#4b4b4b] ml-[4px]" />
+            <div className="h-[40px] w-[1px] bg-[#4b4b4b] ml-[14px]" />
           </div>
 
           {/* Texts (Title & Stats) vertically justified */}
