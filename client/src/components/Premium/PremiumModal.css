@@ -76,7 +76,7 @@
   width: 5rem;
   height: 5rem;
   margin: 0 auto 1.25rem;
-  background: linear-gradient(135deg, #088d95 0%, #06a3ae 50%, #04b4c1 100%);
+  background: linear-gradient(135deg, var(--brand-primary, #088D95) 0%, #06a3ae 50%, #04b4c1 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -102,7 +102,7 @@
 .premium-title {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #088d95;
+  color: var(--brand-primary, #088D95);
   margin: 0 0 1rem;
   text-shadow: 0 0 1.25rem rgba(8, 141, 149, 0.3);
 }
@@ -139,7 +139,7 @@
 }
 
 .benefits-heading i {
-  color: #088d95;
+  color: var(--brand-primary, #088D95);
   font-size: 1rem;
 }
 
@@ -169,7 +169,7 @@
 }
 
 .benefit-item i {
-  color: #088d95;
+  color: var(--brand-primary, #088D95);
   font-size: 0.875rem;
   flex-shrink: 0;
   margin-top: 0.125rem;
@@ -211,7 +211,7 @@
 }
 
 .premium-btn.primary {
-  background: linear-gradient(135deg, #088d95 0%, #06a3ae 100%);
+  background: linear-gradient(135deg, var(--brand-primary, #088D95) 0%, #06a3ae 100%);
   color: #fff;
   border: none;
   box-shadow: 0 0.25rem 1.25rem rgba(8, 141, 149, 0.3);
@@ -235,7 +235,7 @@
 }
 
 .premium-btn.secondary.app-download {
-  color: #088d95;
+  color: var(--brand-primary, #088D95);
   border-color: rgba(8, 141, 149, 0.4);
 }
 

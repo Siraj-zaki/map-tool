@@ -68,27 +68,7 @@ export const MARKER_TYPES = {
   via: { icon: '', color: '#06599c', size: 0, iconSize: 0 },
 };
 
-// POI icon mappings
-export const POI_ICONS = {
-  hotel: '/images/hotel.png',
-  restaurant: '/images/restaurant.png',
-  gipfel: '/images/gipfel.png',
-  highlight: '/images/highlight.png',
-};
-
-// POI profile icons (for elevation chart)
-export const POI_PROFILE_ICONS = {
-  highlight: '/images/gipfel_profil1.png',
-  gipfel: '/images/gipfel_profil1.png',
-};
-
-// POI fallback Font Awesome icons
-export const POI_ICON_FALLBACK: Record<string, { icon: string; bg: string }> = {
-  hotel: { icon: 'fa-hotel', bg: '#3b82f6' },
-  restaurant: { icon: 'fa-utensils', bg: '#f97316' },
-  gipfel: { icon: 'fa-mountain', bg: '#22c55e' },
-  highlight: { icon: 'fa-star', bg: '#eab308' },
-};
+// POI icons/colors moved to `constants/poiCategories.ts` (single source of truth)
 
 // Helper to get stage color by index (for map route)
 export function getStageColor(stageIndex: number): string {

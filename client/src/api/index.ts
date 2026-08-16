@@ -30,6 +30,12 @@ export interface POI {
   best_time?: string;
   images: string[];
   amenities: string[];
+  /**
+   * Free-form category-specific fields (e.g. elevation for summits,
+   * opening hours for restaurants). Schema is defined per-category in
+   * `constants/poiCategories.ts` — this is the storage.
+   */
+  metadata?: Record<string, unknown> | null;
 }
 
 export interface GpxFile {
@@ -39,6 +45,35 @@ export interface GpxFile {
   stage_number: number;
   start_point_name?: string;
   file_path: string;
+}
+
+export type ShareLinkExpiry = 'week' | 'month' | 'never';
+
+export interface ShareLink {
+  id: number;
+  routeId: number;
+  token: string;
+  name: string | null;
+  expiryType: ShareLinkExpiry;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  customLogoUrl: string | null;
+  customPrimaryColor: string | null;
+  customAccentColor: string | null;
+  createdAt: string;
+  isExpired: boolean;
+  isRevoked: boolean;
+}
+
+export interface ShareLinkResolved {
+  route: Route;
+  share: {
+    name: string | null;
+    customLogoUrl: string | null;
+    customPrimaryColor: string | null;
+    customAccentColor: string | null;
+    expiresAt: string | null;
+  };
 }
 
 export interface User {
@@ -426,6 +461,10 @@ export interface RouteSettings {
   lineWidth: number;
   shadowColor: string;
   shadowOpacity: number;
+  // White-label branding (all nullable — falls back to product defaults).
+  brandLogoUrl?: string | null;
+  primaryColor?: string | null;
+  accentColor?: string | null;
 }
 
 export interface StageColorSetting {
@@ -509,6 +548,87 @@ export const settingsApi = {
 };
 
 // Locations API
+// Share links API — all admin operations are cookie-authenticated. The
+// public resolve endpoint (`/api/share/:token`) intentionally bypasses the
+// helper so it can surface a 410 Gone (expired/revoked) as a real error.
+export const shareLinksApi = {
+  list: async (
+    routeId: number
+  ): Promise<{ success: boolean; data: ShareLink[] }> => {
+    const res = await fetch(`${API_BASE}/routes/${routeId}/share-links`, {
+      credentials: 'include',
+    });
+    return res.json();
+  },
+
+  create: async (
+    routeId: number,
+    payload: {
+      name?: string;
+      expiryType: ShareLinkExpiry;
+      customLogoUrl?: string;
+      customPrimaryColor?: string;
+      customAccentColor?: string;
+    }
+  ): Promise<{ success: boolean; data: ShareLink }> => {
+    const res = await fetch(`${API_BASE}/routes/${routeId}/share-links`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+    return res.json();
+  },
+
+  update: async (
+    id: number,
+    patch: Partial<{
+      name: string | null;
+      customLogoUrl: string | null;
+      customPrimaryColor: string | null;
+      customAccentColor: string | null;
+      revoked: boolean;
+    }>
+  ): Promise<{ success: boolean; data: ShareLink }> => {
+    const res = await fetch(`${API_BASE}/share-links/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(patch),
+    });
+    return res.json();
+  },
+
+  remove: async (id: number): Promise<{ success: boolean }> => {
+    const res = await fetch(`${API_BASE}/share-links/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    return res.json();
+  },
+
+  // Public read — returns { success, route, share } on 200,
+  // or { success:false, error:'EXPIRED'|'REVOKED' } on 410,
+  // or 404 if the token doesn't exist at all.
+  resolve: async (
+    token: string
+  ): Promise<
+    | { success: true; route: Route; share: ShareLinkResolved['share'] }
+    | { success: false; error: string; status: number }
+  > => {
+    const res = await fetch(`${API_BASE}/share/${token}`);
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: body?.error ?? String(res.status),
+        status: res.status,
+      };
+    }
+    return body;
+  },
+};
+
 export const locationsApi = {
   getByRoute: async (routeId: number): Promise<{ success: boolean; data: RouteLocation[] }> => {
     return cachedFetch(

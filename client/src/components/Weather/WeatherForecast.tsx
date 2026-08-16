@@ -104,7 +104,7 @@ export default function WeatherForecast({
         style={{
           fontSize: isMobile ? '0.5rem' : isTablet ? '0.5625rem' : '0.625rem',
           fontWeight: '700',
-          color: '#088d95',
+          color: 'var(--brand-primary, #088d95)',
           textTransform: 'uppercase',
           letterSpacing: isMobile ? '0.0313rem' : '0.0625rem',
           marginBottom: isCollapsed
@@ -145,7 +145,7 @@ export default function WeatherForecast({
             fontSize: isMobile ? '0.5rem' : '0.625rem',
             transition: 'color 0.2s ease',
           }}
-          onMouseEnter={e => (e.currentTarget.style.color = '#088d95')}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--brand-primary, #088d95)')}
           onMouseLeave={e => (e.currentTarget.style.color = '#6b7280')}
           title={isCollapsed ? 'Show' : 'Hide'}
         >
@@ -180,7 +180,7 @@ export default function WeatherForecast({
                     ? 'rgba(8, 141, 149, 0.2)'
                     : 'rgba(30, 42, 51, 0.5)',
                 border:
-                  index === 0 ? '0.0625rem solid #088d95' : '0.0625rem solid transparent',
+                  index === 0 ? '0.0625rem solid var(--brand-primary, #088d95)' : '0.0625rem solid transparent',
                 transition: 'all 0.2s ease',
               }}
             >
@@ -203,7 +203,7 @@ export default function WeatherForecast({
                 style={{
                   fontSize: isMobile ? '0.5625rem' : isTablet ? '0.625rem' : '0.75rem',
                   fontWeight: '600',
-                  color: index === 0 ? '#088d95' : 'rgba(255, 255, 255, 0.7)',
+                  color: index === 0 ? 'var(--brand-primary, #088d95)' : 'rgba(255, 255, 255, 0.7)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.0313rem',
                   flex: 1,

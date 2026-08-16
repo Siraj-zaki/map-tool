@@ -10,7 +10,27 @@ interface RouteSettings {
   line_width: number;
   shadow_color: string;
   shadow_opacity: number;
+  brand_logo_url: string | null;
+  primary_color: string | null;
+  accent_color: string | null;
   updated_at: string;
+}
+
+/**
+ * Serialize DB row → API response. Keeps camelCase on the wire.
+ * Branding fields are always emitted (null when unset) so the client can
+ * distinguish "not customized" from "not-yet-loaded".
+ */
+function serializeRouteSettings(s: RouteSettings) {
+  return {
+    mainColor: s.main_color,
+    lineWidth: Number(s.line_width),
+    shadowColor: s.shadow_color,
+    shadowOpacity: Number(s.shadow_opacity),
+    brandLogoUrl: s.brand_logo_url,
+    primaryColor: s.primary_color,
+    accentColor: s.accent_color,
+  };
 }
 
 interface StageColor {
@@ -36,32 +56,53 @@ router.get('/route', async (_req: Request, res: Response) => {
         .json({ success: false, message: 'Settings not found' });
     }
 
-    res.json({
-      success: true,
-      settings: {
-        mainColor: settings.main_color,
-        lineWidth: Number(settings.line_width),
-        shadowColor: settings.shadow_color,
-        shadowOpacity: Number(settings.shadow_opacity),
-      },
-    });
+    res.json({ success: true, settings: serializeRouteSettings(settings) });
   } catch (error) {
     console.error('Error fetching route settings:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// PUT /api/settings/route - Update route settings
+// PUT /api/settings/route - Update route settings. Partial: only fields
+// present in the body are touched, so callers can update route styling and
+// branding independently without stomping the other.
 router.put('/route', async (req: Request, res: Response) => {
   try {
-    const { mainColor, lineWidth, shadowColor, shadowOpacity } = req.body;
+    const {
+      mainColor,
+      lineWidth,
+      shadowColor,
+      shadowOpacity,
+      brandLogoUrl,
+      primaryColor,
+      accentColor,
+    } = req.body as {
+      mainColor?: string;
+      lineWidth?: number;
+      shadowColor?: string;
+      shadowOpacity?: number;
+      brandLogoUrl?: string | null;
+      primaryColor?: string | null;
+      accentColor?: string | null;
+    };
 
-    await run(
-      `UPDATE route_settings 
-       SET main_color = ?, line_width = ?, shadow_color = ?, shadow_opacity = ?
-       WHERE id = 1`,
-      [mainColor, lineWidth, shadowColor, shadowOpacity]
-    );
+    const sets: string[] = [];
+    const params: any[] = [];
+
+    if (mainColor !== undefined) { sets.push('main_color = ?'); params.push(mainColor); }
+    if (lineWidth !== undefined) { sets.push('line_width = ?'); params.push(lineWidth); }
+    if (shadowColor !== undefined) { sets.push('shadow_color = ?'); params.push(shadowColor); }
+    if (shadowOpacity !== undefined) { sets.push('shadow_opacity = ?'); params.push(shadowOpacity); }
+    if (brandLogoUrl !== undefined) { sets.push('brand_logo_url = ?'); params.push(brandLogoUrl || null); }
+    if (primaryColor !== undefined) { sets.push('primary_color = ?'); params.push(primaryColor || null); }
+    if (accentColor !== undefined) { sets.push('accent_color = ?'); params.push(accentColor || null); }
+
+    if (sets.length > 0) {
+      await run(
+        `UPDATE route_settings SET ${sets.join(', ')} WHERE id = 1`,
+        params
+      );
+    }
 
     res.json({ success: true, message: 'Route settings updated' });
   } catch (error) {
@@ -173,14 +214,7 @@ router.get('/all', async (_req: Request, res: Response) => {
 
     res.json({
       success: true,
-      routeSettings: routeSettings
-        ? {
-            mainColor: routeSettings.main_color,
-            lineWidth: Number(routeSettings.line_width),
-            shadowColor: routeSettings.shadow_color,
-            shadowOpacity: Number(routeSettings.shadow_opacity),
-          }
-        : null,
+      routeSettings: routeSettings ? serializeRouteSettings(routeSettings) : null,
       stageColors: groupedStages,
     });
   } catch (error) {

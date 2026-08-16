@@ -18,7 +18,7 @@
 .zoom-btn {
   position: fixed;
   background: rgba(11, 18, 21, 0.8);
-  border: 0.0625rem solid #088d95;
+  border: 0.0625rem solid var(--brand-primary, #088D95);
   color: #fff;
   width: 2rem;
   height: 2rem;
@@ -35,7 +35,7 @@
 }
 
 .zoom-btn.active {
-  background: #088d95;
+  background: var(--brand-primary, #088D95);
   color: #fff;
 }
 
@@ -62,13 +62,13 @@
 
 .elevation-profile-visx-container .loading-indicator i {
   font-size: 1.5rem;
-  color: #088d95;
+  color: var(--brand-primary, #088D95);
 }
 
 /* POI tooltip */
 .poi-tooltip-visx {
   background: rgba(11, 18, 21, 0.95);
-  border: 0.0625rem solid #088d95;
+  border: 0.0625rem solid var(--brand-primary, #088D95);
   border-radius: 0.5rem;
   padding: 0.5rem 1rem;
   display: flex;
@@ -118,8 +118,8 @@
 
 /* Brush styles - subtle and less prominent */
 .elevation-chart-visx .visx-brush-handle {
-  fill: #088d95;
-  stroke: #088d95;
+  fill: var(--brand-primary, #088D95);
+  stroke: var(--brand-primary, #088D95);
   opacity: 0.6;
 }
 

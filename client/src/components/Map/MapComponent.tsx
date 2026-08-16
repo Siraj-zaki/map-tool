@@ -1,13 +1,10 @@
 import mapboxgl from 'mapbox-gl';
 import { useCallback, useEffect, useRef, useState } from 'react';
-// import difficultyImage from '../../../public/images/difficulty.png';
-const HighlightImage = '/images/highlight-marker.png';
-const HotelImage = '/images/hotel-marker.png';
-const SummitImage = '/images/mountain-marker.png';
-const RestaurantImage = '/images/resturant-marker.png';
 import type { POI, Route, SplitPoint } from '../../api';
-import { POI_ICON_FALLBACK, ROUTE_STYLES } from '../../constants/routeStyles';
+import { getCategoryOrFallback } from '../../constants/poiCategories';
+import { ROUTE_STYLES } from '../../constants/routeStyles';
 import { useColorSettings } from '../../contexts/ColorSettingsContext';
+import { registerPoiSprites, spriteIdFor } from './poiSprite';
 
 mapboxgl.accessToken =
   'pk.eyJ1IjoicHVuY2hpbmdtYW4iLCJhIjoiY2p1cjcyMmh2M3NpZDQ5bnEwMDV6ZTE1OSJ9.ef8y6l9fsKFMX91m_Rt2ng';
@@ -820,32 +817,28 @@ export default function MapComponent({
         map.current.removeSource('poi-source');
       }
 
-      // Create GeoJSON features for POIs
-      const poiFeatures: GeoJSON.Feature[] = route.pois.map((poi, index) => ({
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: poi.lngLat,
-        },
-        properties: {
-          id: index,
-          name: poi.name || '',
-          type: poi.type || 'highlightNew',
-          description: poi.description || '',
-          poiIndex: index,
-          // Map POI type to color
-          color: POI_ICON_FALLBACK[poi.type || 'highlight']?.bg || '#eab308',
-          // Map POI type to Maki icon name
-          makiIcon:
-            poi.type === 'hotel'
-              ? 'hotelNew'
-              : poi.type === 'restaurant'
-                ? 'restaurantNew'
-                : poi.type === 'gipfel'
-                  ? 'mountainNew'
-                  : 'starNew',
-        },
-      }));
+      // Create GeoJSON features for POIs. The `spriteId` property is
+      // resolved through the shared registry so legacy 'gipfel'/'highlight'
+      // records still get the correct summit sprite.
+      const poiFeatures: GeoJSON.Feature[] = route.pois.map((poi, index) => {
+        const category = getCategoryOrFallback(poi.type);
+        return {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: poi.lngLat,
+          },
+          properties: {
+            id: index,
+            name: poi.name || '',
+            type: poi.type || category.id,
+            description: poi.description || '',
+            poiIndex: index,
+            color: category.color,
+            spriteId: spriteIdFor(category.id),
+          },
+        };
+      });
 
       // Add POI source with clustering enabled
       map.current.addSource('poi-source', {
@@ -898,56 +891,28 @@ export default function MapComponent({
         },
       });
 
-      // Add symbol layer for unclustered POI icons
-      const loadImagePromise = (
-        url: string,
-        imageName: string
-      ): Promise<void> => {
-        return new Promise((resolve, reject) => {
-          map.current?.loadImage(url, (error, image) => {
-            if (error) {
-              reject(error);
-              return;
-            }
-            if (image && map.current && !map.current.hasImage(imageName)) {
-              map.current.addImage(imageName, image);
-            }
-            resolve();
-          });
-        });
-      };
-
-      Promise.all([
-        loadImagePromise(HighlightImage, 'highlightNew'),
-        loadImagePromise(HotelImage, 'hotelNew'),
-        loadImagePromise(RestaurantImage, 'lodgingNew'),
-        loadImagePromise(RestaurantImage, 'restaurantNew'),
-        loadImagePromise(RestaurantImage, 'restaurantNew'),
-        loadImagePromise(SummitImage, 'mountainNew'),
-        loadImagePromise(HighlightImage, 'starNew'),
-      ])
+      // Register runtime-generated POI sprites (one per category, drawn on
+      // canvas from the shared registry). Adding a new category becomes a
+      // one-file edit in `constants/poiCategories.ts`.
+      registerPoiSprites(map.current)
         .then(() => {
-          // Only add the layer after all images are loaded
           if (map.current && !map.current.getLayer('poi-labels')) {
             map.current.addLayer({
               id: 'poi-labels',
               type: 'symbol',
               source: 'poi-source',
-              filter: ['!', ['has', 'point_count']], // Only show unclustered points
+              filter: ['!', ['has', 'point_count']], // unclustered only
               layout: {
-                'icon-image': ['get', 'makiIcon'],
-                'icon-size': 0.03,
+                'icon-image': ['get', 'spriteId'],
+                'icon-size': 1,
                 'icon-allow-overlap': true,
                 'icon-ignore-placement': true,
-              },
-              paint: {
-                'icon-color': '#ffffff',
               },
             });
           }
         })
         .catch(error => {
-          console.error('Error loading POI images:', error);
+          console.error('Error registering POI sprites:', error);
         });
 
       // Handle cluster click - zoom in to expand cluster

@@ -47,8 +47,8 @@ router.get('/', async (req: Request, res: Response) => {
     const { route_id } = req.query;
 
     let sql = `
-      SELECT p.poi_id, p.route_id, p.name, p.description, p.location, 
-             p.type, p.best_time, p.created_at
+      SELECT p.poi_id, p.route_id, p.name, p.description, p.location,
+             p.type, p.best_time, p.metadata, p.created_at
       FROM pois p
     `;
     const params: any[] = [];
@@ -71,11 +71,21 @@ router.get('/', async (req: Request, res: Response) => {
           [poi.poi_id]
         );
 
+        let metadata: Record<string, unknown> | null = null;
+        if (poi.metadata) {
+          try {
+            metadata = JSON.parse(poi.metadata);
+          } catch {
+            metadata = null;
+          }
+        }
+
         return {
           ...poi,
           lngLat: JSON.parse(poi.location),
           images: images.map((img: any) => img.image_path),
           amenities: amenities.map((a: any) => a.amenity),
+          metadata,
         };
       })
     );
@@ -102,6 +112,7 @@ router.post(
         type,
         best_time,
         amenities,
+        metadata,
       } = req.body;
       const files = req.files as Express.Multer.File[];
 
@@ -115,11 +126,19 @@ router.post(
       // Parse lngLat if it's a string
       const location = typeof lngLat === 'string' ? JSON.parse(lngLat) : lngLat;
 
+      // Parse metadata if it arrived as a string (multipart forms serialize it)
+      let metadataJson: string | null = null;
+      if (metadata) {
+        const parsed =
+          typeof metadata === 'string' ? metadata : JSON.stringify(metadata);
+        metadataJson = parsed;
+      }
+
       // Insert POI
       const result = await run(
         `
-        INSERT INTO pois (route_id, name, description, location, type, best_time)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO pois (route_id, name, description, location, type, best_time, metadata)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
         [
           route_id,
@@ -128,6 +147,7 @@ router.post(
           JSON.stringify(location),
           type || null,
           best_time || null,
+          metadataJson,
         ]
       );
 

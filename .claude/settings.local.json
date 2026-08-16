@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(npx vite *)",
+      "WebSearch",
+      "Bash(npm run *)",
+      "Bash(grep -oE '\\\\.bg-\\\\\\\\\\\\[\\\\\\\\\\\\#088d95\\\\\\\\\\\\][^,{]{0,150}\\\\{[^}]+\\\\}' /Users/Macbookpro/Documents/map-tool/client/dist/assets/index-B6iQbKDe.css)",
+      "Bash(grep -oE 'brand-primary[^;\\)]{0,100}' /Users/Macbookpro/Documents/map-tool/client/dist/assets/index-B6iQbKDe.css)",
+      "Bash(grep -oE '\\\\.bg-\\\\\\\\\\\\[\\\\\\\\\\\\#088d95\\\\\\\\\\\\][^;{}]*\\\\{[^}]{0,150}\\\\}' /Users/Macbookpro/Documents/map-tool/client/dist/assets/index-B6iQbKDe.css)",
+      "Bash(awk *)",
+      "Bash(python3 *)",
+      "Bash(grep -oE 'brand-scope[^{]{0,100}\\\\{[^}]{0,100}\\\\}' /Users/Macbookpro/Documents/map-tool/client/dist/assets/index-C411_2LI.css)",
+      "Bash(grep -oE 'brand-scope[^{]{0,150}\\(text|border|hover|focus|shadow\\)[^{]{0,150}\\\\{[^}]{0,150}\\\\}' /Users/Macbookpro/Documents/map-tool/client/dist/assets/index-C411_2LI.css)",
+      "Bash(grep -oE 'html\\\\.brand-scope [^{]{5,100}\\\\{[^}]{5,80}brand-primary[^}]{0,80}\\\\}' /Users/Macbookpro/Documents/map-tool/client/dist/assets/index-C411_2LI.css)",
+      "Bash(git rm *)"
+    ]
+  }
+}

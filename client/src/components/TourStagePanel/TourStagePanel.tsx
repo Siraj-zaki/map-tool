@@ -268,7 +268,7 @@ export default function TourStagePanel({
           <div className="absolute top-[27px] left-0 w-full bg-black border border-neutral-500 rounded-md overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.5)] max-h-40 overflow-y-auto">
             {/* Default Route Start option */}
             <div
-              className="px-3 py-[5px] text-zinc-400 text-[10px] font-normal hover:bg-teal-900/50 hover:text-white cursor-pointer transition-colors"
+              className="px-3 py-[5px] text-zinc-400 text-[10px] font-normal brand-panel-hover-bg hover:text-white cursor-pointer transition-colors"
               onClick={e => {
                 e.stopPropagation();
                 onLocationChange?.(null);
@@ -281,7 +281,7 @@ export default function TourStagePanel({
             {locations.map(loc => (
               <div
                 key={loc.id}
-                className="px-3 py-[5px] text-zinc-400 text-[10px] font-normal hover:bg-teal-900/50 hover:text-white cursor-pointer transition-colors"
+                className="px-3 py-[5px] text-zinc-400 text-[10px] font-normal brand-panel-hover-bg hover:text-white cursor-pointer transition-colors"
                 onClick={e => {
                   e.stopPropagation();
                   onLocationChange?.(loc.id);
@@ -303,15 +303,23 @@ export default function TourStagePanel({
         const stats = getStageStats(idx, numStages);
         if (!stats) return null;
 
-        let barColor = 'bg-slate-500';
-        if (idx === 0) barColor = 'bg-[#5CA2A4]';
-        else if (idx === 1) barColor = 'bg-slate-500';
-        else barColor = 'bg-slate-600';
+        // First stage gets the brand accent; later stages fade out. Uses
+        // color-mix so all stages sit on the same brand hue.
+        const barClass = idx === 0 ? 'brand-side-accent-bg' : '';
+        const barInlineStyle =
+          idx === 0
+            ? undefined
+            : {
+                backgroundColor:
+                  idx === 1
+                    ? 'color-mix(in srgb, var(--brand-primary, #088D95) 40%, #64748b)'
+                    : 'color-mix(in srgb, var(--brand-primary, #088D95) 25%, #475569)',
+              };
 
         return (
           <div
             key={idx}
-            className="w-full relative bg-[#02181B] rounded-[8px] border border-cyan-900 cursor-pointer transition-colors hover:bg-slate-900 shrink-0"
+            className="w-full relative brand-panel-bg-strong rounded-[8px] border brand-panel-border cursor-pointer transition-colors brand-panel-hover-bg shrink-0"
             style={{ height: '100px' }}
             onClick={() => {
               if (onStageSelect) onStageSelect(idx + 1);
@@ -320,11 +328,12 @@ export default function TourStagePanel({
           >
             {/* Colored side bar */}
             <div
-              className={`absolute left-0 top-0 bottom-0 w-[9px] rounded-l-sm ${barColor}`}
+              className={`absolute left-0 top-0 bottom-0 w-[9px] rounded-l-sm ${barClass}`}
+              style={barInlineStyle}
             />
 
             {/* Stage Name */}
-            <div className="absolute left-[21px] top-[8px] text-teal-400 text-[11px] font-bold uppercase tracking-wide">
+            <div className="absolute left-[21px] top-[8px] brand-primary-text text-[11px] font-bold uppercase tracking-wide">
               {stats.name}
             </div>
 
@@ -337,7 +346,7 @@ export default function TourStagePanel({
                 {stats.start}
               </div>
               <svg
-                className="w-[11px] h-[11px] text-teal-400 mx-1.5 shrink-0"
+                className="w-[11px] h-[11px] brand-primary-text mx-1.5 shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -358,43 +367,43 @@ export default function TourStagePanel({
             </div>
 
             {/* Dividers */}
-            <div className="absolute left-[10px] right-[10px] top-[44px] h-px bg-cyan-950" />
-            <div className="absolute left-[10px] right-[10px] top-[72px] h-px bg-cyan-950" />
-            <div className="absolute left-[118px] top-[44px] w-px h-[50px] bg-cyan-950" />
+            <div className="absolute left-[10px] right-[10px] top-[44px] h-px brand-panel-divider" />
+            <div className="absolute left-[10px] right-[10px] top-[72px] h-px brand-panel-divider" />
+            <div className="absolute left-[118px] top-[44px] w-px h-[50px] brand-panel-divider" />
 
             {/* Row 1: distance + ascent */}
-            <img
-              src="/images/header-distance.svg"
-              alt="dist"
-              className="absolute left-[28px] top-[51px] w-3 h-3"
+            <span
+              aria-label="dist"
+              className="absolute left-[28px] top-[51px] w-3 h-3 brand-icon-primary"
+              style={{ ['--icon-url' as any]: 'url("/images/header-distance.svg")' }}
             />
             <div className="absolute left-[48px] top-[52px] text-slate-400 text-[10px] font-semibold">
               {stats.distance.toFixed(1)} km
             </div>
 
-            <img
-              src="/images/header-arrow-up.svg"
-              alt="asc"
-              className="absolute left-[134px] top-[51px] w-3 h-3"
+            <span
+              aria-label="asc"
+              className="absolute left-[134px] top-[51px] w-3 h-3 brand-icon-primary"
+              style={{ ['--icon-url' as any]: 'url("/images/header-arrow-up.svg")' }}
             />
             <div className="absolute left-[152px] top-[52px] text-slate-400 text-[10px] font-semibold">
               {Math.round(stats.ascent)} m
             </div>
 
             {/* Row 2: min ele + max ele */}
-            <img
-              src="/images/header-arrow-down.svg"
-              alt="desc"
-              className="absolute left-[28px] top-[79px] w-3 h-3"
+            <span
+              aria-label="desc"
+              className="absolute left-[28px] top-[79px] w-3 h-3 brand-icon-primary"
+              style={{ ['--icon-url' as any]: 'url("/images/header-arrow-down.svg")' }}
             />
             <div className="absolute left-[48px] top-[80px] text-slate-400 text-[10px] font-semibold">
               {Math.round(Number(stats.minEle))} m
             </div>
 
-            <img
-              src="/images/header-mountain.svg"
-              alt="maxEle"
-              className="absolute left-[134px] top-[79px] w-3 h-3 opacity-90"
+            <span
+              aria-label="maxEle"
+              className="absolute left-[134px] top-[79px] w-3 h-3 brand-icon-primary opacity-90"
+              style={{ ['--icon-url' as any]: 'url("/images/header-mountain.svg")' }}
             />
             <div className="absolute left-[152px] top-[80px] text-slate-400 text-[10px] font-semibold">
               {Math.round(Number(stats.maxEle || stats.descent))} m
@@ -408,9 +417,9 @@ export default function TourStagePanel({
   return (
     <>
       {/* --- DESKTOP VIEW --- */}
-      <div className={`hidden md:flex w-[236px] bg-teal-950 rounded-xl shadow-lg border border-cyan-950/50 p-[10px] font-['Roboto'] flex-col shrink-0 mb-3 relative pointer-events-auto transition-all duration-300 ${isCollapsed ? 'max-h-[50px]' : 'max-h-[calc(100vh-320px)]'}`}>
+      <div className={`hidden md:flex w-[236px] brand-panel-bg rounded-xl shadow-lg border brand-panel-border p-[10px] font-['Roboto'] flex-col shrink-0 mb-3 relative pointer-events-auto transition-all duration-300 ${isCollapsed ? 'max-h-[50px]' : 'max-h-[calc(100vh-320px)]'}`}>
         <div className="pl-[2px] mt-[3px] mb-[5px]">
-          <div className="text-teal-400 text-[12px] font-bold leading-none mb-1 uppercase flex justify-between items-center pr-1">
+          <div className="brand-primary-text text-[12px] font-bold leading-none mb-1 uppercase flex justify-between items-center pr-1">
             <span>{t('tourStages', 'TOUR STAGES')}</span>
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}
@@ -481,11 +490,11 @@ export default function TourStagePanel({
             </button>
           ) : (
             /* Expanded - Full Panel */
-            <div className="w-full bg-teal-950 rounded-t-[20px] shadow-[0px_-4px_20px_rgba(0,0,0,0.5)] border-t border-cyan-950 p-[15px] font-['Roboto'] flex flex-col pointer-events-auto max-h-[80vh] overflow-hidden">
+            <div className="w-full brand-panel-bg rounded-t-[20px] shadow-[0px_-4px_20px_rgba(0,0,0,0.5)] border-t brand-panel-border p-[15px] font-['Roboto'] flex flex-col pointer-events-auto max-h-[80vh] overflow-hidden">
               {/* Header with Collapse Button */}
-              <div className="flex justify-between items-center mb-4 pb-3 border-b border-cyan-900/50">
+              <div className="flex justify-between items-center mb-4 pb-3 border-b brand-panel-border">
                 <div className="flex flex-col">
-                  <span className="text-teal-400 text-lg font-bold uppercase">
+                  <span className="brand-primary-text text-lg font-bold uppercase">
                     {t('tourStages', 'TOUR STAGES')}
                   </span>
                   <span className="text-white/60 text-xs mt-1">

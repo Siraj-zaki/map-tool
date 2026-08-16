@@ -65,9 +65,13 @@ function App() {
           {/* Public embeddable route viewer */}
           <Route path="/" element={<Dashboard />} />
           <Route path="/route/:id" element={<PublicView />} />
+          {/* Tokenized public view (multi-link generator) */}
+          <Route path="/s/:token" element={<PublicView />} />
 
           {/* Minimal iFrame embed (for Shopify) */}
           <Route path="/embed" element={<EmbedView />} />
+          {/* Tokenized embed */}
+          <Route path="/embed/s/:token" element={<EmbedView />} />
 
           {/* Admin routes */}
           <Route path="/admin" element={<Dashboard />} />

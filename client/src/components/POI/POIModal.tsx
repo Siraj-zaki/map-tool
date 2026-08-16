@@ -1,14 +1,27 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  POI_CATEGORIES,
+  getCategory,
+  getCategoryOrFallback,
+  type PoiCategoryId,
+  type PoiFieldSpec,
+} from '../../constants/poiCategories';
 
 interface POIData {
   name: string;
   description: string;
-  type: 'hotel' | 'restaurant' | 'gipfel' | 'highlight' | '';
+  /**
+   * Category id from the central registry. Empty string represents "not yet
+   * selected" so save-time validation can reject it.
+   */
+  type: PoiCategoryId | '';
   amenities: string[];
   bestTime: string;
   images: string[];
   lngLat: [number, number];
+  /** Category-specific fields keyed by PoiFieldSpec.key. */
+  metadata?: Record<string, unknown> | null;
 }
 
 interface POIModalProps {
@@ -29,7 +42,12 @@ export default function POIModal({
   const { t } = useTranslation();
   const [name, setName] = useState(editingPoi?.name || '');
   const [description, setDescription] = useState(editingPoi?.description || '');
-  const [type, setType] = useState<POIData['type']>(editingPoi?.type || '');
+  // Normalize legacy alias values (e.g. 'gipfel') to their current canonical
+  // id so the picker shows the right selected chip.
+  const initialType: POIData['type'] = editingPoi?.type
+    ? (getCategoryOrFallback(editingPoi.type).id as PoiCategoryId)
+    : '';
+  const [type, setType] = useState<POIData['type']>(initialType);
   const [amenities, setAmenities] = useState<string[]>(
     editingPoi?.amenities || []
   );
@@ -37,7 +55,25 @@ export default function POIModal({
   const [imagePreviews, setImagePreviews] = useState<string[]>(
     editingPoi?.images || []
   );
+  const [metadata, setMetadata] = useState<Record<string, unknown>>(
+    (editingPoi?.metadata as Record<string, unknown> | null) ?? {}
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const activeCategory = type ? getCategory(type) : null;
+  const activeFields: PoiFieldSpec[] = activeCategory?.fields ?? [];
+
+  const updateMetadataField = (key: string, value: unknown) => {
+    setMetadata(prev => {
+      const next = { ...prev };
+      if (value === '' || value === undefined || value === null) {
+        delete next[key];
+      } else {
+        next[key] = value;
+      }
+      return next;
+    });
+  };
 
   // Define options with translation keys
   const amenityOptions = [
@@ -55,14 +91,6 @@ export default function POIModal({
       icon: 'fa-mountain',
       emoji: '🏔️',
     },
-  ];
-
-  const poiTypes = [
-    { value: 'hotel', labelKey: 'hotel' },
-    { value: 'restaurant', labelKey: 'restaurant' },
-    { value: 'gipfel', labelKey: 'gipfel' },
-    { value: 'highlight', labelKey: 'highlight' },
-    { value: 'city', labelKey: 'city' },
   ];
 
   const bestTimeOptions = [
@@ -118,6 +146,7 @@ export default function POIModal({
       bestTime,
       images: imagePreviews,
       lngLat,
+      metadata: Object.keys(metadata).length ? metadata : null,
     });
   };
 
@@ -269,24 +298,72 @@ export default function POIModal({
             </select>
           </div>
 
-          {/* POI Type */}
+          {/* POI Type — icon grid picker */}
           <div>
             <label className="block text-gray-400 text-sm mb-2">
               {t('poiType')} *
             </label>
-            <select
-              value={type}
-              onChange={e => setType(e.target.value as POIData['type'])}
-              className="w-full px-4 py-2.5 bg-[#080e11] border border-[#1e2a33] rounded-lg text-white focus:border-[#088d95] focus:outline-none"
-            >
-              <option value="">{t('pleaseSelect')}</option>
-              {poiTypes.map(opt => (
-                <option key={opt.value} value={opt.value}>
-                  {t(opt.labelKey)}
-                </option>
-              ))}
-            </select>
+            <div className="grid grid-cols-4 gap-2">
+              {POI_CATEGORIES.map(cat => {
+                const selected = type === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setType(cat.id)}
+                    title={t(cat.labelKey)}
+                    className={`group flex flex-col items-center gap-1.5 p-2.5 rounded-lg border transition-all ${
+                      selected
+                        ? 'border-white/70 bg-white/[0.04] shadow-lg'
+                        : 'border-[#1e2a33] bg-[#080e11] hover:border-white/30'
+                    }`}
+                    style={
+                      selected
+                        ? { boxShadow: `0 0 0 2px ${cat.color}55 inset` }
+                        : undefined
+                    }
+                  >
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center border-2 border-white/90 shadow-sm"
+                      style={{ background: cat.color }}
+                    >
+                      <i
+                        className={`fas ${cat.faIcon} text-white text-sm`}
+                      ></i>
+                    </div>
+                    <span
+                      className={`text-[0.7rem] leading-tight text-center transition-colors ${
+                        selected ? 'text-white' : 'text-gray-400 group-hover:text-white'
+                      }`}
+                    >
+                      {t(cat.labelKey)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
+          {/* Category-specific fields */}
+          {activeFields.length > 0 && (
+            <div className="pt-2 border-t border-[#1e2a33]">
+              <label className="block text-gray-400 text-xs uppercase tracking-wider mb-3">
+                {t('detailsSection') || 'Details'}
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                {activeFields.map(field => (
+                  <MetaFieldInput
+                    key={field.key}
+                    field={field}
+                    value={metadata[field.key]}
+                    onChange={v => updateMetadataField(field.key, v)}
+                    t={t}
+                    accent={activeCategory?.color ?? '#088d95'}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Coordinates (readonly) */}
           <div className="p-3 bg-[#080e11] rounded-lg text-sm text-gray-500">
@@ -316,6 +393,148 @@ export default function POIModal({
       </div>
     </div>
   );
+}
+
+interface MetaFieldInputProps {
+  field: PoiFieldSpec;
+  value: unknown;
+  onChange: (v: unknown) => void;
+  t: (key: string) => string;
+  accent: string;
+}
+
+/**
+ * Renders a single category-specific field. Each kind maps to a different
+ * control (text/number/url/phone/select/bool). Layout intentionally spans
+ * one grid cell by default; `col-span-2` for controls that need more room.
+ */
+function MetaFieldInput({ field, value, onChange, t, accent }: MetaFieldInputProps) {
+  const label = (
+    <label className="flex items-center gap-1.5 text-gray-400 text-xs mb-1.5">
+      {field.icon && (
+        <i className={`fas ${field.icon}`} style={{ color: accent, fontSize: '0.75rem' }} />
+      )}
+      {t(field.labelKey)}
+    </label>
+  );
+
+  const baseInputClass =
+    'w-full px-3 py-2 bg-[#080e11] border border-[#1e2a33] rounded-lg text-white placeholder-gray-500 focus:border-[#088d95] focus:outline-none text-sm';
+
+  switch (field.kind) {
+    case 'text':
+      return (
+        <div>
+          {label}
+          <input
+            type="text"
+            value={typeof value === 'string' ? value : ''}
+            onChange={e => onChange(e.target.value)}
+            onKeyDown={e => e.stopPropagation()}
+            placeholder={field.placeholder}
+            className={baseInputClass}
+          />
+        </div>
+      );
+
+    case 'number':
+      return (
+        <div>
+          {label}
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              value={typeof value === 'number' ? value : ''}
+              min={field.min}
+              max={field.max}
+              step={field.step ?? 1}
+              onChange={e => {
+                const raw = e.target.value;
+                onChange(raw === '' ? '' : Number(raw));
+              }}
+              onKeyDown={e => e.stopPropagation()}
+              className={baseInputClass}
+            />
+            {field.unit && (
+              <span className="text-gray-500 text-sm shrink-0">{field.unit}</span>
+            )}
+          </div>
+        </div>
+      );
+
+    case 'url':
+      return (
+        <div className="col-span-2">
+          {label}
+          <input
+            type="url"
+            value={typeof value === 'string' ? value : ''}
+            onChange={e => onChange(e.target.value)}
+            onKeyDown={e => e.stopPropagation()}
+            placeholder="https://…"
+            className={baseInputClass}
+          />
+        </div>
+      );
+
+    case 'phone':
+      return (
+        <div>
+          {label}
+          <input
+            type="tel"
+            value={typeof value === 'string' ? value : ''}
+            onChange={e => onChange(e.target.value)}
+            onKeyDown={e => e.stopPropagation()}
+            placeholder="+49 …"
+            className={baseInputClass}
+          />
+        </div>
+      );
+
+    case 'select':
+      return (
+        <div>
+          {label}
+          <select
+            value={typeof value === 'string' ? value : ''}
+            onChange={e => onChange(e.target.value)}
+            className={baseInputClass}
+          >
+            <option value="">—</option>
+            {field.options.map(opt => (
+              <option key={opt.value} value={opt.value}>
+                {t(opt.labelKey)}
+              </option>
+            ))}
+          </select>
+        </div>
+      );
+
+    case 'bool': {
+      const checked = value === true;
+      return (
+        <label
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${
+            checked
+              ? 'bg-[#088d95]/15 border-[#088d95] text-white'
+              : 'bg-[#080e11] border-[#1e2a33] text-gray-400 hover:border-[#088d95]/50'
+          }`}
+        >
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={e => onChange(e.target.checked)}
+            className="sr-only"
+          />
+          {field.icon && (
+            <i className={`fas ${field.icon} text-xs`} style={{ color: checked ? accent : undefined }} />
+          )}
+          <span className="text-xs">{t(field.labelKey)}</span>
+        </label>
+      );
+    }
+  }
 }
 
 export type { POIData };

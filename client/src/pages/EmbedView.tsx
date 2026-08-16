@@ -1,10 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
-import { routesApi, splitPointsApi, type POI, type Route, type SplitPoint } from '../api';
+import { useParams, useSearchParams } from 'react-router-dom';
+import {
+  routesApi,
+  shareLinksApi,
+  splitPointsApi,
+  type POI,
+  type Route,
+  type ShareLinkResolved,
+  type SplitPoint,
+} from '../api';
 
 import ElevationProfile from '../components/ElevationProfile/ElevationProfileVisx';
 import MapComponent from '../components/Map/MapComponent';
+import {
+  FullscreenToolIcon,
+  LocationToolIcon,
+} from '../components/Map/MapControlIcons';
 import POISidebar from '../components/POI/POISidebar';
 import PremiumModal from '../components/Premium/PremiumModal';
 import RouteStatsBar from '../components/RouteStatsBar/RouteStatsBar';
@@ -41,10 +53,14 @@ const log = {
 export default function EmbedView() {
   const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
+  const { token } = useParams();
   const routeId = searchParams.get('route');
   const lang = searchParams.get('lang');
 
   const [route, setRoute] = useState<Route | null>(null);
+  const [shareMeta, setShareMeta] = useState<ShareLinkResolved['share'] | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPoi, setSelectedPoi] = useState<POI | null>(null);
@@ -257,41 +273,46 @@ export default function EmbedView() {
   useEffect(() => {
     log.info('🚀 COMPONENT MOUNTED', { routeId, lang, url: window.location.href });
     
-    if (!routeId) {
-      setError('No route ID provided. Use ?route=ID');
+    if (!token && !routeId) {
+      setError('NOT_FOUND');
       setLoading(false);
       return;
     }
 
     const loadRoute = async () => {
       try {
-        log.info('📡 Fetching route...', { routeId: Number(routeId) });
-        const result = await routesApi.getById(Number(routeId));
-        if (result.success) {
-          log.info('✅ Route loaded', {
-            routeId: result.route.id,
-            name: result.route.name,
-            distance: result.route.distance,
-            hasGeometry: !!result.route.routeGeometry,
-            geometryPoints: result.route.routeGeometry?.length || 0,
-            startPoint: result.route.startPoint,
-            endPoint: result.route.endPoint
-          });
-          setRoute(result.route);
+        if (token) {
+          // Tokenized share — includes expiry/revoke enforcement + per-link
+          // customization (logo, accent).
+          log.info('📡 Resolving share token…', { token });
+          const result = await shareLinksApi.resolve(token);
+          if ('error' in result) {
+            log.error('Share link not usable', result);
+            setError(result.error || 'NOT_FOUND');
+          } else {
+            setRoute(result.route);
+            setShareMeta(result.share);
+          }
         } else {
-          log.error('Route not found', result);
-          setError('Route not found');
+          log.info('📡 Fetching route...', { routeId: Number(routeId) });
+          const result = await routesApi.getById(Number(routeId));
+          if (result.success) {
+            setRoute(result.route);
+          } else {
+            log.error('Route not found', result);
+            setError('NOT_FOUND');
+          }
         }
       } catch (err) {
         log.error('Failed to load route', err);
-        setError('Failed to load route');
+        setError('LOAD_FAILED');
       } finally {
         setLoading(false);
       }
     };
 
     loadRoute();
-  }, [routeId]);
+  }, [routeId, token]);
 
   // Handle map hover - updates elevation profile
   const handleMapPositionChange = useCallback(
@@ -436,23 +457,49 @@ export default function EmbedView() {
   if (loading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-[#0b1215] text-[#a0a0a0]">
-        <i className="fas fa-mountain text-4xl text-[#088d95] mb-4 animate-bounce"></i>
+        <i
+          className="fas fa-mountain text-4xl mb-4 animate-bounce"
+          style={{ color: 'var(--brand-primary, #088d95)' }}
+        ></i>
         <div className="text-sm ml-3">{t('routeLoading')}</div>
       </div>
     );
   }
 
   if (error || !route) {
+    const message =
+      error === 'EXPIRED'
+        ? t('shareExpiredMessage') || 'This share link has expired.'
+        : error === 'REVOKED'
+          ? t('shareRevokedMessage') || 'This share link has been revoked.'
+          : error === 'NOT_FOUND' || (token && error)
+            ? t('shareNotFoundMessage') || 'This share link no longer exists.'
+            : t('routeNotFound');
+    const icon =
+      error === 'EXPIRED' ? 'fa-hourglass-end'
+        : error === 'REVOKED' ? 'fa-ban'
+          : 'fa-exclamation-triangle';
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-[#0b1215] text-[#a0a0a0]">
-        <i className="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
-        <div className="ml-3">{error || t('routeNotFound')}</div>
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-[#0b1215] text-[#a0a0a0] px-6 text-center">
+        <i className={`fas ${icon} text-4xl text-red-500 mb-4`}></i>
+        <div className="text-white text-base font-medium">{message}</div>
       </div>
     );
   }
 
+  const rootStyle: React.CSSProperties = {};
+  if (shareMeta?.customPrimaryColor) {
+    (rootStyle as any)['--brand-primary'] = shareMeta.customPrimaryColor;
+  }
+  if (shareMeta?.customAccentColor) {
+    (rootStyle as any)['--brand-accent'] = shareMeta.customAccentColor;
+  }
+
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-black font-sans">
+    <div
+      className="relative w-full h-screen overflow-hidden bg-black font-sans"
+      style={rootStyle}
+    >
       {/* 1. Background Map */}
       <div className="absolute inset-0 md:inset-0 bottom-[360px] md:bottom-0 z-0">
         {(() => {
@@ -489,6 +536,9 @@ export default function EmbedView() {
       <div className="absolute top-0 left-0 right-0 z-50 shadow-lg">
         <RouteStatsBar
           route={route}
+          logoUrl={shareMeta?.customLogoUrl || undefined}
+          primaryColor={shareMeta?.customPrimaryColor || undefined}
+          accentColor={shareMeta?.customAccentColor || undefined}
           showDownloadButton={true}
           onDownloadClick={() => setShowGpxModal(true)}
           onLocationSelect={coords =>
@@ -536,26 +586,19 @@ export default function EmbedView() {
 
       {/* 4. Right Floating Widget (Custom Map Controls) */}
       <div className="absolute hidden md:flex top-[160px] md:top-[110px] right-2 md:right-4 z-40  flex-col items-center gap-2 md:gap-3 transform origin-right scale-75 sm:scale-90 lg:scale-100 transition-all pointer-events-auto">
-        {/* Fullscreen Tool */}
-        <button onClick={handleFullscreen} className="" title="Fullscreen">
-          <img
-            src="/images/fullscreen-icon.svg"
-            alt="Fullscreen"
-            className="w-12 h-12 md:w-12 md:h-12 text-white"
-          />
+        {/* Fullscreen Tool — inline SVG so background chrome recolors with
+            brand while the white glyph stays readable. */}
+        <button onClick={handleFullscreen} title="Fullscreen" aria-label="Fullscreen">
+          <FullscreenToolIcon className="w-12 h-12" />
         </button>
 
         {/* Location Tool */}
-        <button onClick={handleLocateMe} className="" title="Locate Me">
-          <img
-            src="/images/location-icon.svg"
-            alt="Locate Me"
-            className="w-12 h-12 md:w-12 md:h-12 text-white"
-          />
+        <button onClick={handleLocateMe} title="Locate Me" aria-label="Locate Me">
+          <LocationToolIcon className="w-12 h-12" />
         </button>
 
         {/* Zoom Controls */}
-        <div className="w-12 md:w-10 h-22 md:h-20 bg-[#0a1f26] rounded-[14px] md:rounded-[10px] relative flex flex-col items-center justify-between shadow-lg border border-[#1d4450]">
+        <div className="w-12 md:w-10 h-22 md:h-20 brand-panel-bg-strong rounded-[14px] md:rounded-[10px] relative flex flex-col items-center justify-between shadow-lg border brand-panel-border">
           <button
             onClick={handleZoomIn}
             className="w-full h-1/2 flex items-center justify-center hover:bg-white/10 transition-colors rounded-t-[14px] md:rounded-t-[10px] z-10 text-white"
@@ -578,7 +621,7 @@ export default function EmbedView() {
             </svg>
           </button>
           {/* Divider line */}
-          <div className="absolute top-1/2 left-2 right-2 h-px bg-[#1d4450] -translate-y-1/2"></div>
+          <div className="absolute top-1/2 left-2 right-2 h-px brand-panel-divider -translate-y-1/2"></div>
           <button
             onClick={handleZoomOut}
             className="w-full h-1/2 flex items-center justify-center hover:bg-white/10 transition-colors rounded-b-[14px] md:rounded-b-[10px] z-10 text-white"
@@ -604,26 +647,19 @@ export default function EmbedView() {
       </div>
       {/* Mobile Desktop */}
       <div className="absolute md:hidden flex  bottom-[360px] md:top-[284px] right-2 md:right-4 z-40  flex-col items-center gap-2 md:gap-3 transform origin-right scale-75 sm:scale-90 lg:scale-100 transition-all pointer-events-auto">
-        {/* Fullscreen Tool */}
-        <button onClick={handleFullscreen} className="" title="Fullscreen">
-          <img
-            src="/images/fullscreen-icon.svg"
-            alt="Fullscreen"
-            className="w-12 h-12 md:w-12 md:h-12 text-white"
-          />
+        {/* Fullscreen Tool — inline SVG so background chrome recolors with
+            brand while the white glyph stays readable. */}
+        <button onClick={handleFullscreen} title="Fullscreen" aria-label="Fullscreen">
+          <FullscreenToolIcon className="w-12 h-12" />
         </button>
 
         {/* Location Tool */}
-        <button onClick={handleLocateMe} className="" title="Locate Me">
-          <img
-            src="/images/location-icon.svg"
-            alt="Locate Me"
-            className="w-12 h-12 md:w-12 md:h-12 text-white"
-          />
+        <button onClick={handleLocateMe} title="Locate Me" aria-label="Locate Me">
+          <LocationToolIcon className="w-12 h-12" />
         </button>
 
         {/* Zoom Controls */}
-        <div className="w-12 md:w-10 h-22 md:h-20 bg-[#0a1f26] rounded-[14px] md:rounded-[10px] relative flex flex-col items-center justify-between shadow-lg border border-[#1d4450]">
+        <div className="w-12 md:w-10 h-22 md:h-20 brand-panel-bg-strong rounded-[14px] md:rounded-[10px] relative flex flex-col items-center justify-between shadow-lg border brand-panel-border">
           <button
             onClick={handleZoomIn}
             className="w-full h-1/2 flex items-center justify-center hover:bg-white/10 transition-colors rounded-t-[14px] md:rounded-t-[10px] z-10 text-white"
@@ -646,7 +682,7 @@ export default function EmbedView() {
             </svg>
           </button>
           {/* Divider line */}
-          <div className="absolute top-1/2 left-2 right-2 h-px bg-[#1d4450] -translate-y-1/2"></div>
+          <div className="absolute top-1/2 left-2 right-2 h-px brand-panel-divider -translate-y-1/2"></div>
           <button
             onClick={handleZoomOut}
             className="w-full h-1/2 flex items-center justify-center hover:bg-white/10 transition-colors rounded-b-[14px] md:rounded-b-[10px] z-10 text-white"

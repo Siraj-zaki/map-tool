@@ -105,10 +105,22 @@ export async function initializeDatabase() {
       location TEXT NOT NULL,
       type VARCHAR(100),
       best_time VARCHAR(255),
+      metadata LONGTEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (route_id) REFERENCES routes(route_id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
+
+  // Add metadata column for pre-existing installs. LONGTEXT (not JSON) so it
+  // works across MariaDB versions where the JSON alias behavior varies —
+  // callers JSON.stringify/parse in application code, which is uniform.
+  try {
+    await pool.execute(`
+      ALTER TABLE pois ADD COLUMN IF NOT EXISTS metadata LONGTEXT
+    `);
+  } catch (e) {
+    // Column may already exist
+  }
 
   // POI images table
   await pool.execute(`
@@ -185,9 +197,56 @@ export async function initializeDatabase() {
       line_width INT DEFAULT 5,
       shadow_color VARCHAR(9) DEFAULT '#000000',
       shadow_opacity DECIMAL(3,2) DEFAULT 0.15,
+      brand_logo_url VARCHAR(500),
+      primary_color VARCHAR(9),
+      accent_color VARCHAR(9),
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
+
+  // Idempotent ALTERs for pre-existing installs — safe to re-run.
+  for (const stmt of [
+    `ALTER TABLE route_settings ADD COLUMN IF NOT EXISTS brand_logo_url VARCHAR(500)`,
+    `ALTER TABLE route_settings ADD COLUMN IF NOT EXISTS primary_color VARCHAR(9)`,
+    `ALTER TABLE route_settings ADD COLUMN IF NOT EXISTS accent_color VARCHAR(9)`,
+  ]) {
+    try {
+      await pool.execute(stmt);
+    } catch {
+      // Column may already exist on older MariaDB without IF NOT EXISTS support
+    }
+  }
+
+  // Share links table — one row per shareable URL for a route. Enables
+  // multi-link generator with per-link expiry + customization (logo, accent
+  // color). Public reads via GET /api/share/:token; token is url-safe hex.
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS share_links (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      route_id INT NOT NULL,
+      token VARCHAR(64) UNIQUE NOT NULL,
+      name VARCHAR(255),
+      expiry_type ENUM('week', 'month', 'never') NOT NULL DEFAULT 'never',
+      expires_at TIMESTAMP NULL,
+      revoked_at TIMESTAMP NULL,
+      custom_logo_url VARCHAR(500),
+      custom_primary_color VARCHAR(9),
+      custom_accent_color VARCHAR(9),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (route_id) REFERENCES routes(route_id) ON DELETE CASCADE,
+      INDEX idx_share_route (route_id),
+      INDEX idx_share_expires (expires_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  // Idempotent ALTER for pre-existing installs that pre-date custom_primary_color.
+  try {
+    await pool.execute(
+      `ALTER TABLE share_links ADD COLUMN IF NOT EXISTS custom_primary_color VARCHAR(9)`
+    );
+  } catch {
+    // Column may already exist
+  }
 
   // Stage colors table (per tour type/stage)
   await pool.execute(`

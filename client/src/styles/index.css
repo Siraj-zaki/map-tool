@@ -1,21 +1,293 @@
 @import 'tailwindcss';
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-/* Only essential overrides - everything else uses Tailwind classes */
+@custom-variant dark (&:is(.dark *));
 
-/* Mapbox GL styles override */
+@theme inline {
+  --font-sans: 'Roboto', 'Segoe UI', Arial, sans-serif;
+  --font-heading: 'Roboto', 'Segoe UI', Arial, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
 
 :root {
-  --color-teal-400: #43b3be !important;
+  --radius: 0.625rem;
+  --background: #0f1117;
+  --foreground: #e4e4e7;
+  --card: #18181b;
+  --card-foreground: #e4e4e7;
+  --popover: #18181b;
+  --popover-foreground: #e4e4e7;
+  --primary: var(--brand-primary, #3b82f6);
+  --primary-foreground: #ffffff;
+  --secondary: #27272a;
+  --secondary-foreground: #e4e4e7;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: var(--brand-accent, #10b981);
+  --accent-foreground: #0f1117;
+  --destructive: #ef4444;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.08);
+  --ring: var(--brand-primary, #3b82f6);
+  --color-teal-400: #2dd4bf;
+  --color-chart-1: #3b82f6;
+  --color-chart-2: #10b981;
+  --color-chart-3: #8b5cf6;
+  --color-chart-4: #f59e0b;
+  --color-chart-5: #ec4899;
+  --sidebar: #18181b;
+  --sidebar-foreground: #e4e4e7;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #27272a;
+  --sidebar-accent-foreground: #e4e4e7;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #3b82f6;
 }
 
-/* Base font — Roboto applied globally */
-body,
-button,
-input,
-select,
-textarea {
-  font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
+
+/* ==========================================================================
+   Brand utility classes (white-label)
+   ========================================================================== */
+
+.brand-primary-bg {
+  background-color: var(--brand-primary, #088D95);
+}
+.brand-primary-bg:hover {
+  background-color: color-mix(in srgb, var(--brand-primary, #088D95) 85%, black);
+}
+.brand-primary-bg-soft {
+  background-color: color-mix(in srgb, var(--brand-primary, #088D95) 10%, transparent);
+}
+.brand-primary-bg-soft-15 {
+  background-color: color-mix(in srgb, var(--brand-primary, #088D95) 15%, transparent);
+}
+.brand-primary-bg-soft-20 {
+  background-color: color-mix(in srgb, var(--brand-primary, #088D95) 20%, transparent);
+}
+.brand-primary-text {
+  color: var(--brand-primary, #088D95);
+}
+.brand-primary-hover-text:hover {
+  color: var(--brand-primary, #088D95);
+}
+.brand-primary-border {
+  border-color: var(--brand-primary, #088D95);
+}
+.brand-primary-hover-border:hover {
+  border-color: var(--brand-primary, #088D95);
+}
+.brand-primary-focus:focus {
+  border-color: var(--brand-primary, #088D95);
+  outline: none;
+}
+.brand-primary-fill-soft {
+  background-color: color-mix(in srgb, var(--brand-primary, #088D95) 12%, transparent);
+}
+.brand-accent-bg {
+  background-color: var(--brand-accent, #2dd4bf);
+}
+.brand-accent-text {
+  color: var(--brand-accent, #2dd4bf);
+}
+.brand-accent-border {
+  border-color: var(--brand-accent, #2dd4bf);
+}
+
+.brand-panel-bg {
+  background-color: color-mix(in srgb, var(--brand-primary, #088D95) 12%, #050a0c);
+}
+.brand-panel-bg-strong {
+  background-color: color-mix(in srgb, var(--brand-primary, #088D95) 20%, #050a0c);
+}
+.brand-panel-border {
+  border-color: color-mix(in srgb, var(--brand-primary, #088D95) 35%, #101820);
+}
+.brand-panel-divider {
+  background-color: color-mix(in srgb, var(--brand-primary, #088D95) 25%, transparent);
+}
+.brand-panel-hover-bg:hover {
+  background-color: color-mix(in srgb, var(--brand-primary, #088D95) 20%, transparent);
+}
+.brand-side-accent-bg {
+  background-color: color-mix(in srgb, var(--brand-primary, #088D95) 65%, #b0d0d3);
+}
+
+.brand-icon-primary {
+  display: inline-block;
+  background-color: var(--brand-primary, #088D95);
+  -webkit-mask-image: var(--icon-url);
+  mask-image: var(--icon-url);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+.brand-icon-primary--accent {
+  background-color: var(--brand-accent, #2dd4bf);
+}
+
+/* ==========================================================================
+   White-label overrides for hardcoded teal Tailwind classes
+   ========================================================================== */
+
+html.brand-scope .bg-\[\#088d95\],
+html.brand-scope .bg-\[\#088D95\] {
+  background-color: var(--brand-primary, #088D95);
+}
+html.brand-scope .bg-\[\#088d95\]\/5,
+html.brand-scope .bg-\[\#088D95\]\/5 {
+  background-color: color-mix(in srgb, var(--brand-primary, #088D95) 5%, transparent);
+}
+html.brand-scope .bg-\[\#088d95\]\/10,
+html.brand-scope .bg-\[\#088D95\]\/10 {
+  background-color: color-mix(in srgb, var(--brand-primary, #088D95) 10%, transparent);
+}
+html.brand-scope .bg-\[\#088d95\]\/15,
+html.brand-scope .bg-\[\#088D95\]\/15 {
+  background-color: color-mix(in srgb, var(--brand-primary, #088D95) 15%, transparent);
+}
+html.brand-scope .bg-\[\#088d95\]\/20,
+html.brand-scope .bg-\[\#088D95\]\/20 {
+  background-color: color-mix(in srgb, var(--brand-primary, #088D95) 20%, transparent);
+}
+html.brand-scope .bg-\[\#088d95\]\/30,
+html.brand-scope .bg-\[\#088D95\]\/30 {
+  background-color: color-mix(in srgb, var(--brand-primary, #088D95) 30%, transparent);
+}
+html.brand-scope .text-\[\#088d95\],
+html.brand-scope .text-\[\#088D95\] {
+  color: var(--brand-primary, #088D95);
+}
+html.brand-scope .border-\[\#088d95\],
+html.brand-scope .border-\[\#088D95\] {
+  border-color: var(--brand-primary, #088D95);
+}
+html.brand-scope .border-\[\#088d95\]\/20,
+html.brand-scope .border-\[\#088D95\]\/20 {
+  border-color: color-mix(in srgb, var(--brand-primary, #088D95) 20%, transparent);
+}
+html.brand-scope .border-\[\#088d95\]\/30,
+html.brand-scope .border-\[\#088D95\]\/30 {
+  border-color: color-mix(in srgb, var(--brand-primary, #088D95) 30%, transparent);
+}
+html.brand-scope .border-\[\#088d95\]\/50,
+html.brand-scope .border-\[\#088D95\]\/50 {
+  border-color: color-mix(in srgb, var(--brand-primary, #088D95) 50%, transparent);
+}
+html.brand-scope .ring-\[\#088d95\],
+html.brand-scope .ring-\[\#088D95\] {
+  --tw-ring-color: var(--brand-primary, #088D95);
+}
+html.brand-scope .hover\:bg-\[\#088d95\]:hover,
+html.brand-scope .hover\:bg-\[\#088D95\]:hover {
+  background-color: var(--brand-primary, #088D95);
+}
+html.brand-scope .hover\:bg-\[\#088d95\]\/10:hover,
+html.brand-scope .hover\:bg-\[\#088D95\]\/10:hover {
+  background-color: color-mix(in srgb, var(--brand-primary, #088D95) 10%, transparent);
+}
+html.brand-scope .hover\:bg-\[\#088d95\]\/20:hover,
+html.brand-scope .hover\:bg-\[\#088D95\]\/20:hover {
+  background-color: color-mix(in srgb, var(--brand-primary, #088D95) 20%, transparent);
+}
+html.brand-scope .hover\:text-\[\#088d95\]:hover,
+html.brand-scope .hover\:text-\[\#088D95\]:hover {
+  color: var(--brand-primary, #088D95);
+}
+html.brand-scope .hover\:border-\[\#088d95\]:hover,
+html.brand-scope .hover\:border-\[\#088D95\]:hover {
+  border-color: var(--brand-primary, #088D95);
+}
+html.brand-scope .hover\:border-\[\#088d95\]\/50:hover,
+html.brand-scope .hover\:border-\[\#088D95\]\/50:hover {
+  border-color: color-mix(in srgb, var(--brand-primary, #088D95) 50%, transparent);
+}
+html.brand-scope .hover\:border-\[\#088d95\]\/70:hover,
+html.brand-scope .hover\:border-\[\#088D95\]\/70:hover {
+  border-color: color-mix(in srgb, var(--brand-primary, #088D95) 70%, transparent);
+}
+html.brand-scope .focus\:border-\[\#088d95\]:focus,
+html.brand-scope .focus\:border-\[\#088D95\]:focus {
+  border-color: var(--brand-primary, #088D95);
+}
+html.brand-scope .focus\:ring-\[\#088d95\]:focus,
+html.brand-scope .focus\:ring-\[\#088D95\]:focus {
+  --tw-ring-color: var(--brand-primary, #088D95);
+}
+html.brand-scope .hover\:bg-\[\#0da6ae\]:hover,
+html.brand-scope .hover\:bg-\[\#0DA6AE\]:hover,
+html.brand-scope .hover\:bg-\[\#0aa6ae\]:hover,
+html.brand-scope .hover\:bg-\[\#0AA6AE\]:hover {
+  background-color: color-mix(in srgb, var(--brand-primary, #088D95) 85%, white);
+}
+html.brand-scope .hover\:text-\[\#0da6ae\]:hover,
+html.brand-scope .hover\:text-\[\#0DA6AE\]:hover,
+html.brand-scope .hover\:text-\[\#0aa6ae\]:hover,
+html.brand-scope .hover\:text-\[\#0AA6AE\]:hover {
+  color: color-mix(in srgb, var(--brand-primary, #088D95) 85%, white);
+}
+html.brand-scope .bg-\[\#2dd4bf\] {
+  background-color: var(--brand-accent, #2dd4bf);
+}
+html.brand-scope .text-\[\#2dd4bf\] {
+  color: var(--brand-accent, #2dd4bf);
+}
+html.brand-scope .border-\[\#2dd4bf\] {
+  border-color: var(--brand-accent, #2dd4bf);
+}
+html.brand-scope .shadow-\[\#088d95\]\/30,
+html.brand-scope .shadow-\[\#088D95\]\/30 {
+  --tw-shadow-color: color-mix(in srgb, var(--brand-primary, #088D95) 30%, transparent);
+}
+
+/* ==========================================================================
+   Mapbox GL overrides
+   ========================================================================== */
+
 .mapboxgl-map {
   font-family: inherit;
 }
@@ -32,14 +304,17 @@ textarea {
 }
 
 .mapboxgl-ctrl-group button:hover {
-  background: #088d95 !important;
+  background: var(--brand-primary, #088D95) !important;
 }
 
 .mapboxgl-ctrl-group button span {
   filter: invert(1);
 }
 
-/* Custom scrollbar for dark theme */
+/* ==========================================================================
+   Scrollbar
+   ========================================================================== */
+
 ::-webkit-scrollbar {
   width: 0.5rem;
   height: 0.5rem;
@@ -55,24 +330,9 @@ textarea {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #088d95;
+  background: var(--brand-primary, #088D95);
 }
 
-/* Spin animation for loading */
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.fa-spin {
-  animation: spin 1s linear infinite;
-}
-
-/* Custom scrollbar for settings panels */
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }
@@ -90,25 +350,27 @@ textarea {
   background: #475569;
 }
 
-/* Animation utilities */
+/* ==========================================================================
+   Animations
+   ========================================================================== */
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.fa-spin {
+  animation: spin 1s linear infinite;
+}
+
 @keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes slide-in-from-top {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-in {

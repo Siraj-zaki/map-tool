@@ -15,17 +15,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import mapboxgl from 'mapbox-gl';
 import type { POI, Route } from '../../api';
+import { getCategoryOrFallback } from '../../constants/poiCategories';
 import { useColorSettings } from '../../contexts/ColorSettingsContext';
 import './ElevationProfileVisx.css';
 
 // --- Assets ---
-const POI_ICONS: Record<string, string> = {
-  highlight: '/images/highlight-ico.png',
-  gipfel: '/images/graph-icon.png',
-  restaurant: '/images/resturant-ico.png',
-  hotel: '/images/hotel-ico.png',
-};
-const POI_ICON_FALLBACK = '/images/highlight-ico.png';
+// POI icons rendered inline as SVG pill markers via the shared category
+// registry — no PNG assets required for new categories.
 const POI_ICON_SIZE = 34;
 
 // --- Interfaces ---
@@ -58,10 +54,6 @@ interface ElevationPoint {
 }
 
 // --- Helper Functions ---
-function getPoiIcon(type?: string): string {
-  if (!type) return POI_ICON_FALLBACK;
-  return POI_ICONS[type.toLowerCase()] || POI_ICON_FALLBACK;
-}
 
 // --- Custom Brush Handle (like the working reference) ---
 function BrushHandle({ x, height, isBrushActive }: BrushHandleRenderProps) {
@@ -73,7 +65,7 @@ function BrushHandle({ x, height, isBrushActive }: BrushHandleRenderProps) {
   return (
     <Group left={x + pathWidth / 2} top={(height - pathHeight) / 2}>
       <path
-        fill="#088d95"
+        fill="var(--brand-primary, #088d95)"
         d="M -4.5 0.5 L 3.5 0.5 L 3.5 15.5 L -4.5 15.5 L -4.5 0.5 M -1.5 4 L -1.5 12 M 0.5 4 L 0.5 12"
         stroke="#0b1215"
         strokeWidth="1"
@@ -86,7 +78,7 @@ function BrushHandle({ x, height, isBrushActive }: BrushHandleRenderProps) {
 // --- Selected brush style ---
 const selectedBrushStyle = {
   fill: 'rgba(8, 141, 149, 0.15)',
-  stroke: '#088d95',
+  stroke: 'var(--brand-primary, #088d95)',
   strokeWidth: 1,
   rx: 10,
   ry: 10,
@@ -549,8 +541,8 @@ function ElevationChart({
             id="minimap-gradient-fallback"
             x1="0" y1="0" x2="0" y2="1"
           >
-            <stop offset="0%" stopColor="#088d95" stopOpacity={0.8} />
-            <stop offset="100%" stopColor="#088d95" stopOpacity={0.2} />
+            <stop offset="0%" stopColor="var(--brand-primary, #088d95)" stopOpacity={0.8} />
+            <stop offset="100%" stopColor="var(--brand-primary, #088d95)" stopOpacity={0.2} />
           </linearGradient>
 
           {/* Per-stage gradients - same as main graph */}
@@ -606,7 +598,7 @@ function ElevationChart({
                 y={d => brushYScale(d.elevation)}
                 yScale={brushYScale}
                 fill="url(#minimap-gradient-fallback)"
-                stroke="#088d95"
+                stroke="var(--brand-primary, #088d95)"
                 strokeOpacity={0.6}
                 strokeWidth={1}
                 pointerEvents="none"
@@ -799,8 +791,8 @@ function ElevationChart({
         >
           <LinearGradient
             id="main-gradient"
-            from="#088d95"
-            to="#088d95"
+            from="var(--brand-primary, #088d95)"
+            to="var(--brand-primary, #088d95)"
             fromOpacity={0.8}
             toOpacity={0.0}
           />
@@ -966,7 +958,7 @@ function ElevationChart({
                 cy={yScale(tooltipData.elevation)}
                 r={6}
                 fill="#ffffff"
-                stroke="#088d95"
+                stroke="var(--brand-primary, #088d95)"
                 strokeWidth={2}
                 pointerEvents="none"
               />
@@ -983,7 +975,7 @@ function ElevationChart({
                   x2={xScale(highlightDistance)}
                   y1={0}
                   y2={innerHeight}
-                  stroke="#088d95"
+                  stroke="var(--brand-primary, #088d95)"
                   strokeWidth={1}
                   strokeDasharray="4 4"
                 />
@@ -997,6 +989,7 @@ function ElevationChart({
               const x = xScale(p.distance);
               const y = yScale(p.elevation);
 
+              const category = getCategoryOrFallback(p.poi.type);
               return (
                 <g
                   key={i}
@@ -1007,13 +1000,32 @@ function ElevationChart({
                   }}
                   className="cursor-pointer hover:opacity-100 opacity-80 transition-opacity"
                 >
-                  <image
-                    href={getPoiIcon(p.poi.type)}
-                    width={POI_ICON_SIZE}
-                    height={POI_ICON_SIZE}
+                  <foreignObject
                     x={-POI_ICON_SIZE / 2}
                     y={-POI_ICON_SIZE / 2}
-                  />
+                    width={POI_ICON_SIZE}
+                    height={POI_ICON_SIZE}
+                    style={{ overflow: 'visible' }}
+                  >
+                    <div
+                      style={{
+                        width: POI_ICON_SIZE,
+                        height: POI_ICON_SIZE,
+                        borderRadius: '50%',
+                        background: category.color,
+                        border: '2px solid white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.35)',
+                      }}
+                    >
+                      <i
+                        className={`fas ${category.faIcon}`}
+                        style={{ color: 'white', fontSize: '0.9rem' }}
+                      />
+                    </div>
+                  </foreignObject>
                 </g>
               );
             })}

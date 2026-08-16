@@ -85,8 +85,8 @@
   font-weight: 700;
   border-radius: 50%;
   background: rgba(8, 141, 149, 0.3);
-  color: #088d95;
-  border: 0.125rem solid #088d95;
+  color: var(--brand-primary, #088D95);
+  border: 0.125rem solid var(--brand-primary, #088D95);
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
@@ -101,7 +101,7 @@
 }
 
 .stage-btn.active {
-  background: #088d95;
+  background: var(--brand-primary, #088D95);
   color: #fff;
   box-shadow: 0 0 0.75rem rgba(8, 141, 149, 0.6);
   animation: pulse 1.5s ease-in-out infinite;

@@ -17,7 +17,7 @@
   font-weight: 600;
   font-size: 0.6875rem;
   text-transform: uppercase;
-  color: #088d95;
+  color: var(--brand-primary, #088D95);
   margin-bottom: 0.625rem;
   letter-spacing: 0.0313rem;
 }
@@ -43,7 +43,7 @@
 .stat-item i {
   width: 0.875rem;
   text-align: center;
-  color: #088d95;
+  color: var(--brand-primary, #088D95);
 }
 
 .stat-value {
@@ -64,7 +64,7 @@
 }
 
 .elevation-range i {
-  color: #088d95;
+  color: var(--brand-primary, #088D95);
 }
 
 .stage-details-stages {
@@ -83,7 +83,7 @@
   display: flex;
   flex-direction: column;
   padding: 0.375rem 0 0.375rem 0.625rem;
-  border-left: 0.1875rem solid #088d95;
+  border-left: 0.1875rem solid var(--brand-primary, #088D95);
   margin-bottom: 0.375rem;
 }
 

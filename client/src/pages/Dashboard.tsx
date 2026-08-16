@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { authApi, routesApi, type Route } from '../api';
-import ShareModal from '../components/Share/ShareModal';
+import ShareManager from '../components/Share/ShareManager';
 
 const ROUTE_IMAGES = [
   'https://images.unsplash.com/photo-1604223190546-a43e4c7f29d7?q=80&w=1169&auto=format&fit=crop',
@@ -91,7 +91,7 @@ export default function Dashboard() {
         {/* Logo */}
         <div className="p-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#088d95] flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full brand-primary-bg flex items-center justify-center">
               <i className="fas fa-layer-group text-white text-sm"></i>
             </div>
             <div>
@@ -105,7 +105,7 @@ export default function Dashboard() {
         <nav className="flex-1 px-4 space-y-1">
           <a
             href="/admin"
-            className="flex items-center gap-3 px-4 py-3 bg-[#088d95] text-white rounded-xl font-medium transition-all"
+            className="flex items-center gap-3 px-4 py-3 brand-primary-bg text-white rounded-xl font-medium transition-all"
           >
             <i className="fas fa-map text-sm"></i>
             <span className="text-sm">{t('routes')}</span>
@@ -147,7 +147,7 @@ export default function Dashboard() {
           <h1 className="text-lg font-semibold text-white">Route Management</h1>
           <button
             onClick={() => navigate('/admin/edit')}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#088d95] hover:bg-[#0da6ae] text-white text-sm font-medium rounded-xl transition-all"
+            className="flex items-center gap-2 px-5 py-2.5 brand-primary-bg text-white text-sm font-medium rounded-xl transition-all"
           >
             <i className="fas fa-plus text-xs"></i>
             Create Route
@@ -173,7 +173,7 @@ export default function Dashboard() {
           {/* Routes Grid */}
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-              <i className="fas fa-spinner fa-spin text-4xl text-[#088d95] mb-4"></i>
+              <i className="fas fa-spinner fa-spin text-4xl brand-primary-text mb-4"></i>
               <span>{t('loading')}</span>
             </div>
           ) : filteredRoutes.length === 0 ? (
@@ -182,7 +182,7 @@ export default function Dashboard() {
               <span className="text-lg">{t('noRoutes')}</span>
               <button
                 onClick={() => navigate('/admin/edit')}
-                className="mt-4 px-6 py-2 bg-[#088d95] hover:bg-[#0da6ae] text-white rounded-lg transition-all"
+                className="mt-4 px-6 py-2 brand-primary-bg text-white rounded-lg transition-all"
               >
                 <i className="fas fa-plus mr-2"></i>
                 {t('createFirstRoute')}
@@ -282,9 +282,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Share Modal */}
+      {/* Share Manager (multi-link generator) */}
       {shareRoute && (
-        <ShareModal
+        <ShareManager
           routeId={shareRoute.id}
           routeName={shareRoute.name}
           onClose={() => setShareRoute(null)}

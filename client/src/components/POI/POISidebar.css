@@ -1,19 +1,19 @@
-/* POI Sidebar Styles */
+/* POI Sidebar — category-aware detail view */
 .poi-sidebar {
   position: fixed;
   top: 0;
   right: 0;
-  width: 22.5rem;
+  width: 23.5rem;
   max-width: 100%;
   height: 100%;
   background: #0b1215;
   z-index: 1000;
   transform: translateX(100%);
-  transition: transform 0.3s ease-in-out;
+  transition: transform 0.28s cubic-bezier(0.4, 0.0, 0.2, 1);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: -0.25rem 0 0.9375rem rgba(0, 0, 0, 0.3);
+  box-shadow: -0.375rem 0 1.5rem rgba(0, 0, 0, 0.55);
 }
 
 .poi-sidebar.visible {
@@ -27,11 +27,14 @@
   overflow: hidden;
 }
 
-/* Hero Section */
+/* -------------------------------------------------------------------- */
+/* Hero                                                                 */
+/* -------------------------------------------------------------------- */
+
 .poi-hero {
   position: relative;
   width: 100%;
-  height: 13.75rem;
+  height: 14.5rem;
   flex-shrink: 0;
   overflow: hidden;
 }
@@ -42,7 +45,8 @@
   right: 0.75rem;
   width: 2rem;
   height: 2rem;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
   border: none;
   border-radius: 50%;
   color: white;
@@ -51,11 +55,33 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: background 0.15s;
 }
 
 .close-button:hover {
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.poi-category-chip {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.35);
+}
+
+.poi-category-chip i {
+  font-size: 0.75rem;
 }
 
 /* Image Carousel */
@@ -73,21 +99,15 @@
 .carousel-image {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover; /* was contain — cover reads as a proper hero */
 }
 
 .carousel-placeholder {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #1e2a33 0%, #0b1215 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.carousel-placeholder i {
-  font-size: 3rem;
-  color: rgba(8, 141, 149, 0.4);
 }
 
 .carousel-button {
@@ -97,30 +117,26 @@
   width: 2.25rem;
   height: 2.25rem;
   background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(6px);
   border: none;
   border-radius: 50%;
   color: white;
   font-size: 1rem;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.15s;
   z-index: 10;
 }
 
 .carousel-button:hover {
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.65);
 }
 
-.carousel-button.prev {
-  left: 0.75rem;
-}
-
-.carousel-button.next {
-  right: 0.75rem;
-}
+.carousel-button.prev { left: 0.75rem; }
+.carousel-button.next { right: 0.75rem; }
 
 .carousel-dots {
   position: absolute;
-  bottom: 3.125rem;
+  bottom: 3.5rem;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -134,206 +150,235 @@
   background: rgba(255, 255, 255, 0.4);
   border-radius: 50%;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.15s;
 }
 
 .dot.active {
-  background: #088d95;
+  background: white;
 }
 
 .dot:hover {
   background: rgba(255, 255, 255, 0.7);
 }
 
-/* Hero Overlay */
 .poi-hero-overlay {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 1.25rem 1rem 0.75rem;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  padding: 1.75rem 1rem 0.75rem;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+}
+
+.poi-hero-accent {
+  width: 2.5rem;
+  height: 0.1875rem;
+  border-radius: 999px;
+  margin-bottom: 0.5rem;
 }
 
 .poi-hero-title {
   color: white;
-  font-size: 1.375rem;
+  font-size: 1.4rem;
   font-weight: 700;
   margin: 0;
-  text-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.5);
+  text-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.6);
+  line-height: 1.15;
 }
 
-/* Category Navigation */
-.poi-category-nav {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
+/* -------------------------------------------------------------------- */
+/* Body                                                                 */
+/* -------------------------------------------------------------------- */
 
-.category-buttons {
-  display: flex;
-  background: #080e11;
-  border-bottom: 0.0625rem solid #1e2a33;
-  flex-shrink: 0;
-}
-
-.category-btn {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.75rem 0.5rem;
-  background: transparent;
-  border: none;
-  color: #6b7280;
-  cursor: pointer;
-  transition: all 0.2s;
-  border-bottom: 0.125rem solid transparent;
-}
-
-.category-btn:hover {
-  color: #9ca3af;
-}
-
-.category-btn.active {
-  color: #088d95;
-  border-bottom-color: #088d95;
-}
-
-.category-btn i {
-  font-size: 1rem;
-}
-
-.category-btn span {
-  font-size: 0.625rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.0313rem;
-}
-
-/* Category Content */
-.category-content {
+.poi-body {
   flex: 1;
   overflow-y: auto;
-  padding: 1rem;
+  padding: 1rem 1rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 
-.category-panel {
-  display: none;
+.poi-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
 }
 
-.category-panel.active {
-  display: block;
+.poi-section-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0;
 }
 
-/* Overview Panel */
 .poi-description {
   color: #d1d5db;
-  font-size: 0.875rem;
-  line-height: 1.6;
-  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  margin: 0;
 }
 
-.poi-additional-info {
-  margin-top: 1rem;
-}
+/* -------------------------------------------------------------------- */
+/* Facts grid (category-specific fields + route context)                */
+/* -------------------------------------------------------------------- */
 
-.poi-info-item {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  background: #080e11;
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  border: 0.0625rem solid #1e2a33;
-}
-
-.poi-info-item i {
-  color: #088d95;
-  font-size: 1rem;
-}
-
-.poi-info-item span {
-  color: white;
-  font-size: 0.875rem;
-}
-
-/* Facilities Panel */
-.poi-amenities-grid {
+.poi-facts-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
 }
 
-.poi-amenity-item {
+.poi-fact {
   display: flex;
-  align-items: center;
-  gap: 0.625rem;
+  align-items: flex-start;
+  gap: 0.6rem;
   background: #080e11;
-  padding: 0.75rem;
-  border-radius: 0.5rem;
   border: 0.0625rem solid #1e2a33;
+  border-radius: 0.55rem;
+  padding: 0.65rem 0.75rem;
 }
 
-.poi-amenity-item i {
-  color: #088d95;
-  font-size: 0.875rem;
-  width: 1.25rem;
+.poi-fact-icon {
+  color: #6b7280;
+  font-size: 0.85rem;
+  padding-top: 0.15rem;
+  min-width: 0.85rem;
   text-align: center;
 }
 
-.poi-amenity-item span {
-  color: white;
-  font-size: 0.75rem;
+.poi-fact-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
-.no-facilities {
+.poi-fact-label {
+  font-size: 0.65rem;
   color: #6b7280;
-  font-size: 0.875rem;
-  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  margin-bottom: 0.25rem;
 }
 
-/* Location Panel */
-.location-coordinates {
+.poi-fact-value {
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------------------- */
+/* Amenities                                                            */
+/* -------------------------------------------------------------------- */
+
+.poi-amenity-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.poi-amenity-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.poi-amenity-group-title {
+  font-size: 0.6rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.poi-amenity-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.poi-amenity-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.55rem;
+  background: #080e11;
+  border: 0.0625rem solid #1e2a33;
+  border-radius: 999px;
+  color: #d1d5db;
+  font-size: 0.72rem;
+}
+
+.poi-amenity-chip i {
+  color: #9ca3af;
+  font-size: 0.7rem;
+}
+
+/* -------------------------------------------------------------------- */
+/* Location + actions                                                   */
+/* -------------------------------------------------------------------- */
+
+.poi-coords-row {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
+  gap: 0.6rem;
+  padding: 0.65rem 0.75rem;
   background: #080e11;
-  padding: 0.75rem;
-  border-radius: 0.5rem;
   border: 0.0625rem solid #1e2a33;
-  margin-bottom: 0.75rem;
-}
-
-.location-coordinates i {
-  color: #088d95;
-  font-size: 1rem;
-}
-
-.location-coordinates span {
+  border-radius: 0.55rem;
   color: white;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: border-color 0.15s;
 }
 
-.route-distance-info {
-  background: #080e11;
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  border: 0.0625rem solid #1e2a33;
+.poi-coords-row:hover {
+  border-color: var(--brand-primary, #088D95);
 }
 
-.route-distance-info p {
+.poi-coords-copy {
+  margin-left: auto;
+  color: #6b7280;
+  font-size: 0.75rem;
+  transition: color 0.15s;
+}
+
+.poi-coords-row:hover .poi-coords-copy {
+  color: white;
+}
+
+.poi-actions-row {
   display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  color: white;
-  font-size: 0.875rem;
-  margin: 0;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
 }
 
-.route-distance-info i {
-  color: #088d95;
-  font-size: 0.875rem;
+.poi-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.85rem;
+  background: transparent;
+  border: 0.0625rem solid #1e2a33;
+  border-radius: 0.55rem;
+  color: #d1d5db;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.poi-action-btn:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.poi-action-btn i {
+  font-size: 0.85rem;
 }

@@ -35,14 +35,14 @@
   gap: 6px;
   background: none;
   border: none;
-  color: #088d95;
+  color: var(--brand-primary, #088D95);
   font-size: 12px;
   cursor: pointer;
   margin-bottom: 8px;
 }
 
 .back-btn:hover {
-  color: #0da6ae;
+  color: var(--brand-primary, #088D95);
 }
 
 .sidebar-header h1 {
@@ -100,16 +100,16 @@
   gap: 4px;
   padding: 5px 10px;
   background: rgba(8, 141, 149, 0.1);
-  border: 1px solid #088d95;
+  border: 1px solid var(--brand-primary, #088D95);
   border-radius: 4px;
-  color: #088d95;
+  color: var(--brand-primary, #088D95);
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
 }
 
 .add-btn:hover:not(:disabled) {
-  background: #088d95;
+  background: var(--brand-primary, #088D95);
   color: #080e11;
 }
 
@@ -138,11 +138,11 @@
 }
 
 .location-card:hover {
-  border-color: #088d95;
+  border-color: var(--brand-primary, #088D95);
 }
 
 .location-card.selected {
-  border-color: #088d95;
+  border-color: var(--brand-primary, #088D95);
   background: rgba(8, 141, 149, 0.08);
 }
 
@@ -206,7 +206,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: #088d95;
+  background: var(--brand-primary, #088D95);
   border-radius: 20px;
   color: #fff;
   font-size: 12px;
@@ -300,7 +300,7 @@
 }
 
 .location-marker.selected {
-  background: #088d95;
+  background: var(--brand-primary, #088D95);
   box-shadow: 0 0 0 4px rgba(8, 141, 149, 0.3), 0 2px 8px rgba(0,0,0,0.4);
 }
 
@@ -412,7 +412,7 @@
 
 .form-group input:focus {
   outline: none;
-  border-color: #088d95;
+  border-color: var(--brand-primary, #088D95);
 }
 
 .coord-display {
@@ -441,7 +441,7 @@
   align-items: center;
   gap: 4px;
   padding: 5px 10px;
-  background: #088d95;
+  background: var(--brand-primary, #088D95);
   border: none;
   border-radius: 4px;
   color: #fff;
@@ -472,7 +472,7 @@
 }
 
 .save-pill {
-  background: #088d95;
+  background: var(--brand-primary, #088D95);
   border: none;
   color: #fff;
 }
@@ -488,5 +488,5 @@
   align-items: center;
   justify-content: center;
   background: #0b1215;
-  color: #088d95;
+  color: var(--brand-primary, #088D95);
 }

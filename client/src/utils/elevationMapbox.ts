@@ -153,21 +153,42 @@ function restoreCamera(
  * 3. Returns raw elevation values — no smoothing or filtering applied
  * 4. Returns full ElevationDataPoint[] with { elevation, distance, coordinates }
  */
+/**
+ * Options for elevation queries.
+ * - `preserveCamera` (default false): skip the fitBounds+wait+restore dance
+ *   so the user's viewport is not disturbed. When true, only coordinates
+ *   whose DEM tiles are already loaded return real elevations; if more than
+ *   half return null we throw so callers can defer to an explicit
+ *   full-fidelity calculation instead of storing garbage data.
+ */
+export interface ElevationOptions {
+  preserveCamera?: boolean;
+}
+
 export async function getMapboxElevation(
   map: mapboxgl.Map,
-  coordinates: [number, number][]
+  coordinates: [number, number][],
+  options: ElevationOptions = {}
 ): Promise<ElevationResult> {
+  const preserveCamera = options.preserveCamera === true;
   console.log(
-    `[Mapbox Elevation] Querying elevations for ${coordinates.length} points...`
+    `[Mapbox Elevation] Querying elevations for ${coordinates.length} points (preserveCamera=${preserveCamera})...`
   );
 
   try {
     // 1. Ensure terrain is enabled
     ensureTerrain(map);
 
-    // 2. Fit the map to the route extent and wait for terrain tiles to load
-    const savedCamera = await fitToRouteAndWait(map, coordinates);
-    console.log('[Mapbox Elevation] Map fitted to route bounds and idle — terrain tiles loaded');
+    // 2. Fit the map to the route extent so DEM tiles load for the whole
+    //    area — skipped when the caller doesn't want the camera to move
+    //    (e.g. auto-elevation on waypoint add). In that mode we accept
+    //    that some coordinates may return null and bail out if too many do.
+    const savedCamera = preserveCamera
+      ? null
+      : await fitToRouteAndWait(map, coordinates);
+    if (!preserveCamera) {
+      console.log('[Mapbox Elevation] Map fitted to route bounds and idle — terrain tiles loaded');
+    }
 
     // 3. Query raw elevation for every coordinate
     const rawElevations: number[] = [];
@@ -197,8 +218,16 @@ export async function getMapboxElevation(
       `[Mapbox Elevation] Raw query: ${coordinates.length - nullCount} valid, ${nullCount} null`
     );
 
+    // In preserveCamera mode we may be zoomed too far in for most of the
+    // route to have loaded DEM tiles. Throwing here keeps the caller's
+    // state untouched so a later explicit calculation can produce accurate
+    // stats rather than storing an all-flat fallback line.
+    if (preserveCamera && nullCount > coordinates.length / 2) {
+      throw new Error('TILES_NOT_LOADED');
+    }
+
     // 4. Restore the camera position so the user doesn't see a flicker
-    restoreCamera(map, savedCamera);
+    if (savedCamera) restoreCamera(map, savedCamera);
 
     // 5. Smooth the raw elevations with a 5-point moving average.
     // Testing with the Komoot GPX reference showed that Smooth(5) on DEM data

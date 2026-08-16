@@ -13,6 +13,7 @@ import gpxRoutes from './routes/gpx.js';
 import poisRoutes from './routes/pois.js';
 import routesRoutes from './routes/routes.js';
 import settingsRoutes from './routes/settings.js';
+import shareLinksRoutes from './routes/shareLinks.js';
 import locationsRoutes from './routes/locations.js';
 
 const app = express();
@@ -59,6 +60,12 @@ app.use('/api/pois', poisRoutes);
 app.use('/api/gpx', gpxRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/locations', locationsRoutes);
+// shareLinksRoutes owns three URL shapes:
+//   /api/routes/:routeId/share-links   (list/create)
+//   /api/share-links/:id                (update/delete)
+//   /api/share/:token                    (public read)
+// Mounted at /api so it can serve all three prefixes from one router.
+app.use('/api', shareLinksRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

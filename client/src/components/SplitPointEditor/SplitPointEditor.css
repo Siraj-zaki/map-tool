@@ -18,7 +18,7 @@
 }
 
 .spe-header-compact i {
-  color: #088d95;
+  color: var(--brand-primary, #088D95);
   font-size: 14px;
 }
 
@@ -58,11 +58,11 @@
 }
 
 .spe-loc-select:hover {
-  border-color: #088d95;
+  border-color: var(--brand-primary, #088D95);
 }
 
 .spe-loc-select i:first-child {
-  color: #088d95;
+  color: var(--brand-primary, #088D95);
 }
 
 .spe-loc-select span {
@@ -113,7 +113,7 @@
 }
 
 .spe-loc-dropdown button i {
-  color: #088d95;
+  color: var(--brand-primary, #088D95);
   width: 14px;
 }
 
@@ -242,7 +242,7 @@
 }
 
 .spe-item.editing {
-  border-color: #088d95;
+  border-color: var(--brand-primary, #088D95);
   box-shadow: 0 0 0 2px rgba(8, 141, 149, 0.2);
 }
 
@@ -271,7 +271,7 @@
 }
 
 .spe-item.editing .spe-item-num {
-  border-color: #088d95;
+  border-color: var(--brand-primary, #088D95);
   animation: pulse 1.5s infinite;
 }
 
@@ -300,12 +300,12 @@
 
 .spe-item-body input:focus {
   outline: none;
-  border-color: #088d95;
+  border-color: var(--brand-primary, #088D95);
 }
 
 .spe-dist {
   font-size: 10px;
-  color: #088d95;
+  color: var(--brand-primary, #088D95);
 }
 
 .spe-item-actions {
@@ -328,13 +328,13 @@
 }
 
 .spe-item-actions button:hover {
-  border-color: #088d95;
+  border-color: var(--brand-primary, #088D95);
   color: #fff;
 }
 
 .spe-item-actions button.active {
-  background: #088d95;
-  border-color: #088d95;
+  background: var(--brand-primary, #088D95);
+  border-color: var(--brand-primary, #088D95);
   color: #fff;
 }
 
@@ -361,8 +361,8 @@
 }
 
 .spe-add:hover:not(:disabled) {
-  border-color: #088d95;
-  color: #088d95;
+  border-color: var(--brand-primary, #088D95);
+  color: var(--brand-primary, #088D95);
   background: rgba(8, 141, 149, 0.05);
 }
 
@@ -372,9 +372,9 @@
 
 .spe-add.picking {
   border-style: solid;
-  border-color: #088d95;
+  border-color: var(--brand-primary, #088D95);
   background: rgba(8, 141, 149, 0.1);
-  color: #088d95;
+  color: var(--brand-primary, #088D95);
 }
 
 /* Save */
@@ -386,7 +386,7 @@
   justify-content: center;
   gap: 6px;
   padding: 10px;
-  background: #088d95;
+  background: var(--brand-primary, #088D95);
   border: none;
   border-radius: 6px;
   color: #fff;
@@ -396,7 +396,7 @@
 }
 
 .spe-save:hover:not(:disabled) {
-  background: #0da6ae;
+  background: var(--brand-primary, #088D95);
 }
 
 .spe-save:disabled {

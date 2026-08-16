@@ -100,7 +100,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-3 py-3.5 bg-[#088d95] hover:bg-[#0da6ae] text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-3 py-3.5 brand-primary-bg text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
@@ -117,12 +117,12 @@ export default function Login() {
           </form>
 
           {/* Demo Credentials */}
-          <div className="mt-6 pt-6 border-t border-[#1e2a33]">
+          {/* <div className="mt-6 pt-6 border-t border-[#1e2a33]">
             <p className="text-gray-500 text-xs text-center">
               {t('demoCredentials')}:{' '}
               <span className="text-gray-400">admin / admin123</span>
             </p>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

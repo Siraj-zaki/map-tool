@@ -71,7 +71,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     // Get POIs with images and amenities
     const pois = await query(
       `
-      SELECT poi_id, name, description, location, type, best_time
+      SELECT poi_id, name, description, location, type, best_time, metadata
       FROM pois WHERE route_id = ?
     `,
       [id]
@@ -88,11 +88,24 @@ router.get('/:id', async (req: Request, res: Response) => {
           [poi.poi_id]
         );
 
+        // Parse metadata JSON defensively — legacy rows have NULL, and
+        // malformed values (unlikely, but possible from manual edits) must
+        // not crash the whole route load.
+        let metadata: Record<string, unknown> | null = null;
+        if (poi.metadata) {
+          try {
+            metadata = JSON.parse(poi.metadata);
+          } catch {
+            metadata = null;
+          }
+        }
+
         return {
           ...poi,
           lngLat: JSON.parse(poi.location),
           images: images.map((img: any) => img.image_path),
           amenities: amenities.map((a: any) => a.amenity),
+          metadata,
         };
       })
     );
@@ -190,8 +203,8 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
       for (const poi of pois) {
         const poiResult = await run(
           `
-          INSERT INTO pois (route_id, name, description, location, type, best_time)
-          VALUES (?, ?, ?, ?, ?, ?)
+          INSERT INTO pois (route_id, name, description, location, type, best_time, metadata)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
         `,
           [
             routeId,
@@ -200,6 +213,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
             JSON.stringify(poi.lngLat),
             poi.type || null,
             poi.best_time || null,
+            poi.metadata ? JSON.stringify(poi.metadata) : null,
           ]
         );
         const poiId = poiResult.insertId;
@@ -316,8 +330,8 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
       for (const poi of pois) {
         const poiResult = await run(
           `
-          INSERT INTO pois (route_id, name, description, location, type, best_time)
-          VALUES (?, ?, ?, ?, ?, ?)
+          INSERT INTO pois (route_id, name, description, location, type, best_time, metadata)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
         `,
           [
             id, // Use existing route id
@@ -326,6 +340,7 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
             JSON.stringify(poi.lngLat),
             poi.type || null,
             poi.best_time || null,
+            poi.metadata ? JSON.stringify(poi.metadata) : null,
           ]
         );
         const poiId = poiResult.insertId;
